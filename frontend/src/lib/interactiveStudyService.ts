@@ -1,6 +1,6 @@
 import { collection, db, getDocs, query, where } from "@/lib/firebase";
 import { saveEntityToFirestore, type SupportedFirestoreCollection } from "@/lib/firestoreSync";
-import { cacheGet, cacheSet, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
+import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, getPendingOps } from "@/lib/offlineQueue";
 import { reconcileRemoteRowsWithPending } from "@/lib/offlineReconcile";
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 
@@ -149,7 +149,26 @@ export async function persistInteractiveStudySession(
   const updatedAt = new Date(Math.max(Date.now(), Number.isFinite(previousTime) ? previousTime + 1 : 0)).toISOString();
   const session = { ...input, content_html: html, updated_at: updatedAt };
 
-  if (isOnline() && await saveWithTimeout(session)) {
+  let pendingForSession: Awaited<ReturnType<typeof getPendingOps>>;
+  try {
+    pendingForSession = (await getPendingOps(INTERACTIVE_STUDY_COLLECTION))
+      .filter((item) => canReplayForOwner(item, session.user_id) &&
+        (item.payload as Partial<InteractiveStudySession> | undefined)?.id === session.id)
+      .sort((left, right) => left.createdAt - right.createdAt);
+  } catch {
+    return { status: "failed", session, error: "The saved session queue could not be checked safely." };
+  }
+  const previousQueuedEdit = pendingForSession[pendingForSession.length - 1];
+  const previousQueuedRevision = previousQueuedEdit?.payload && typeof previousQueuedEdit.payload === "object"
+    ? (previousQueuedEdit.payload as Partial<InteractiveStudySession>).updated_at
+    : undefined;
+  if (previousQueuedEdit && (typeof previousQueuedRevision !== "string" || input.updated_at !== previousQueuedRevision)) {
+    return { status: "failed", session, error: "A newer study-session edit is already queued. Reload it before saving another change." };
+  }
+
+  // Keep edits in order when an earlier offline change to this same session is
+  // waiting. Directly saving the newer copy would bypass its revision base.
+  if (isOnline() && !previousQueuedEdit && await saveWithTimeout(session)) {
     await cacheSessionSafely(cacheKey(session.user_id, session.document_id, session.language), session);
     return { status: "saved", session };
   }
@@ -162,6 +181,9 @@ export async function persistInteractiveStudySession(
       op: "upsert",
       payload: session,
       match: { id: session.id },
+      expectedRevision: previousQueuedEdit
+        ? previousQueuedRevision
+        : input.updated_at !== input.created_at ? input.updated_at : undefined,
     });
   } catch {
     queued = false;

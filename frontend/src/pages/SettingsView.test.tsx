@@ -17,4 +17,18 @@ describe("settings navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Go back" }));
     await waitFor(() => expect(screen.getAllByRole("tab")[0]).toHaveAttribute("data-state", "active"));
   });
+
+  it("places navigation customization before unrelated system design settings", () => {
+    render(<MemoryRouter initialEntries={["/app/settings?tab=general"]}><SettingsView /></MemoryRouter>);
+
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent || "");
+    const sidebarSettingsIndex = headings.findIndex((heading) => /Sidebar & Icons Settings|تنظیمات نوار کناری/.test(heading));
+    const bottomBarSettingsIndex = headings.findIndex((heading) => /Mobile Bottom Navigation Bar|شخصی‌سازی نوار پایین موبایل/.test(heading));
+    const lifeArchitectIndex = headings.findIndex((heading) => /Life Architect & System Design|معمار هوشمند زندگی/.test(heading));
+
+    expect(sidebarSettingsIndex).toBeGreaterThanOrEqual(0);
+    expect(bottomBarSettingsIndex).toBeGreaterThanOrEqual(0);
+    expect(sidebarSettingsIndex).toBeLessThan(lifeArchitectIndex);
+    expect(bottomBarSettingsIndex).toBeLessThan(lifeArchitectIndex);
+  });
 });

@@ -22,6 +22,8 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
+  clearIndexedDbPersistence,
+  terminate,
   connectFirestoreEmulator,
   type Firestore,
 } from "firebase/firestore";
@@ -46,6 +48,7 @@ import firebaseConfig from "../../firebase-applet-config.json";
 // Dev-only: local emulators for QA so testing never spends the real project's daily quota.
 const useEmulator = import.meta.env.DEV && typeof localStorage !== "undefined" && localStorage.getItem("arsh_use_emulator") === "1";
 const app = !getApps().length ? initializeApp(useEmulator ? { ...firebaseConfig, projectId: "demo-arshnaz" } : firebaseConfig) : getApp();
+let persistentCacheEnabled = false;
 
 // Persistent multi-tab cache: listeners resume from IndexedDB and only one tab owns the network stream.
 function createDb(): Firestore {
@@ -53,7 +56,9 @@ function createDb(): Firestore {
   if (import.meta.env.MODE !== "test" && typeof indexedDB !== "undefined") {
     try {
       const settings = { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) };
-      return dbId ? initializeFirestore(app, settings, dbId) : initializeFirestore(app, settings);
+      const firestore = dbId ? initializeFirestore(app, settings, dbId) : initializeFirestore(app, settings);
+      persistentCacheEnabled = true;
+      return firestore;
     } catch (error) {
       console.warn("[firebase] persistent cache unavailable, using memory cache", error);
     }
@@ -61,6 +66,28 @@ function createDb(): Firestore {
   return dbId ? getFirestore(app, dbId) : getFirestore(app);
 }
 export const db: Firestore = createDb();
+
+/** Terminate this Firestore instance and remove its persistent IndexedDB cache. */
+export async function clearFirestorePersistence(firestore: Firestore): Promise<boolean> {
+  try {
+    await terminate(firestore);
+    await clearIndexedDbPersistence(firestore);
+    return true;
+  } catch (error) {
+    // Firestore can reject this while another tab still owns the persistence
+    // lease. Callers must report incomplete device cleanup in that case.
+    console.warn("[firebase] Could not clear persistent Firestore cache:", error);
+    return false;
+  }
+}
+
+/** Clear persisted local Firestore data when this app enabled IndexedDB caching. */
+export async function clearPersistentFirestoreCache(): Promise<boolean> {
+  if (!persistentCacheEnabled) return true;
+  const cleared = await clearFirestorePersistence(db);
+  if (cleared) persistentCacheEnabled = false;
+  return cleared;
+}
 
 export const auth: Auth = getAuth(app);
 

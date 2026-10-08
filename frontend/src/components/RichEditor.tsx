@@ -11,6 +11,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import Typography from "@tiptap/extension-typography";
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, Heading1, Heading2, Heading3,
@@ -41,6 +42,47 @@ const AI_ACTIONS = [
   { key: "tone_formal", label: "👔 لحن رسمی‌تر" },
   { key: "tone_casual", label: "😊 لحن صمیمی‌تر" },
 ];
+
+function retainTableHtmlAttributes(names: string[]) {
+  return Object.fromEntries(names.map((name) => [name, {
+    default: null,
+    parseHTML: (element: HTMLElement) => element.getAttribute(name),
+    renderHTML: (attributes: Record<string, unknown>) => attributes[name] == null ? {} : { [name]: attributes[name] },
+  }]));
+}
+
+const PreservingTable = Table.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...retainTableHtmlAttributes(["class", "id", "title", "style", "border", "cellpadding", "cellspacing"]) };
+  },
+});
+const PreservingTableRow = TableRow.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...retainTableHtmlAttributes(["class", "id", "title", "style", "height", "align", "valign"]) };
+  },
+});
+const PreservingTableCell = TableCell.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...retainTableHtmlAttributes(["class", "id", "title", "style", "width", "height", "valign", "bgcolor", "headers"]) };
+  },
+});
+const PreservingTableHeader = TableHeader.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...retainTableHtmlAttributes(["class", "id", "title", "style", "width", "height", "valign", "bgcolor", "headers", "scope"]) };
+  },
+});
+const PreservingYoutube = Youtube.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      title: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("title"),
+        renderHTML: (attributes: Record<string, unknown>) => attributes.title == null ? {} : { title: attributes.title },
+      },
+    };
+  },
+});
 
 export type RichEditorHandle = {
   getHtml: () => string;
@@ -108,12 +150,22 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     editable: !readOnly,
     shouldRerenderOnTransaction: true,
     extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, link: { openOnClick: false, autolink: true }, underline: false }),
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        link: { openOnClick: false, autolink: true },
+        code: { HTMLAttributes: { dir: "ltr" } },
+        codeBlock: { HTMLAttributes: { dir: "ltr" } },
+        underline: false,
+      }),
       Underline,
       Highlight.configure({ multicolor: false }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image.configure({ inline: false, allowBase64: false }),
-      Youtube.configure({ controls: true, nocookie: true }),
+      Image.configure({ inline: false, allowBase64: true }),
+      PreservingYoutube.configure({ controls: true, nocookie: true }),
+      PreservingTable.configure({ resizable: false, renderWrapper: false }),
+      PreservingTableRow,
+      PreservingTableHeader,
+      PreservingTableCell,
       TaskList,
       TaskItem.configure({ nested: true }),
       Typography,

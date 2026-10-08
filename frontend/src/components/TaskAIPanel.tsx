@@ -69,6 +69,30 @@ function newSuggestedTaskId() {
   return `task_ai_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`}`;
 }
 
+function parseSubtaskResponse(data: unknown): { mode: "questions"; questions: ClarifyQ[] } | { mode: "subtasks"; subtasks: string[] } | null {
+  if (!data || typeof data !== "object") return null;
+  const response = data as Record<string, any>;
+  if (response.mode === "questions") {
+    if (!Array.isArray(response.questions) || response.questions.length < 1 || response.questions.length > 3) return null;
+    const questions: ClarifyQ[] = [];
+    for (const item of response.questions) {
+      if (!item || typeof item !== "object" || typeof item.question !== "string" || !item.question.trim() ||
+          item.question.length > 300 || !Array.isArray(item.options) || item.options.length < 2 || item.options.length > 5 ||
+          !item.options.every((option: unknown) => typeof option === "string" && option.trim() && option.length <= 120)) return null;
+      questions.push({ question: item.question.trim(), options: item.options.map((option: string) => option.trim()) });
+    }
+    return { mode: "questions", questions };
+  }
+  if (response.mode !== undefined && response.mode !== "subtasks") return null;
+  if (!Array.isArray(response.subtasks)) return null;
+  const subtasks = response.subtasks
+    .filter((item: unknown): item is string => typeof item === "string")
+    .map((item: string) => item.trim().slice(0, 240))
+    .filter(Boolean)
+    .slice(0, 7);
+  return subtasks.length ? { mode: "subtasks", subtasks } : null;
+}
+
 export function TaskAIPanel({
   task, open, onOpenChange, onMetaApplied, onApplyPatch,
 }: {
@@ -146,6 +170,9 @@ export function TaskAIPanel({
   const genSubtasks = async (extra?: string) => {
     const request = beginRequest();
     setLoading(true);
+    setQuestions([]); setAnswers({});
+    setSubSugs([]); setSubPicked({});
+    subtaskIdsRef.current = [];
     try {
       const ctx = await buildContext(request);
       if (!ctx || !isCurrentRequest(request)) return;
@@ -154,17 +181,19 @@ export function TaskAIPanel({
         : `Task: "${task.title}"`;
       const r = await callAI("task_subtasks", promptInput, ctx, undefined, aiLang, { skipPersonalization: true });
       if (!isCurrentRequest(request)) return;
-      const d = r.data;
-      if (d?.mode === "questions" && d.questions?.length) {
-        setQuestions(d.questions);
+      const parsed = parseSubtaskResponse(r.data);
+      if (parsed?.mode === "questions") {
+        setQuestions(parsed.questions);
         setSubSugs([]); setSubPicked({});
         subtaskIdsRef.current = [];
-      } else {
-        const suggestions: string[] = Array.isArray(d?.subtasks) ? d.subtasks : [];
+      } else if (parsed?.mode === "subtasks") {
+        const suggestions = parsed.subtasks;
         subtaskIdsRef.current = suggestions.map(() => newSuggestedTaskId());
         setSubSugs(suggestions);
         setSubPicked(Object.fromEntries(suggestions.map((_: string, i: number) => [i, true])));
         setQuestions([]);
+      } else {
+        toast.error(T("پاسخ ساختاریافتهٔ معتبری برای مراحل دریافت نشد", "The AI did not return valid structured steps"));
       }
     } catch (e: any) { if (isCurrentRequest(request)) toast.error(e.message); }
     finally { if (isCurrentRequest(request)) setLoading(false); }

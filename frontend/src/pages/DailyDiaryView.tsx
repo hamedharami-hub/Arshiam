@@ -253,6 +253,7 @@ export default function DailyDiaryView() {
                       if (draftRef.current?.id !== draft.id) return;
                       patch({ diary_attachments: [...(draftRef.current.diary_attachments ?? []), { id: crypto.randomUUID(), url: media.url, name: media.name, kind: media.kind, path: media.path }] });
                     }}
+                    initialHtml={draft.diary_html || undefined}
                     initialMarkdown={draft.content}
                     placeholder={T("امروز چه گذشت؟ چه چیزی را نمی‌خواهی فراموش کنی؟", "What happened today? What don't you want to forget?")}
                     onChange={(html, markdown) => patch({ content: markdown, diary_html: html })}

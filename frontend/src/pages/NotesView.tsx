@@ -62,6 +62,7 @@ import {
 import { toast } from "sonner";
 import { MetaTile } from "@/components/task-detail/MetaTile";
 import { NoteEditorTabs } from "@/components/NoteEditorTabs";
+import { NoteTaskLinkPills } from "@/components/NoteTaskLinkPills";
 import { markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { BidiText } from "@/components/BidiText";
@@ -79,6 +80,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { getNoteTemplates, type NoteTemplate } from "@/lib/noteTemplates";
 import { suggestNoteActionItem } from "@/lib/noteActionItems";
 import { persistNoteActionItem } from "@/lib/noteActionItemService";
+import { getNoteTaskLinks, type NoteTaskLink } from "@/lib/noteTaskLinkService";
 
 type Note = {
   id: string;
@@ -157,6 +159,8 @@ export default function NotesView() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [noteTaskLinks, setNoteTaskLinks] = useState<NoteTaskLink[]>([]);
+  const [linkedTaskTitles, setLinkedTaskTitles] = useState<Map<string, string>>(() => new Map());
   const notesRef = useRef(notes);
   notesRef.current = notes;
   const accountRef = useRef(user?.id);
@@ -217,6 +221,65 @@ export default function NotesView() {
 
   const folderMap = useMemo(() => new Map(folders.map((f) => [f.id, f])), [folders]);
   const tagMap = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
+
+  const taskIdsByNote = useMemo(() => {
+    const linked = new Map<string, string[]>();
+    const add = (noteId: string, taskId: string) => {
+      const taskIds = linked.get(noteId) || [];
+      if (!taskIds.includes(taskId)) linked.set(noteId, [...taskIds, taskId]);
+    };
+    for (const link of noteTaskLinks) add(link.note_id, link.task_id);
+    // Older notes used a single task_id column instead of note_task_links.
+    for (const note of notes) if (note.task_id) add(note.id, note.task_id);
+    return linked;
+  }, [notes, noteTaskLinks]);
+
+  const linkedTaskIds = useMemo(() => [...new Set([
+    ...noteTaskLinks.map((link) => link.task_id),
+    ...notes.map((note) => note.task_id).filter((taskId): taskId is string => Boolean(taskId)),
+  ].filter(Boolean))], [notes, noteTaskLinks]);
+
+  useEffect(() => {
+    const ownerId = user?.id;
+    if (!ownerId) {
+      setNoteTaskLinks([]);
+      setLinkedTaskTitles(new Map());
+      return;
+    }
+
+    let active = true;
+    setNoteTaskLinks([]);
+    setLinkedTaskTitles(new Map());
+    void getNoteTaskLinks(ownerId)
+      .then((links) => { if (active) setNoteTaskLinks(links.filter((link) => link.user_id === ownerId)); })
+      .catch(() => undefined);
+
+    return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    const ownerId = user?.id;
+    if (!ownerId || !linkedTaskIds.length) { setLinkedTaskTitles(new Map()); return; }
+    let active = true;
+    void (async () => {
+      try {
+        const titles = new Map<string, string>();
+        for (let index = 0; index < linkedTaskIds.length; index += 100) {
+          const { data, error } = await firebaseStore
+            .from("tasks")
+            .select("id,title")
+            .eq("user_id", ownerId)
+            .in("id", linkedTaskIds.slice(index, index + 100));
+          if (!active) return;
+          if (!error) for (const task of (data || []) as Array<{ id: string; title: string }>) titles.set(task.id, task.title);
+        }
+        if (active) setLinkedTaskTitles(titles);
+      } catch {
+        // Keep the links visible with a generic label when task titles are unavailable.
+      }
+    })();
+    return () => { active = false; };
+  }, [user?.id, linkedTaskIds]);
 
   // Load Folders & Tags
   useEffect(() => {
@@ -832,6 +895,7 @@ export default function NotesView() {
             value={(selected.tag_ids || []).length ? (selected.tag_ids || []).map((tid) => tagMap.get(tid)?.name || tid).join(isEn ? ", " : "، ") : null}
             active={(selected.tag_ids || []).length > 0} open={notePanel === "tags"} aria-expanded={notePanel === "tags"} disabled={!canEdit}
             onClick={() => setNotePanel(notePanel === "tags" ? null : "tags")} data-testid="note-meta-tags" />
+          <NoteTaskLinkPills taskIds={taskIdsByNote.get(selected.id) || []} taskTitles={linkedTaskTitles} />
         </div>
 
         {/* Right: Note Type Switcher ("انتخاب نوع نوت") */}

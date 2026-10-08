@@ -17,6 +17,29 @@ export type FocusNotificationState = {
   remainingSeconds: number;
 };
 
+export type FocusBackgroundPlatform = "android" | "ios" | "web";
+
+export function focusBackgroundDisclosure(platform: FocusBackgroundPlatform) {
+  if (platform === "android") return {
+    descriptionFa: "زمان پایان جلسه ذخیره می‌ماند و در صورت مجازبودن اعلان‌ها، اندروید شمارش معکوس را نشان می‌دهد. اعلان پایان ممکن است به‌خاطر زنگ تقریبی، Doze یا محدودیت باتری دیر برسد.",
+    descriptionEn: "The session end time is saved and Android can show a countdown when notifications are allowed. The finish alert may arrive late because of inexact alarms, Doze, or battery restrictions.",
+    actionFa: "ادامه در پس‌زمینه",
+    actionEn: "Continue in background",
+  };
+  if (platform === "ios") return {
+    descriptionFa: "با خروج از برنامه، iOS ممکن است اجرای آن را متوقف کند. زمان پایان ذخیره می‌ماند و با بازگشت تایمر به‌روز می‌شود؛ با اجازهٔ اعلان‌ها، یک اعلان پایان زمان‌بندی‌شده فرستاده می‌شود، اما شمارش زنده نمایش داده نمی‌شود.",
+    descriptionEn: "iOS may pause the app in the background. The saved end time lets the timer catch up when reopened; with notification access, iOS can send a scheduled finish alert, but it will not show a live countdown.",
+    actionFa: "ادامه",
+    actionEn: "Continue",
+  };
+  return {
+    descriptionFa: "مرورگر ممکن است صفحه را در پس‌زمینه متوقف کند و اعلان پس‌زمینه تضمین‌شده نیست. زمان پایان ذخیره می‌ماند تا با بازگشت به صفحه تایمر به‌روز شود.",
+    descriptionEn: "The browser may suspend this page in the background, and background alerts are not guaranteed. The saved end time lets the timer catch up when you return.",
+    actionFa: "ادامه",
+    actionEn: "Continue",
+  };
+}
+
 if (Capacitor.isNativePlatform() && !tapListenerRegistered) {
   tapListenerRegistered = true;
   void LocalNotifications.addListener("localNotificationActionPerformed", (event) => {

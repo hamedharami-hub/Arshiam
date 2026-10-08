@@ -1,7 +1,19 @@
 import { firebaseStore } from "@/lib/firebaseStore";
-import { getStoredUser } from "@/lib/authService";
 import { isAIPersonalizationOptedIn, setAIPersonalizationOptedIn } from "@/lib/aiSettings";
 import { formatAboutMeForAI, getAboutMeAIPromptDirectives, type AboutMeRow } from "@/lib/aboutMe";
+
+async function currentAuthUserId(): Promise<string | null> {
+  try {
+    const { data: { user } } = await firebaseStore.auth.getUser();
+    return (user as any)?.uid || (user as any)?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+function emptyPersonalization(isOptedIn: boolean): PersonalizationData {
+  return { contextText: "", hasData: false, aboutMePoints: [], mindPoints: [], isOptedIn };
+}
 
 export interface PersonalizationData {
   contextText: string;
@@ -19,45 +31,22 @@ export async function buildPersonalizationContext(options?: {
   lang?: "fa" | "en";
   uid?: string;
 }): Promise<PersonalizationData> {
-  const isOptedIn = isAIPersonalizationOptedIn();
-  if (!isOptedIn) {
-    return {
-      contextText: "",
-      hasData: false,
-      aboutMePoints: [],
-      mindPoints: [],
-      isOptedIn: false,
-    };
-  }
+  const activeUid = await currentAuthUserId();
+  const uid = options?.uid || activeUid;
+
+  const isOptedIn = Boolean(uid && activeUid === uid && isAIPersonalizationOptedIn(uid));
+  if (!isOptedIn) return emptyPersonalization(false);
 
   const lang = options?.lang || "fa";
-  let uid = options?.uid;
-  if (!uid) {
-    const local = getStoredUser();
-    uid = local?.id;
-    if (!uid) {
-      try {
-        const { data: { user } } = await firebaseStore.auth.getUser();
-        uid = (user as any)?.uid || (user as any)?.id;
-      } catch {}
-    }
-  }
-
-  if (!uid) {
-    return {
-      contextText: "",
-      hasData: false,
-      aboutMePoints: [],
-      mindPoints: [],
-      isOptedIn: true,
-    };
-  }
+  if (!uid) return emptyPersonalization(false);
 
   try {
     const [{ data: mh }, { data: am }] = await Promise.all([
-      firebaseStore.from("mh_profile").select("*").eq("user_id", uid).maybeSingle(),
-      firebaseStore.from("about_me" as any).select("*").eq("user_id", uid).maybeSingle(),
+      firebaseStore.from("mh_profile", uid).select("*").eq("user_id", uid).maybeSingle(),
+      firebaseStore.from("about_me" as any, uid).select("*").eq("user_id", uid).maybeSingle(),
     ]);
+
+    if (await currentAuthUserId() !== uid || !isAIPersonalizationOptedIn(uid)) return emptyPersonalization(false);
 
     const aboutMePoints = formatAboutMeForAI(am as AboutMeRow, lang);
 
@@ -87,13 +76,7 @@ export async function buildPersonalizationContext(options?: {
 
     const hasData = aboutMePoints.length > 0 || mindPoints.length > 0;
     if (!hasData) {
-      return {
-        contextText: "",
-        hasData: false,
-        aboutMePoints: [],
-        mindPoints: [],
-        isOptedIn: true,
-      };
+      return emptyPersonalization(true);
     }
 
     const sections: string[] = [];
@@ -122,13 +105,8 @@ export async function buildPersonalizationContext(options?: {
       isOptedIn: true,
     };
   } catch {
-    return {
-      contextText: "",
-      hasData: false,
-      aboutMePoints: [],
-      mindPoints: [],
-      isOptedIn: true,
-    };
+    if (await currentAuthUserId() !== uid || !isAIPersonalizationOptedIn(uid)) return emptyPersonalization(false);
+    return emptyPersonalization(true);
   }
 }
 

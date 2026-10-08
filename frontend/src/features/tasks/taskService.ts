@@ -84,6 +84,20 @@ export async function applyPendingTaskOperations(base: Task[], userId: string): 
   );
 }
 
+/** Load a server-confirmed task graph for cascade decisions, including queued local edits. */
+export async function getServerConfirmedCascadeTasks(userId: string): Promise<Task[] | null> {
+  if (!userId) return null;
+  try {
+    const snapshot = await getDocs(collection(db, "users", userId, "tasks"));
+    if (snapshot.metadata.fromCache || snapshot.metadata.hasPendingWrites) return null;
+    const serverTasks = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Task) }));
+    return await applyPendingTaskOperations(serverTasks, userId);
+  } catch (error) {
+    console.warn("[TaskService] Could not load server-confirmed tasks for cascade deletion:", error);
+    return null;
+  }
+}
+
 export async function fetchTasks(userId: string): Promise<Task[]> {
   const fetchVersion = (taskFetchVersions.get(userId) || 0) + 1;
   taskFetchVersions.set(userId, fetchVersion);
@@ -174,18 +188,25 @@ export async function deleteTaskCascade(
 ): Promise<{ success: boolean; deletedIds: string[] }> {
   if (!userId || !rootTaskId) return { success: false, deletedIds: [] };
 
-  let tasks = knownTasks;
-  if (!tasks || tasks.length === 0) {
-    tasks = taskCache.get(userId);
-    if (!tasks || tasks.length === 0) {
-      tasks = await getCachedTasks(userId);
+  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  let tasks: Task[];
+  if (isOffline) {
+    // Offline deletion can only use the latest local list. Online deletion
+    // always reads a server snapshot below, ignoring caller-provided state.
+    tasks = knownTasks?.length ? knownTasks : await getCachedTasks(userId);
+  } else {
+    const serverTasks = await getServerConfirmedCascadeTasks(userId);
+    if (!serverTasks) {
+      console.warn("[TaskService] Refusing task cascade without a server-confirmed task snapshot.");
+      return { success: false, deletedIds: [] };
     }
+    tasks = serverTasks;
   }
 
-  const childrenMap = buildTaskChildrenMap(tasks || []);
+  const childrenMap = buildTaskChildrenMap(tasks);
   const descendantIds = collectTaskDescendantIds(rootTaskId, childrenMap);
   const idsToDelete = Array.from(new Set([rootTaskId, ...descendantIds]));
-  const taskById = new Map((tasks || []).map((item) => [item.id, item]));
+  const taskById = new Map(tasks.map((item) => [item.id, item]));
 
   const deleteOperations = idsToDelete.flatMap((id) => [
     { ownerId: userId, table: "tasks", op: "delete" as const, match: { id }, expectedRevision: taskById.get(id)?.updated_at },
@@ -225,7 +246,6 @@ export async function deleteTaskCascade(
   };
 
   // Queue the whole cascade atomically before hiding it from the user's task list.
-  const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
   if (isOffline) {
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
@@ -328,7 +348,7 @@ export async function deleteTaskCascade(
   // which a cross-device link could commit after the initial query; new links
   // are rejected by their transaction once the task document is gone.
   for (const id of idsToDelete) {
-    const cleaned = await deleteNoteTaskLinksFor(userId, "task_id", id).catch(() => false);
+    const cleaned = await Promise.resolve(deleteNoteTaskLinksFor(userId, "task_id", id)).catch(() => false);
     if (!cleaned) console.warn("[TaskService] Note-task relationship cleanup remains pending.", id);
   }
 

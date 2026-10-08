@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -18,64 +18,188 @@ import { isAIPersonalizationOptedIn, setAIPersonalizationOptedIn } from "@/lib/a
 import { useBilingual } from "@/hooks/useBilingual";
 import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
 import { callAI } from "@/lib/ai";
+import { auth } from "@/lib/firebase";
+
+type AboutMeAnalysisResult = {
+  ai_analysis: { summary: string; themes: string[]; strengths: string[]; risks: string[] };
+  ai_suggestions: {
+    folders: string[];
+    tags: string[];
+    tasks: { title: string; folder?: string; priority: "none" | "low" | "medium" | "high" }[];
+  };
+};
+
+function parseStructuredAboutMeResponse(response: { text?: unknown; data?: unknown }): unknown {
+  if (typeof response.text !== "string") return response.data;
+  const text = response.text.trim();
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const candidate = fenced?.[1] || text;
+  if (!candidate.startsWith("{") || !candidate.endsWith("}")) return null;
+  try { return JSON.parse(candidate); } catch { return null; }
+}
+
+function validateAboutMeAnalysis(value: unknown): AboutMeAnalysisResult | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, any>;
+  const analysis = data.ai_analysis;
+  const suggestions = data.ai_suggestions;
+  const stringList = (candidate: unknown): candidate is string[] => Array.isArray(candidate) &&
+    candidate.length <= 15 && candidate.every((item) => typeof item === "string" && item.trim().length > 0);
+  if (!analysis || typeof analysis !== "object" || typeof analysis.summary !== "string" ||
+      !analysis.summary.trim() || analysis.summary.length > 5000 ||
+      !stringList(analysis.themes) || !stringList(analysis.strengths) || !stringList(analysis.risks) ||
+      !suggestions || typeof suggestions !== "object" ||
+      !stringList(suggestions.folders) || !stringList(suggestions.tags) || !Array.isArray(suggestions.tasks) ||
+      suggestions.tasks.length > 10) return null;
+
+  const priorities = new Set(["none", "low", "medium", "high"]);
+  const tasks: AboutMeAnalysisResult["ai_suggestions"]["tasks"] = [];
+  for (const item of suggestions.tasks) {
+    if (!item || typeof item !== "object" || typeof item.title !== "string" || !item.title.trim() || item.title.length > 240 ||
+        (item.folder !== undefined && (typeof item.folder !== "string" || item.folder.length > 120)) ||
+        (item.priority !== undefined && !priorities.has(item.priority))) return null;
+    tasks.push({
+      title: item.title.trim(),
+      ...(item.folder ? { folder: item.folder.trim() } : {}),
+      priority: item.priority || "medium",
+    });
+  }
+  // An analysis with no substantive lists is usually an unstructured answer
+  // that the provider parser could not decode as the requested JSON schema.
+  if (!analysis.themes.length && !analysis.strengths.length && !analysis.risks.length) return null;
+
+  return {
+    ai_analysis: {
+      summary: analysis.summary.trim(),
+      themes: analysis.themes.map((item: string) => item.trim()),
+      strengths: analysis.strengths.map((item: string) => item.trim()),
+      risks: analysis.risks.map((item: string) => item.trim()),
+    },
+    ai_suggestions: {
+      folders: suggestions.folders.map((item: string) => item.trim()),
+      tags: suggestions.tags.map((item: string) => item.trim()),
+      tasks,
+    },
+  };
+}
 
 export default function AboutMeView() {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
   const [row, setRow] = useState<AboutMeRow | null>(null);
   const [answers, setAnswers] = useState<Record<string, AboutAnswer>>({});
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [freeText, setFreeText] = useState("");
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState<"wizard" | "review">("wizard");
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
-  const [personalizationActive, setPersonalizationActive] = useState<boolean>(() => isAIPersonalizationOptedIn());
+  const [personalizationActive, setPersonalizationActive] = useState(false);
   const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
   const [testFeedback, setTestFeedback] = useState<string | null>(null);
   const [testingAI, setTestingAI] = useState(false);
+  const activeUserIdRef = useRef<string | null>(user?.id || null);
+  const activeAIRequestRef = useRef<AbortController | null>(null);
+  activeUserIdRef.current = user?.id || null;
+  const profileReady = Boolean(user?.id && profileUserId === user.id && auth.currentUser?.uid === user.id);
+
+  const isCurrentProfile = (uid: string) =>
+    activeUserIdRef.current === uid && profileUserId === uid && auth.currentUser?.uid === uid;
 
   useEffect(() => {
-    if (!user) return;
-    loadAboutMe(user.id).then((r) => {
+    let active = true;
+    const uid = user?.id || null;
+    activeAIRequestRef.current?.abort();
+    activeAIRequestRef.current = null;
+    setProfileUserId(null);
+    setRow(null);
+    setAnswers({});
+    setFreeText("");
+    setStep(0);
+    setMode("wizard");
+    setPersonalizationActive(isAIPersonalizationOptedIn(uid));
+    setAiPreviewOpen(false);
+    setTestFeedback(null);
+    setBusy(false);
+    setTestingAI(false);
+    if (!uid) return () => { active = false; };
+
+    loadAboutMe(uid).then((r) => {
+      if (!active || activeUserIdRef.current !== uid || auth.currentUser?.uid !== uid) return;
+      setRow(r);
       if (r) {
-        setRow(r);
         setAnswers(r.answers || {});
         setFreeText(r.free_text || "");
         if (r.ai_analysis || (r.answers && Object.keys(r.answers).length > 2)) {
           setMode("review");
         }
       }
+    }).catch(() => {
+      if (active && activeUserIdRef.current === uid && auth.currentUser?.uid === uid) setRow(null);
+    }).finally(() => {
+      if (active && activeUserIdRef.current === uid && auth.currentUser?.uid === uid) setProfileUserId(uid);
     });
-  }, [user]);
 
-  const setAns = (k: string, v: AboutAnswer) => setAnswers((s) => ({ ...s, [k]: v }));
+    return () => {
+      active = false;
+      activeAIRequestRef.current?.abort();
+      activeAIRequestRef.current = null;
+    };
+  }, [user?.id]);
+
+  const setAns = (k: string, v: AboutAnswer) => {
+    if (!user?.id || !isCurrentProfile(user.id)) return;
+    setAnswers((s) => ({ ...s, [k]: v }));
+  };
+
+  const persistProfile = async (
+    uid: string,
+    answerSnapshot: Record<string, AboutAnswer>,
+    freeTextSnapshot: string,
+    notify = false,
+  ): Promise<boolean> => {
+    if (!isCurrentProfile(uid)) return false;
+    await saveAboutMe(uid, { answers: answerSnapshot, free_text: freeTextSnapshot });
+    if (!isCurrentProfile(uid)) return false;
+    if (notify) toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
+    return true;
+  };
 
   const persist = async (notify = false) => {
-    if (!user) return;
-    await saveAboutMe(user.id, { answers, free_text: freeText });
-    if (notify) toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
+    const uid = user?.id;
+    if (!uid || !isCurrentProfile(uid)) return false;
+    return persistProfile(uid, answers, freeText, notify);
   };
 
   const next = async () => {
-    await persist();
+    const saved = await persist();
+    if (!saved) return;
     if (step < ABOUT_SECTIONS.length) setStep(step + 1);
     else await analyze();
   };
 
   const analyze = async () => {
-    if (!user) return;
+    const uid = user?.id;
+    if (!uid || !isCurrentProfile(uid)) return;
+    const answerSnapshot = answers;
+    const freeTextSnapshot = freeText;
+    const controller = new AbortController();
+    activeAIRequestRef.current?.abort();
+    activeAIRequestRef.current = controller;
     setBusy(true);
     try {
       // 1. Always persist manual answers first so they are never lost
-      await persist();
-      const fresh = await loadAboutMe(user.id);
+      const saved = await persistProfile(uid, answerSnapshot, freeTextSnapshot);
+      if (!saved || !isCurrentProfile(uid)) return;
+      const fresh = await loadAboutMe(uid);
+      if (!isCurrentProfile(uid)) return;
       if (fresh) setRow(fresh);
       toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
 
       // 2. Call configured client-side AI provider (BYOK)
       const formattedInput = {
-        answers,
-        free_text: freeText,
+        answers: answerSnapshot,
+        free_text: freeTextSnapshot,
       };
 
       const aiRes = await callAI(
@@ -83,16 +207,20 @@ export default function AboutMeView() {
         formattedInput,
         undefined,
         undefined,
-        isEn ? "en" : "fa"
+        isEn ? "en" : "fa",
+        { signal: controller.signal, skipPersonalization: true },
       );
+      if (!isCurrentProfile(uid)) return;
 
-      if (aiRes?.data?.ai_analysis) {
+      const structured = validateAboutMeAnalysis(parseStructuredAboutMeResponse(aiRes || {}));
+      if (structured) {
         const patch = {
-          ai_analysis: aiRes.data.ai_analysis,
-          ai_suggestions: aiRes.data.ai_suggestions || null,
+          ai_analysis: structured.ai_analysis,
+          ai_suggestions: structured.ai_suggestions,
           analyzed_at: new Date().toISOString(),
         };
-        await saveAboutMe(user.id, patch);
+        await saveAboutMe(uid, patch);
+        if (!isCurrentProfile(uid)) return;
         setRow((prev) => (prev ? { ...prev, ...patch } : null));
         setMode("review");
         toast.success(T("تحلیل هوشمند با موفقیت تکمیل شد ✓", "AI analysis completed successfully ✓"));
@@ -101,16 +229,21 @@ export default function AboutMeView() {
       }
     } catch (e: any) {
       // Manual answers remain preserved by persist()
-      toast.error(
-        e.message || T("خطا در اجرای تحلیل هوش مصنوعی. پاسخ‌های شما ذخیره شده‌اند.", "Error running AI analysis. Your answers are saved.")
-      );
+      if (isCurrentProfile(uid) && e?.name !== "AbortError") {
+        toast.error(
+          e.message || T("خطا در اجرای تحلیل هوش مصنوعی. پاسخ‌های شما ذخیره شده‌اند.", "Error running AI analysis. Your answers are saved.")
+        );
+      }
     } finally {
-      setBusy(false);
+      if (activeAIRequestRef.current === controller) {
+        activeAIRequestRef.current = null;
+        if (isCurrentProfile(uid)) setBusy(false);
+      }
     }
   };
 
   const createFolder = async (name: string) => {
-    if (!user) return;
+    if (!user || !isCurrentProfile(user.id)) return;
     setApplying("folder:" + name);
     const { error } = await firebaseStore.from("folders").insert({ user_id: user.id, name });
     setApplying(null);
@@ -119,7 +252,7 @@ export default function AboutMeView() {
   };
 
   const createTag = async (name: string) => {
-    if (!user) return;
+    if (!user || !isCurrentProfile(user.id)) return;
     setApplying("tag:" + name);
     const { error } = await firebaseStore.from("tags").insert({ user_id: user.id, name });
     setApplying(null);
@@ -128,7 +261,7 @@ export default function AboutMeView() {
   };
 
   const createTask = async (t: { title: string; folder?: string; priority?: any }) => {
-    if (!user) return;
+    if (!user || !isCurrentProfile(user.id)) return;
     setApplying("task:" + t.title);
     let folder_id: string | null = null;
     if (t.folder) {
@@ -148,26 +281,47 @@ export default function AboutMeView() {
   };
 
   const testAIPersonalization = async () => {
-    if (!user) return;
+    const uid = user?.id;
+    if (!uid || !isCurrentProfile(uid) || !isAIPersonalizationOptedIn(uid)) return;
+    const controller = new AbortController();
+    activeAIRequestRef.current?.abort();
+    activeAIRequestRef.current = controller;
     setTestingAI(true);
     setTestFeedback(null);
     try {
       const prompt = isEn
         ? "Based on my About Me profile (especially my main goal, peak energy time, and current blockers), what is one high-impact, low-friction piece of advice or milestone you recommend for me today?"
         : "بر اساس پروفایل «درباره من» من (به‌ویژه هدف اصلی، زمان اوج انرژی و موانعی که دارم)، یک پیشنهاد یا گام کلیدی کم‌اصطکاک و اثربخش برای امروز به من بگو.";
-      const res = await callAI("chat", prompt, undefined, undefined, isEn ? "en" : "fa");
+      const res = await callAI("chat", prompt, undefined, undefined, isEn ? "en" : "fa", { signal: controller.signal });
+      if (!isCurrentProfile(uid)) return;
       if (res?.text) {
         setTestFeedback(res.text);
         toast.success(T("پاسخ هوشمند با موفقیت تولید شد ✨", "Personalized response generated ✨"));
       }
     } catch (e: any) {
-      toast.error(e.message || T("خطا در ارتباط با هوش مصنوعی", "Error communicating with AI"));
+      if (isCurrentProfile(uid) && e?.name !== "AbortError") {
+        toast.error(e.message || T("خطا در ارتباط با هوش مصنوعی", "Error communicating with AI"));
+      }
     } finally {
-      setTestingAI(false);
+      if (activeAIRequestRef.current === controller) {
+        activeAIRequestRef.current = null;
+        if (isCurrentProfile(uid)) setTestingAI(false);
+      }
     }
   };
 
   const formattedProfilePoints = formatAboutMeForAI(row, isEn ? "en" : "fa");
+
+  if (!profileReady) {
+    return (
+      <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-5 page-enter">
+        <HeaderTitlePortal title={T("درباره من", "About Me")} />
+        <Card className="p-5 text-sm text-muted-foreground">
+          {user ? T("در حال بارگیری پاسخ‌های این حساب…", "Loading this account’s answers…") : T("برای مشاهده پاسخ‌ها وارد حساب خود شوید.", "Sign in to view your answers.")}
+        </Card>
+      </div>
+    );
+  }
 
   // ----- Render -----
   if (mode === "review" && (row?.ai_analysis || (row?.answers && Object.keys(row.answers).length > 0))) {
@@ -233,9 +387,12 @@ export default function AboutMeView() {
               </span>
               <Switch
                 checked={personalizationActive}
+                disabled={!profileReady}
                 onCheckedChange={(checked) => {
+                  const uid = user?.id;
+                  if (!uid || !isCurrentProfile(uid)) return;
                   setPersonalizationActive(checked);
-                  setAIPersonalizationOptedIn(checked);
+                  setAIPersonalizationOptedIn(checked, uid);
                   toast.success(
                     checked
                       ? T("شخصی‌سازی هوش مصنوعی با پروفایل شما فعال شد ✨", "AI personalization enabled with your profile ✨")
@@ -292,7 +449,7 @@ export default function AboutMeView() {
             <Button
               size="sm"
               variant="outline"
-              disabled={testingAI || !personalizationActive || formattedProfilePoints.length === 0}
+              disabled={testingAI || !profileReady || !personalizationActive || formattedProfilePoints.length === 0}
               onClick={testAIPersonalization}
               className="gap-1.5 text-xs h-8 shrink-0"
             >

@@ -51,7 +51,7 @@ vi.mock("@/lib/firestoreSync", () => ({
 }));
 
 vi.mock("@/lib/firebase", () => ({
-  auth: { currentUser: { uid: "test-user-id" } },
+  auth: { currentUser: { uid: "user-test-123" } },
   db: {},
 }));
 

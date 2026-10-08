@@ -80,7 +80,7 @@ describe("TaskAIPanel proposals", () => {
   });
 
   it("reuses child IDs across retries after a partial subtask save", async () => {
-    mocks.callAI.mockResolvedValueOnce({ data: { subtasks: ["Collect the figures", "Review the totals"] } });
+    mocks.callAI.mockResolvedValueOnce({ data: { mode: "subtasks", subtasks: ["Collect the figures", "Review the totals"] } });
     mocks.persistTask
       .mockResolvedValueOnce("saved")
       .mockResolvedValueOnce("failed")
@@ -96,6 +96,15 @@ describe("TaskAIPanel proposals", () => {
     await waitFor(() => expect(mocks.persistTask).toHaveBeenCalledTimes(4));
     expect(mocks.persistTask.mock.calls.slice(2).map(([_, draft]) => draft.id))
       .toEqual(mocks.persistTask.mock.calls.slice(0, 2).map(([_, draft]) => draft.id));
+  });
+
+  it("rejects unstructured subtask responses instead of showing malformed proposals", async () => {
+    mocks.callAI.mockResolvedValueOnce({ data: { mode: "subtasks", subtasks: [7, null, { title: "Not a string" }] } });
+    render(<TaskAIPanel task={task} open onOpenChange={vi.fn()} onApplyPatch={vi.fn().mockResolvedValue("saved")} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate steps (Subtasks)" }));
+
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith("The AI did not return valid structured steps"));
+    expect(screen.queryByRole("button", { name: "Add selected" })).not.toBeInTheDocument();
   });
 
   it("reuses the suggested small-step ID after a failed save", async () => {

@@ -1,6 +1,7 @@
 import { installMouseTabScroll } from "@/lib/mouseTabScroll";
 import { ModuleGatedOutlet } from "@/components/modules/ModuleGatedOutlet";
 import { syncModulesForUser } from "@/lib/appModules";
+import { loadSettings } from "@/lib/reminders";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AIPanel } from "@/components/AIPanel";
@@ -41,8 +42,8 @@ import AndroidBackButton from "@/components/AndroidBackButton";
 import AndroidTaskSync from "@/components/AndroidTaskSync";
 import { isAndroid } from "@/lib/nativeExperience";
 import { cn } from "@/lib/utils";
-import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { useSidebarPosition } from "@/lib/sidebarPosition";
+import { shouldShowBottomNavigation, useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
+import { hydrateSidebarPositionFromCloud, useSidebarPosition } from "@/lib/sidebarPosition";
 
 export default function AppLayout() {
   useEffect(() => installMouseTabScroll(), []);
@@ -52,6 +53,14 @@ export default function AppLayout() {
   useTwoFingerSwipe();
   const { user: layoutUser } = useAuth();
   useEffect(() => { purgeRetiredFeatureKeys(); }, []);
+  useEffect(() => {
+    if (!layoutUser?.id) return;
+    let cancelled = false;
+    void loadSettings(layoutUser.id).then((settings) => {
+      if (!cancelled) hydrateSidebarPositionFromCloud(settings?.sidebar_position);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [layoutUser?.id]);
   const pageKey = pageKeyForPath(loc.pathname);
   const pageBg = usePageBackground(layoutUser?.id, pageKey);
   useEffect(() => { void syncModulesForUser(layoutUser?.id ?? null); }, [layoutUser?.id]);
@@ -98,8 +107,8 @@ export default function AppLayout() {
     applyTheme(stored);
     setTheme(getBaseTheme(stored));
   }, [setTheme]);
-  const { isWindows, isFoldable, isDesktop } = useDeviceFormFactor();
-  const showMobileBottomBar = !isWindows && !isDesktop && !isFoldable;
+  const device = useDeviceFormFactor();
+  const showMobileBottomBar = shouldShowBottomNavigation(device);
 
   const { sidebarPosition } = useSidebarPosition();
   const isRtl = typeof document !== "undefined" ? document.documentElement.dir !== "ltr" : true;

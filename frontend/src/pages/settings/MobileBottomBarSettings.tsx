@@ -178,6 +178,8 @@ export function MobileBottomBarSettings({ isEn = false }: MobileBottomBarSetting
                       <button
                         key={opt.key}
                         type="button"
+                        data-testid={`mobile-bottom-tab-option-${slotIdx}-${opt.key}`}
+                        aria-pressed={isSelected}
                         onClick={() => handleSelectSlot(slotIdx, opt.key)}
                         className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium transition-all text-right select-none ${
                           isSelected

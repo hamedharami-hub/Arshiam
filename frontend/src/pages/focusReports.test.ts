@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildFocusHistoryPage,
   buildFocusMonthReport,
+  focusHistoryStateForOwner,
+  isCurrentFocusHistoryRequest,
   type FocusReportSession,
 } from "./focusReports";
 
@@ -79,5 +81,18 @@ describe("focus history timestamp pagination", () => {
     expect(seen).toHaveLength(rows.length);
     expect(new Set(seen).size).toBe(rows.length);
     expect(seen).toEqual(ordered.map((row) => row.id));
+  });
+
+  it("rejects pages from another account or an older reload", () => {
+    const accountARequest = { ownerId: "account-a", generation: 4 };
+    expect(isCurrentFocusHistoryRequest(accountARequest, "account-b", 4)).toBe(false);
+    expect(isCurrentFocusHistoryRequest(accountARequest, "account-a", 5)).toBe(false);
+    expect(isCurrentFocusHistoryRequest({ ownerId: "account-b", generation: 5 }, "account-b", 5)).toBe(true);
+  });
+
+  it("does not expose history rows while the signed-in owner changes", () => {
+    const accountAState = { ownerId: "account-a", rows: [{ id: "private-a-row" }] };
+    expect(focusHistoryStateForOwner(accountAState, "account-b")).toBeNull();
+    expect(focusHistoryStateForOwner(accountAState, "account-a")?.rows).toEqual([{ id: "private-a-row" }]);
   });
 });

@@ -28,14 +28,15 @@ describe('lesson notebook save race', () => {
     const first = vi.mocked(saveLearningRecord).mock.calls[0][3];
     expect(vi.mocked(saveLearningRecord).mock.calls[0][4]).toBe('');
     // A buffered editor/upload callback arrives after the saved snapshot.
-    act(() => pending.change?.('<p>Buffered edit retained</p>'));
+    const bufferedRichHtml = '<p>Buffered edit retained</p><table class="legacy-grid"><tbody><tr><td>Rich table cell</td></tr></tbody></table>';
+    act(() => pending.change?.(bufferedRichHtml));
     await act(async () => finish({ document: doc, persistence: 'synced' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Confirm and save' })).toBeEnabled());
-    expect(screen.getByLabelText('Note body')).toHaveValue('<p>Buffered edit retained</p>');
+    expect(screen.getByLabelText('Note body')).toHaveValue(bufferedRichHtml);
     fireEvent.click(screen.getByRole('button', { name: 'Confirm and save' }));
     await waitFor(() => expect(saveLearningRecord).toHaveBeenCalledTimes(2));
     const second = vi.mocked(saveLearningRecord).mock.calls[1];
-    expect(second[3]).toMatchObject({ id: first.id, html: '<p>Buffered edit retained</p>' });
+    expect(second[3]).toMatchObject({ id: first.id, html: bufferedRichHtml });
     expect(second[4]).toBe(first.updated_at);
   });
 });

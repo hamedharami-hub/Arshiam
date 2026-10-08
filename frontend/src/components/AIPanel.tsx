@@ -29,7 +29,7 @@ import { saveTaskListSort } from "@/lib/taskListSort";
 import { SORT_LABELS, type SortLevel } from "@/lib/smartListService";
 import type { Task } from "@/lib/taskTypes";
 
-type SuggestedTask = { id: string; title: string; description?: string };
+type SuggestedTask = { id: string; title: string; description?: string; priority: "none" | "low" | "medium" | "high" | "urgent" };
 type OwnedTaskDraft = TaskListDraft & { id: string };
 type ScopeSortProposal = {
   ownerId: string;
@@ -59,6 +59,31 @@ type SpeechWindow = Window & {
 
 function newTaskId() {
   return `task_ai_${globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`}`;
+}
+
+function parseTaskSuggestions(value: unknown): Omit<SuggestedTask, "id">[] | null {
+  if (!value || typeof value !== "object") return null;
+  const response = value as Record<string, unknown>;
+  if (Object.keys(response).some((key) => key !== "items")) return null;
+  const items = response.items;
+  if (!Array.isArray(items) || items.length < 1 || items.length > 20) return null;
+  const priorities = new Set(["none", "low", "medium", "high", "urgent"]);
+  const parsed: Omit<SuggestedTask, "id">[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (!item || typeof item !== "object") return null;
+    const row = item as Record<string, unknown>;
+    if (Object.keys(row).some((key) => key !== "title" && key !== "description" && key !== "priority")) return null;
+    const title = typeof row.title === "string" ? row.title.trim().slice(0, 240) : "";
+    if (!title || typeof row.priority !== "string" || !priorities.has(row.priority)) return null;
+    if (row.description !== undefined && typeof row.description !== "string") return null;
+    const key = title.toLocaleLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const description = typeof row.description === "string" ? row.description.trim().slice(0, 1200) : "";
+    parsed.push({ title, ...(description ? { description } : {}), priority: row.priority as SuggestedTask["priority"] });
+  }
+  return parsed.length ? parsed : null;
 }
 
 export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -278,17 +303,18 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     const request = beginRequest();
     const ownerId = user.id;
     setLoading(true); setSuggestions([]); setPicked({});
+    suggestionOwnerRef.current = null;
     try {
       const r = await callAI("suggest", input, undefined, undefined, aiLang, { skipPersonalization: true });
       if (!isCurrentRequest(request)) return;
       if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });
-      if (Array.isArray(r.data?.items)) {
-        suggestionOwnerRef.current = ownerId;
-        setSuggestions(r.data.items.map((suggestion: Omit<SuggestedTask, "id">) => ({
-        ...suggestion,
-        id: newTaskId(),
-        })));
+      const items = parseTaskSuggestions(r.data);
+      if (!items) {
+        toast.error(T("پاسخ پیشنهادها ساختار معتبری نداشت", "The AI returned an invalid suggestion list"));
+        return;
       }
+      suggestionOwnerRef.current = ownerId;
+      setSuggestions(items.map((suggestion) => ({ ...suggestion, id: newTaskId() })));
     } catch (e: any) { if (isCurrentRequest(request)) toast.error(e.message); }
     finally { if (isCurrentRequest(request)) setLoading(false); }
   };
@@ -310,7 +336,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
         try {
           result = await persistTask(ownerId, {
             id: suggestion.id, user_id: ownerId, title: suggestion.title.trim(), description: suggestion.description || null,
-            priority: "none", completed: false, status: "todo",
+            priority: normalizeTaskPriority(suggestion.priority), completed: false, status: "todo",
           });
         } catch {
           failedIds.push(suggestion.id);
@@ -583,6 +609,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{s.title}</p>
                     {s.description && <p className="text-xs text-muted-foreground mt-0.5">{s.description}</p>}
+                    {s.priority !== "none" && <p className="text-[10px] text-muted-foreground mt-0.5">{T("اولویت", "Priority")}: {s.priority}</p>}
                   </div>
                 </Card>
               ))}

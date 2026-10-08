@@ -8,8 +8,9 @@ import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 import { parseTaskDueDate } from "@/lib/taskDate";
-import type { CalendarTask } from "./CalendarTask";
+import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
+import { useBilingual } from "@/hooks/useBilingual";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_ROW = 36;
@@ -55,6 +56,7 @@ export default function WeekView({
   onSlotClick?: (d: Date, hour: number) => void;
 }) {
   const navigate = useNavigate();
+  const { T } = useBilingual();
   const weekStartsOn: 1 | 6 = weekStartsOnFor(getWeekStart());
   const days = eachDayOfInterval({ start: startOfWeek(date, { weekStartsOn }), end: endOfWeek(date, { weekStartsOn }) });
   const { scale, handlers: pinchHandlers } = usePinchZoom({ initial: 1, min: 0.6, max: 2.4 });
@@ -110,6 +112,29 @@ export default function WeekView({
             );
           })}
         </div>
+        {tasks.some((task) => isAllDayCalendarDate(task.due_date, task.schedule_v)) && (
+          <div className="grid grid-cols-[48px_repeat(7,1fr)] gap-px bg-border" data-testid="calendar-all-day-row">
+            <div className="bg-card p-1 text-center text-[9px] text-muted-foreground">{T("تمام‌روز", "All day")}</div>
+            {days.map((d) => {
+              const allDayTasks = tasks.filter((task) => {
+                if (!isAllDayCalendarDate(task.due_date, task.schedule_v)) return false;
+                const taskDate = task.due_date ? parseTaskDueDate(task.due_date) : null;
+                return !!taskDate && isSameDay(taskDate, d);
+              });
+              return (
+                <div key={`all-day-${d.toISOString()}`} className="min-h-9 bg-card p-0.5">
+                  {allDayTasks.map((task) => (
+                    <button key={task.id} type="button" onClick={() => navigate(`/app/tasks/${task.id}`)}
+                      className="mb-0.5 flex max-w-full items-center gap-1 rounded-md border border-border/60 bg-muted px-1.5 py-1 text-start text-[10px] text-foreground/80 hover:bg-accent/60">
+                      <span className="truncate">{task.title}</span>
+                      <DeadlineMarker deadlineDate={task.deadline_date} completed={task.completed} status={task.status} recurrence={task.recurrence} recurrence_rule={task.recurrence_rule} />
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="grid grid-cols-[48px_repeat(7,1fr)] gap-px bg-border">
           {HOURS.map((h) => (
             <div key={`row-${h}`} className="contents">
@@ -118,7 +143,7 @@ export default function WeekView({
               </div>
               {days.map((d) => {
                 const slotTasks = tasks.filter((t) => {
-                  if (!t.due_date) return false;
+                  if (!t.due_date || isAllDayCalendarDate(t.due_date, t.schedule_v)) return false;
                   const dt = parseTaskDueDate(t.due_date);
                   if (!dt) return false;
                   return isSameDay(dt, d) && dt.getHours() === h;

@@ -32,6 +32,23 @@ export type FocusReportLabels = {
 };
 
 export type FocusHistoryCursor = { endedAt: string; id: string };
+export type FocusHistoryRequest = { ownerId: string; generation: number };
+
+export function focusHistoryStateForOwner<T extends { ownerId: string | null }>(
+  state: T,
+  ownerId: string | null,
+): T | null {
+  return state.ownerId === ownerId ? state : null;
+}
+
+/** Prevents a late history page from an account or superseded reload from replacing current data. */
+export function isCurrentFocusHistoryRequest(
+  request: FocusHistoryRequest,
+  currentOwnerId: string | null,
+  currentGeneration: number,
+): boolean {
+  return request.ownerId === currentOwnerId && request.generation === currentGeneration;
+}
 
 export function buildFocusHistoryPage<T extends FocusReportSession>(
   rows: T[],

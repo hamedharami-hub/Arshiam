@@ -21,8 +21,8 @@ vi.mock("@/components/VoiceInputButton", () => ({
   VoiceInputButton: ({ onTranscript }: { onTranscript: (text: string) => void }) => <button onClick={() => onTranscript("A spoken memory")}>Dictate</button>,
 }));
 vi.mock("@/components/RichEditor", () => ({
-  RichEditor: forwardRef(function MockEditor({ initialMarkdown = "", onChange }: { initialMarkdown?: string; onChange: (html: string, markdown: string) => void }, ref) {
-    const [text, setText] = useState(initialMarkdown);
+  RichEditor: forwardRef(function MockEditor({ initialMarkdown = "", initialHtml = "", onChange }: { initialMarkdown?: string; initialHtml?: string; onChange: (html: string, markdown: string) => void }, ref) {
+    const [text, setText] = useState(initialHtml || initialMarkdown);
     useImperativeHandle(ref, () => ({
       getHtml: () => text,
       getMarkdown: () => text,
@@ -107,5 +107,14 @@ describe("DailyDiaryView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dictate" }));
     expect(screen.getByRole("textbox", { name: "Entry body" })).toHaveValue("Initial text A spoken memory");
     expect(screen.getByTestId("diary-save-status")).toHaveTextContent("Unsaved changes");
+  });
+
+  it("opens legacy rich HTML when a diary entry retained its HTML snapshot", async () => {
+    const legacyHtml = '<p>Rich memory</p><table><tbody><tr><td>kept cell</td></tr></tbody></table>';
+    subscribeMock.mockImplementation((_userId, callback) => { callback([{ ...entry, content: "Older plain text", diary_html: legacyHtml }]); return () => undefined; });
+    render(<DailyDiaryView />);
+    fireEvent.click(screen.getByTestId("diary-entry-entry-1"));
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Entry body" })).toHaveValue(legacyHtml));
   });
 });

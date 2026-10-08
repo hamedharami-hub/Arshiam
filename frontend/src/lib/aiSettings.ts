@@ -2,6 +2,8 @@
 // Each AI operation can have its own provider+model.
 // Stored in localStorage; provider calls are made directly by the browser.
 
+import { auth } from "./firebase";
+
 export type Provider = "offline" | "openai" | "anthropic" | "gemini" | "groq" | "openrouter" | "custom";
 
 export type ProviderConfig = {
@@ -176,6 +178,12 @@ export type AIPerOpSettings = {
   providerHiddenModels?: Partial<Record<Provider, string[]>>;
   // Explicit opt-in for personalizing AI prompts with user profile/about-me data.
   personalizationOptIn?: boolean;
+  /** Per-account opt-in state; the legacy boolean is never trusted without an owner. */
+  personalizationOptIns?: Record<string, boolean>;
+  /** Owner of the legacy single-user opt-in value, retained for migration only. */
+  personalizationOptInUserId?: string | null;
+  /** Account whose opt-in checkbox value was loaded into this in-memory settings object. */
+  personalizationOptInOwnerId?: string | null;
 };
 
 export function defaultConfig(): ProviderConfig {
@@ -224,6 +232,39 @@ export const MODEL_DESCRIPTIONS: Record<string, string> = {
   "gemini-2.5-flash-lite": "Gemini 2.5 Flash-Lite",
 };
 
+function activeUserId(): string | null {
+  return auth.currentUser?.uid || null;
+}
+
+function optedInForUser(settings: AIPerOpSettings, userId: string | null): boolean {
+  if (!userId) return false;
+  if (settings.personalizationOptIns && Object.prototype.hasOwnProperty.call(settings.personalizationOptIns, userId)) {
+    return settings.personalizationOptIns[userId] === true;
+  }
+  // Older settings can be honored only when they already carry an owner. An
+  // unowned legacy true value is intentionally treated as no consent.
+  return settings.personalizationOptInUserId === userId && settings.personalizationOptIn === true;
+}
+
+function writeAISettings(s: AIPerOpSettings): void {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+function rawSettingsForConsent(): Pick<AIPerOpSettings, "personalizationOptIn" | "personalizationOptIns" | "personalizationOptInUserId"> {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as AIPerOpSettings;
+      return {
+        personalizationOptIn: parsed.personalizationOptIn,
+        personalizationOptIns: parsed.personalizationOptIns,
+        personalizationOptInUserId: parsed.personalizationOptInUserId,
+      };
+    }
+  } catch {}
+  return {};
+}
+
 export function loadAISettings(): AIPerOpSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -253,6 +294,9 @@ export function loadAISettings(): AIPerOpSettings {
         parsed.opStrategies = strategies;
       }
       if (!parsed.providerHiddenModels) parsed.providerHiddenModels = {};
+      const userId = activeUserId();
+      parsed.personalizationOptIn = optedInForUser(parsed, userId);
+      parsed.personalizationOptInOwnerId = userId;
       return parsed;
     }
     const legacy = localStorage.getItem(LEGACY_KEY);
@@ -269,32 +313,64 @@ export function loadAISettings(): AIPerOpSettings {
       };
       const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
       for (const op of OPERATIONS) strategies[op.key] = "recommended";
-      return { default: cfg, perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
+      return { default: cfg, perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {}, personalizationOptIn: false, personalizationOptInOwnerId: activeUserId() };
     }
   } catch {}
   const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
   for (const op of OPERATIONS) strategies[op.key] = "recommended";
-  return { default: defaultConfig(), perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
+  return { default: defaultConfig(), perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {}, personalizationOptIn: false, personalizationOptInOwnerId: activeUserId() };
 }
 
 export function saveAISettings(s: AIPerOpSettings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+  const userId = activeUserId();
+  const next: AIPerOpSettings = {
+    ...s,
+    personalizationOptIns: { ...(s.personalizationOptIns || {}) },
+  };
+  if (userId && s.personalizationOptInOwnerId === userId) {
+    // Settings screens save the whole AI configuration. Bind their checkbox
+    // value to the account that loaded it, preserving every other account's choice.
+    next.personalizationOptIns![userId] = s.personalizationOptIn === true;
+    next.personalizationOptInUserId = userId;
+    next.personalizationOptIn = s.personalizationOptIn === true;
+    next.personalizationOptInOwnerId = userId;
+  } else if (userId) {
+    // The settings object may have been loaded before an account switch. Keep
+    // the stored consent map and use only the new account's stored choice.
+    const stored = rawSettingsForConsent();
+    next.personalizationOptIns = { ...(stored.personalizationOptIns || {}) };
+    next.personalizationOptInUserId = stored.personalizationOptInUserId || null;
+    next.personalizationOptIn = optedInForUser(next, userId);
+    next.personalizationOptInOwnerId = userId;
+  } else {
+    // Never turn a global AI-settings save into account-wide consent.
+    next.personalizationOptIn = false;
+    const stored = rawSettingsForConsent();
+    next.personalizationOptIns = { ...(stored.personalizationOptIns || s.personalizationOptIns || {}) };
+    next.personalizationOptInUserId = stored.personalizationOptInUserId || s.personalizationOptInUserId || null;
+    next.personalizationOptInOwnerId = null;
+  }
+  writeAISettings(next);
 }
 
-export function isAIPersonalizationOptedIn(): boolean {
+export function isAIPersonalizationOptedIn(userId: string | null | undefined): boolean {
+  if (!userId || activeUserId() !== userId) return false;
   try {
-    const s = loadAISettings();
-    return s.personalizationOptIn === true;
+    return optedInForUser(rawSettingsForConsent() as AIPerOpSettings, userId);
   } catch {
     return false;
   }
 }
 
-export function setAIPersonalizationOptedIn(optIn: boolean): void {
+export function setAIPersonalizationOptedIn(optIn: boolean, userId: string | null | undefined): void {
+  if (!userId || activeUserId() !== userId) return;
   try {
     const s = loadAISettings();
     s.personalizationOptIn = optIn;
-    saveAISettings(s);
+    s.personalizationOptIns = { ...(s.personalizationOptIns || {}), [userId]: optIn };
+    s.personalizationOptInUserId = userId;
+    s.personalizationOptInOwnerId = userId;
+    writeAISettings(s);
   } catch {}
 }
 

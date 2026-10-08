@@ -213,7 +213,9 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
     const d = iso ? new Date(iso) : null;
     return d && !Number.isNaN(d.getTime()) ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` : null;
   })();
-  const showReminder = !!timePart || reminderOn;
+  // Reminder time is its own intent. A day-only or unscheduled task can still
+  // have a reminder, so keep this row available while editing.
+  const showReminder = canEdit || reminderOn;
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="space-y-2.5" data-testid="task-schedule-body">
@@ -275,7 +277,7 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
           </div>
         )}
 
-        {/* Reminder — only once a time is set */}
+        {/* Reminder — independent from the task's exact schedule time */}
         {showReminder && (
           <>
             <ValueRow icon={reminderOn ? Bell : BellOff} value={reminderOn ? (reminderTime ? num(reminderTime) : T("روشن", "On")) : null}

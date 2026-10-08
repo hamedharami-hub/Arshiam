@@ -6,8 +6,9 @@ import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 import { parseTaskDueDate } from "@/lib/taskDate";
-import type { CalendarTask } from "./CalendarTask";
+import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
+import { useBilingual } from "@/hooks/useBilingual";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_HEIGHT = 56;
@@ -62,6 +63,7 @@ export default function DayView({
   onTaskClick?: (taskId: string) => void;
 }) {
   const navigate = useNavigate();
+  const { T } = useBilingual();
   const { scale, handlers: pinchHandlers } = usePinchZoom({ initial: 1, min: 0.6, max: 2.4 });
   const [hint, setHint] = useState(false);
   const hintTimer = useRef<number | null>(null);
@@ -79,7 +81,8 @@ export default function DayView({
     const ref = t.due_date ? parseTaskDueDate(t.due_date) : null;
     return !!ref && isSameDay(ref, date);
   });
-  const dueOnly = dayTasks.filter((t) => t.due_date);
+  const allDayTasks = dayTasks.filter((t) => isAllDayCalendarDate(t.due_date, t.schedule_v));
+  const timedTasks = dayTasks.filter((t) => t.due_date && !isAllDayCalendarDate(t.due_date, t.schedule_v));
 
   const quickCreate = (hour: number) => {
     const d = new Date(date);
@@ -98,6 +101,21 @@ export default function DayView({
         </p>
       </div>
 
+      {allDayTasks.length > 0 && (
+        <div className="rounded-xl border border-border/60 bg-card/40 p-2" data-testid="calendar-all-day-tasks">
+          <div className="mb-1 px-1 text-[10px] font-medium text-muted-foreground">{T("تمام‌روز", "All day")}</div>
+          <div className="space-y-1">
+            {allDayTasks.map((t) => (
+              <button key={t.id} type="button" onClick={() => onTaskClick ? onTaskClick(t.id) : navigate(`/app/tasks/${t.id}`)}
+                className="flex w-full items-center gap-1 rounded-md border border-border/60 bg-card px-2 py-1 text-start text-xs text-foreground/80 hover:bg-accent/30">
+                <span className="truncate">{t.title}</span>
+                <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div
         className="relative border border-border/60 rounded-xl overflow-hidden touch-pan-y bg-card/40"
         onTouchStart={onPinchStart}
@@ -111,7 +129,7 @@ export default function DayView({
         )}
         <div>
           {HOURS.map((h) => {
-            const slotDue = dueOnly.filter((t) => parseTaskDueDate(t.due_date!)?.getHours() === h);
+            const slotDue = timedTasks.filter((t) => parseTaskDueDate(t.due_date!)?.getHours() === h);
             return (
               <HourSlot
                 key={h} date={date} h={h} slotDue={slotDue} height={HOUR_HEIGHT}
@@ -123,7 +141,7 @@ export default function DayView({
 
       </div>
 
-      {dueOnly.length === 0 && (
+      {dayTasks.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-8 border border-dashed border-border/60 rounded-xl">
           هیچ تسکی برای این روز زمان‌بندی نشده.
         </p>

@@ -23,6 +23,13 @@ vi.mock("@/lib/firestoreSync", () => ({
   replayQueuedNoteTaskLinkWithOutcome: vi.fn().mockResolvedValue("saved"),
 }));
 
+function seedFallbackOperation(operation: Partial<QueuedOp> & Pick<QueuedOp, "table" | "op">) {
+  const key = "arshnaz_offline_outbox_fallback";
+  const current = JSON.parse(localStorage.getItem(key) || "[]");
+  current.push({ id: Date.now() + current.length, createdAt: Date.now(), attempts: 0, ...operation });
+  localStorage.setItem(key, JSON.stringify(current));
+}
+
 describe("offline outbox ownership", () => {
   const item: Pick<QueuedOp, "ownerId"> = { ownerId: "account-a" };
 
@@ -81,7 +88,7 @@ describe("offline outbox persistence", () => {
 
   it("clears only the deleted account's queued operations and scoped cache keys", async () => {
     await enqueueOp({ ownerId: "account-a", table: "tasks", op: "upsert", payload: { id: "a", user_id: "account-a" } });
-    await enqueueOp({ ownerId: "account-b", table: "tasks", op: "upsert", payload: { id: "b", user_id: "account-b" } });
+    seedFallbackOperation({ ownerId: "account-b", table: "tasks", op: "upsert", payload: { id: "b", user_id: "account-b" } });
     await offlineDb.cacheSet("tasks:all:account-a", [{ id: "a" }]);
     await offlineDb.cacheSet("tasks:all:account-b", [{ id: "b" }]);
     await offlineDb.cacheSet("note_task_links_account-a", [{ id: "link-a", user_id: "account-a" }]);
@@ -110,7 +117,7 @@ describe("offline outbox persistence", () => {
     expect(await getQueue()).toEqual(expect.arrayContaining([expect.objectContaining({ id: 900 })]));
   });
 
-  it("does not assign the signed-in owner to a queue write with conflicting explicit identities", async () => {
+  it("rejects queue writes whose explicit identities conflict", async () => {
     const accepted = await enqueueOp({
       ownerId: "account-b",
       table: "tasks",
@@ -118,11 +125,20 @@ describe("offline outbox persistence", () => {
       payload: { id: "task-conflict", user_id: "account-a" },
     });
 
-    expect(accepted).toBe(true);
-    const queued = (await getQueue()).find((item) => item.table === "tasks");
-    expect(queued?.ownerId).toBeUndefined();
-    expect(queued?.ownershipConflict).toBe(true);
-    expect(canReplayForOwner(queued || {}, "account-a")).toBe(false);
+    expect(accepted).toBe(false);
+    expect(await getQueue()).toHaveLength(0);
+  });
+
+  it("rejects an explicit owner that differs from the authenticated account", async () => {
+    const accepted = await enqueueOp({
+      ownerId: "account-b",
+      table: "tasks",
+      op: "upsert",
+      payload: { id: "task-foreign", user_id: "account-b" },
+    });
+
+    expect(accepted).toBe(false);
+    expect(await getQueue()).toHaveLength(0);
   });
 
   it("persists a related batch together in the localStorage fallback", async () => {
@@ -164,7 +180,7 @@ describe("offline outbox persistence", () => {
 
   it("retires only the current owner's old module queue while retaining shared and unidentified data", async () => {
     await enqueueOp({ ownerId: "account-a", table: "pharmacy_practice", op: "upsert", payload: { id: "old-a" } });
-    await enqueueOp({ ownerId: "account-b", table: "leitner_reviews", op: "upsert", payload: { id: "old-b" } });
+    seedFallbackOperation({ ownerId: "account-b", table: "leitner_reviews", op: "upsert", payload: { id: "old-b" } });
     await enqueueOp({ ownerId: "account-a", table: "leitner_cards", op: "upsert", payload: { id: "shared" } });
     const held = JSON.parse(localStorage.getItem("arshnaz_offline_outbox_fallback") || "[]");
     held.push({ id: 999, table: "pharmacy_practice", op: "upsert", payload: { id: "unknown" }, createdAt: 1, attempts: 0 });
@@ -232,6 +248,56 @@ describe("offline outbox persistence", () => {
     expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(
       "account-a", "interactive_study_sessions", "session-1", expect.objectContaining({ op: "upsert", payload: session }),
     );
+    expect(firebaseStore.from).not.toHaveBeenCalled();
+  });
+
+  it("replays later study edits against the preceding queued revision", async () => {
+    const { replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockClear().mockResolvedValue("saved");
+    await enqueueOp({
+      ownerId: "account-a",
+      table: "interactive_study_sessions",
+      op: "upsert",
+      payload: { id: "study-chain", user_id: "account-a", updated_at: "2026-10-01T10:00:00.000Z" },
+      match: { id: "study-chain" },
+      mutationId: "study-first",
+    });
+    await enqueueOp({
+      ownerId: "account-a",
+      table: "interactive_study_sessions",
+      op: "upsert",
+      payload: { id: "study-chain", user_id: "account-a", updated_at: "2026-10-01T11:00:00.000Z" },
+      match: { id: "study-chain" },
+      expectedRevision: "2026-10-01T10:00:00.000Z",
+      mutationId: "study-second",
+    });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 2, failed: 0 });
+    expect(replayQueuedEntityWithOutcome).toHaveBeenNthCalledWith(1, "account-a", "interactive_study_sessions", "study-chain", expect.objectContaining({ mutationId: "study-first" }));
+    expect(replayQueuedEntityWithOutcome).toHaveBeenNthCalledWith(2, "account-a", "interactive_study_sessions", "study-chain", expect.objectContaining({
+      mutationId: "study-second",
+      expectedRevision: "2026-10-01T10:00:00.000Z",
+    }));
+  });
+
+  it("replays knowledge deletes through a revision-checked Firestore transaction", async () => {
+    const { replayQueuedEntityWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockClear().mockResolvedValue("saved");
+    await enqueueOp({
+      ownerId: "account-a",
+      table: "knowledge_documents",
+      op: "delete",
+      match: { id: "knowledge-to-delete" },
+      expectedRevision: "2026-10-01T10:00:00.000Z",
+    });
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+
+    expect(await flushQueue()).toEqual({ ok: 1, failed: 0 });
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith("account-a", "knowledge_documents", "knowledge-to-delete", expect.objectContaining({
+      op: "delete",
+      expectedRevision: "2026-10-01T10:00:00.000Z",
+    }));
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
 
@@ -326,7 +392,7 @@ describe("offline outbox persistence", () => {
   it("keeps another account's queued note-task link untouched after an account switch", async () => {
     const { replayQueuedNoteTaskLinkWithOutcome } = await import("./firestoreSync");
     vi.mocked(replayQueuedNoteTaskLinkWithOutcome).mockClear();
-    await enqueueOp({
+    seedFallbackOperation({
       ownerId: "account-b",
       table: "note_task_links",
       op: "upsert",
@@ -362,8 +428,9 @@ describe("offline outbox persistence", () => {
   });
 
   it("pauses stale Firestore mutations and retries them only after an explicit Sync", async () => {
-    const { saveEntityToFirestoreWithOutcome } = await import("./firestoreSync");
-    vi.mocked(saveEntityToFirestoreWithOutcome).mockClear().mockResolvedValue("stale");
+    const { replayQueuedEntityWithOutcome, saveEntityToFirestoreWithOutcome } = await import("./firestoreSync");
+    vi.mocked(replayQueuedEntityWithOutcome).mockClear().mockResolvedValue("stale");
+    vi.mocked(saveEntityToFirestoreWithOutcome).mockClear();
     const accepted = await enqueueOp({
       ownerId: "account-a",
       table: "knowledge_documents",
@@ -376,15 +443,16 @@ describe("offline outbox persistence", () => {
     vi.mocked(firebaseStore.from).mockClear();
 
     expect(await flushQueue()).toEqual({ ok: 0, failed: 1 });
-    expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledOnce();
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledOnce();
     expect(await getQueue()).toEqual(expect.arrayContaining([
       expect.objectContaining({ table: "knowledge_documents", match: { id: "doc-conflict" }, conflictReason: "remote-newer" }),
     ]));
     expect(await flushQueue()).toEqual({ ok: 0, failed: 0 });
-    expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledOnce();
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledOnce();
 
     expect(await flushQueue({ retryConflicts: true })).toEqual({ ok: 0, failed: 1 });
-    expect(saveEntityToFirestoreWithOutcome).toHaveBeenCalledTimes(2);
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledTimes(2);
+    expect(saveEntityToFirestoreWithOutcome).not.toHaveBeenCalled();
     expect(firebaseStore.from).not.toHaveBeenCalled();
   });
 

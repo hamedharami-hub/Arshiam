@@ -27,8 +27,8 @@ describe("AIPanel suggestion retries", () => {
   beforeEach(() => {
     mocks.userId = "user-1";
     mocks.callAI.mockReset().mockResolvedValue({ data: { items: [
-      { title: "First suggested task" },
-      { title: "Second suggested task" },
+      { title: "First suggested task", priority: "high" },
+      { title: "Second suggested task", priority: "none" },
     ] } });
     mocks.persistTask.mockReset();
     mocks.from.mockReset();
@@ -58,10 +58,29 @@ describe("AIPanel suggestion retries", () => {
     await waitFor(() => expect(mocks.persistTask).toHaveBeenCalledTimes(3));
 
     const initialIds = mocks.persistTask.mock.calls.slice(0, 2).map(([_, task]) => task.id);
+    expect(mocks.persistTask.mock.calls[0][1].priority).toBe("high");
     const failedId = mocks.persistTask.mock.calls[1][1].id;
     const retryIds = mocks.persistTask.mock.calls.slice(2).map(([_, task]) => task.id);
     expect(initialIds).toContain(failedId);
     expect(retryIds).toEqual([failedId]);
+  });
+
+  it("rejects free-text and malformed suggestion output before displaying proposals", async () => {
+    mocks.callAI.mockResolvedValueOnce({ text: "Try planning the launch." });
+    render(<AIPanel open onOpenChange={vi.fn()} />);
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Suggest" }), { button: 0, ctrlKey: false });
+    fireEvent.change(screen.getByPlaceholderText("e.g. Starting an online business"), { target: { value: "Launch a shop" } });
+    fireEvent.click(screen.getByRole("button", { name: "Get suggestions" }));
+
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith("The AI returned an invalid suggestion list"));
+    expect(screen.queryByText("Try planning the launch.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add selected to tasks" })).not.toBeInTheDocument();
+
+    mocks.error.mockClear();
+    mocks.callAI.mockResolvedValueOnce({ data: { items: [{ title: "Missing priority" }] } });
+    fireEvent.click(screen.getByRole("button", { name: "Get suggestions" }));
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith("The AI returned an invalid suggestion list"));
+    expect(screen.queryByRole("button", { name: "Add selected to tasks" })).not.toBeInTheDocument();
   });
 
   it("reviews editable, source-grounded multiple task drafts before saving and preserves IDs for failed retries", async () => {

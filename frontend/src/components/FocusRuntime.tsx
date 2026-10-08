@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Pause, Play, Square, Timer } from "lucide-react";
@@ -7,7 +8,7 @@ import { useFocusSession } from "@/hooks/useFocusSession";
 import { useBilingual } from "@/hooks/useBilingual";
 import { tickFocus, toggleFocus, finishFocus, flushFocusSessions, refreshFocusFromStorage } from "@/lib/focusSession";
 import { playFocusAudio, stopFocusAudio } from "@/lib/focusAudio";
-import { requestFocusNotificationPermission, syncFocusNotification } from "@/lib/focusNotifications";
+import { focusBackgroundDisclosure, requestFocusNotificationPermission, syncFocusNotification } from "@/lib/focusNotifications";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -106,6 +107,9 @@ export default function FocusRuntime() {
   const s = focus?.session;
   const shouldShowMini = Boolean(focus && s?.startedAt && location.pathname !== "/app/pomodoro");
   const clock = s ? `${String(Math.floor(s.remaining / 60)).padStart(2, "0")}:${String(s.remaining % 60).padStart(2, "0")}` : "";
+  const backgroundDisclosure = focusBackgroundDisclosure(
+    Capacitor.getPlatform() === "android" ? "android" : Capacitor.getPlatform() === "ios" ? "ios" : "web",
+  );
   return (
     <>
       {shouldShowMini && s && focus && <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] inset-x-4 z-40 mx-auto flex max-w-md items-center gap-2 rounded-lg border border-border bg-card p-2 shadow-sm" data-testid="focus-mini-controller">
@@ -122,12 +126,14 @@ export default function FocusRuntime() {
       <AlertDialog open={Boolean(leavingTaskTitle)} onOpenChange={(open) => !open && setLeavingTaskTitle(null)}>
         <AlertDialogContent dir="auto" className="z-[100]" data-testid="focus-background-confirmation">
           <AlertDialogHeader>
-            <AlertDialogTitle>{T("ادامهٔ تمرکز در پس‌زمینه؟", "Continue focus in the background?")}</AlertDialogTitle>
-            <AlertDialogDescription>{T(`از صفحهٔ «${leavingTaskTitle || "این کار"}» خارج شدی. تایمر می‌تواند ادامه پیدا کند و نام کار و زمان در اعلان گوشی بماند.`, `You left “${leavingTaskTitle || "this task"}”. The timer can keep running, with the task and time shown in your notification.`)}</AlertDialogDescription>
+            <AlertDialogTitle>{T("تایمر تمرکز روشن بماند؟", "Keep the focus timer running?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T(`از صفحهٔ «${leavingTaskTitle || "این کار"}» خارج شدی. ${backgroundDisclosure.descriptionFa}`, `You left “${leavingTaskTitle || "this task"}”. ${backgroundDisclosure.descriptionEn}`)}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { finishFocus(false); setLeavingTaskTitle(null); }}>{T("توقف و ثبت زمان", "Stop and save time")}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setLeavingTaskTitle(null)}>{T("ادامه در پس‌زمینه", "Continue in background")}</AlertDialogAction>
+            <AlertDialogAction onClick={() => setLeavingTaskTitle(null)}>{T(backgroundDisclosure.actionFa, backgroundDisclosure.actionEn)}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

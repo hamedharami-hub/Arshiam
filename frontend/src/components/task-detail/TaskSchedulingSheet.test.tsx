@@ -53,7 +53,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     expect(screen.getByTestId("inline-calendar-pick")).toBeInTheDocument();
     expect(screen.getByTestId("schedule-time")).toBeDisabled();
     expect(screen.getByTestId("schedule-repeat")).toBeInTheDocument();
-    expect(screen.queryByTestId("schedule-reminder")).toBeNull();
+    expect(screen.getByTestId("schedule-reminder")).toBeInTheDocument();
   });
 
   it("has no Time block, Part of day or Deadline controls", () => {
@@ -86,11 +86,15 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     expect(save.mock.calls[0][0]).not.toHaveProperty("work_date");
   });
 
-  it("does not offer a deadline for recurring tasks", () => {
-    const recurring = { ...base, recurrence_rule: { freq: "daily", interval: 1 } } as Task;
-    render(<TaskScheduleBody t={recurring} canEdit save={vi.fn()} T={T} isEn={false} />);
+  it("keeps a recurring task's deadline visible and allows it to be cleared", () => {
+    const save = vi.fn();
+    const recurring = { ...base, recurrence_rule: { freq: "daily", interval: 1 }, deadline_date: "2026-05-07" } as Task;
+    render(<TaskScheduleBody t={recurring} canEdit save={save} T={T} isEn={false} />);
 
-    expect(screen.queryByTestId("task-deadline-toggle")).toBeNull();
+    expect(screen.getByTestId("task-deadline-toggle")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("task-deadline-clear"));
+    expect(save).toHaveBeenCalledWith({ deadline_date: null });
+    expect(save.mock.calls[0][0]).not.toHaveProperty("recurrence_rule");
   });
 
   it("keeps the deadline editor open after a failed save and allows retry", async () => {
@@ -360,12 +364,23 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
-  it("reminder row only appears once a time is set", () => {
-    const { rerender } = render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={vi.fn()} T={T} isEn={false} />);
-    expect(screen.queryByTestId("schedule-reminder")).toBeNull();
-    rerender(<TaskScheduleBody t={scheduled(new Date(2026, 4, 1, 8, 30).toISOString())} canEdit save={vi.fn()} T={T} isEn={false} />);
+  it("allows a reminder for a day-only task without adding an exact schedule time", () => {
+    const save = vi.fn();
+    render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} />);
+    expect(screen.getByTestId("schedule-reminder")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("schedule-reminder"));
     expect(screen.getByTestId("schedule-reminder-body")).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("changing recurrence preserves the independent deadline", () => {
+    const save = vi.fn();
+    const task = { ...base, deadline_date: "2026-05-07" } as Task;
+    render(<TaskScheduleBody t={task} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-repeat"));
+    fireEvent.click(screen.getByTestId("repeat-weekly"));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ recurrence: "weekly" }));
+    expect(save.mock.calls[0][0]).not.toHaveProperty("deadline_date");
   });
 
   it("repeat opens an icon menu; picking weekly saves the rule and keeps the panel open", () => {

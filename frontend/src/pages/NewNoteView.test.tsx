@@ -65,3 +65,16 @@ it('offers note templates for empty content and keeps the selected outline edita
   fireEvent.change(screen.getByLabelText('Body'), { target: { value: 'My edited outline' } });
   expect(screen.getByLabelText('Body')).toHaveValue('My edited outline');
 });
+
+it('persists raw legacy table markup returned by the visual editor', async () => {
+  mocks.save.mockResolvedValue('synced');
+  render(view());
+  fireEvent.change(screen.getByPlaceholderText('Note title...'), { target: { value: 'Legacy table note' } });
+  const legacyTable = '<table><tbody><tr><td>Preserved cell</td></tr></tbody></table>';
+  fireEvent.change(await screen.findByLabelText('Body'), { target: { value: legacyTable } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save Note' }));
+
+  await waitFor(() => expect(mocks.save).toHaveBeenCalled());
+  expect(mocks.save.mock.calls.at(-1)?.[1].content).toContain('<table>');
+  expect(mocks.save.mock.calls.at(-1)?.[1].content).toContain('Preserved cell');
+});

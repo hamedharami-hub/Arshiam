@@ -1,7 +1,23 @@
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import AppLayout from "./AppLayout";
+
+const appLayoutMocks = vi.hoisted(() => ({
+  user: { current: null as null | { id: string } },
+  loadSettings: vi.fn(),
+  hydrateSidebarPositionFromCloud: vi.fn(),
+}));
+
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: appLayoutMocks.user.current }) }));
+vi.mock("@/lib/reminders", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/reminders")>()),
+  loadSettings: appLayoutMocks.loadSettings,
+}));
+vi.mock("@/lib/appModules", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/appModules")>()),
+  syncModulesForUser: vi.fn(),
+}));
 
 // Mock dependencies
 vi.mock("@/components/AppSidebar", () => ({
@@ -97,11 +113,13 @@ vi.mock("@/lib/sidebarPosition", () => ({
   }),
   getSidebarPosition: () => mockSidebarPosition,
   setSidebarPosition: vi.fn(),
+  hydrateSidebarPositionFromCloud: appLayoutMocks.hydrateSidebarPositionFromCloud,
 }));
 
 describe("AppLayout desktop layout reservation and physical placement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    appLayoutMocks.user.current = null;
     document.documentElement.dir = "rtl";
     mockSidebarPosition = "right";
   });
@@ -174,5 +192,19 @@ describe("AppLayout desktop layout reservation and physical placement", () => {
     const mainWrapper = sidebar?.parentElement?.querySelector("div.flex-1");
     expect(mainWrapper?.className).toContain("order-1");
     expect(mainWrapper?.getAttribute("dir")).toBe("ltr");
+  });
+
+  it("loads the cloud sidebar preference for the signed-in device", async () => {
+    appLayoutMocks.user.current = { id: "user-1" };
+    appLayoutMocks.loadSettings.mockResolvedValue({ sidebar_position: "left" });
+
+    render(
+      <MemoryRouter initialEntries={["/app/today"]}>
+        <AppLayout />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(appLayoutMocks.loadSettings).toHaveBeenCalledWith("user-1"));
+    await waitFor(() => expect(appLayoutMocks.hydrateSidebarPositionFromCloud).toHaveBeenCalledWith("left"));
   });
 });

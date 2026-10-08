@@ -18,7 +18,7 @@ import {
   normalizeKnowledgeMediaAttachments,
 } from "./knowledgeService";
 import { cacheGet, cacheSet, clearQueue, enqueueOp, getPendingOps } from "./offlineQueue";
-import { deleteEntityFromFirestore, saveEntityToFirestore, saveEntityToFirestoreWithOutcome } from "./firestoreSync";
+import { replayQueuedEntityWithOutcome, saveEntityToFirestore, saveEntityToFirestoreWithOutcome } from "./firestoreSync";
 import type { KnowledgeDocument } from "./knowledgeTypes";
 
 const { remoteKnowledgeRows, remoteFolderRows, remoteLeitnerRows, remoteTaskLinkRows, remoteReadFailure, remoteTaskLinkReadFailure } = vi.hoisted(() => ({
@@ -64,10 +64,11 @@ vi.mock("@/lib/firebaseStore", () => ({
 
 vi.mock("@/lib/firestoreSync", () => {
   const saveEntityToFirestore = vi.fn().mockResolvedValue(true);
+  const replayQueuedEntityWithOutcome = vi.fn().mockResolvedValue("saved");
   return {
     saveEntityToFirestore,
     saveEntityToFirestoreWithOutcome: vi.fn(async (...args: unknown[]) => await saveEntityToFirestore(...args) ? 'saved' : 'failed'),
-    deleteEntityFromFirestore: vi.fn().mockResolvedValue(true),
+    replayQueuedEntityWithOutcome,
   };
 });
 
@@ -84,17 +85,15 @@ function mockSuccessfulFirestoreWrites() {
     if (index >= 0) rows[index] = { ...rows[index], ...(data || {}) };
     return true;
   });
-  vi.mocked(deleteEntityFromFirestore).mockImplementation(async (_userId, collection, id) => {
-    const rows = collection === "knowledge_folders"
-      ? remoteFolderRows
-      : collection === "leitner_cards"
-        ? remoteLeitnerRows
-        : collection === "task_knowledge_links"
-          ? remoteTaskLinkRows
-        : remoteKnowledgeRows;
-    const index = rows.findIndex((row) => row.id === id);
-    if (index >= 0) rows.splice(index, 1);
-    return true;
+  vi.mocked(replayQueuedEntityWithOutcome).mockImplementation(async (_userId, collection, id, mutation) => {
+    if (mutation?.op === "delete") {
+      const rows = collection === "knowledge_folders" ? remoteFolderRows : remoteKnowledgeRows;
+      const index = rows.findIndex((row) => row.id === id);
+      if (index < 0) return "saved";
+      if (rows[index].updated_at !== mutation.expectedRevision) return "stale";
+      rows.splice(index, 1);
+    }
+    return "saved";
   });
 }
 
@@ -111,6 +110,7 @@ describe("knowledgeService", () => {
     remoteTaskLinkReadFailure.value = false;
     await clearQueue();
     vi.clearAllMocks();
+    vi.mocked(replayQueuedEntityWithOutcome).mockResolvedValue("saved");
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
   });
 
@@ -261,7 +261,9 @@ describe("knowledgeService", () => {
     );
 
     await expect(deleteKnowledgeDocument(userId, updated.id)).resolves.toBe(true);
-    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_documents", document.id);
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(userId, "knowledge_documents", document.id, expect.objectContaining({
+      op: "delete", expectedRevision: expect.any(String),
+    }));
     const pendingForDocument = (await getPendingOps("knowledge_documents")).filter((item) =>
       (item.payload as Partial<KnowledgeDocument> | undefined)?.id === document.id ||
       item.match?.id === document.id,
@@ -455,6 +457,61 @@ describe("knowledgeService", () => {
     expect(single).toBeNull();
   });
 
+  it("refuses to delete a knowledge document when its cloud revision has changed", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    mockSuccessfulFirestoreWrites();
+    const document: KnowledgeDocument = {
+      id: "stale-delete-doc",
+      user_id: userId,
+      folder_id: null,
+      title: "Keep newer cloud copy",
+      content_html: "<p>Original</p>",
+      created_at: "2026-10-01T09:00:00.000Z",
+      updated_at: "2026-10-01T10:00:00.000Z",
+    };
+    remoteKnowledgeRows.push({ ...document, updated_at: "2026-10-01T11:00:00.000Z" });
+    await cacheSet(getDocsCacheKey(userId), [document]);
+
+    await expect(deleteKnowledgeDocument(userId, document.id)).rejects.toThrow("not confirmed or safely queued");
+
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(userId, "knowledge_documents", document.id, {
+      op: "delete",
+      createdAt: expect.any(Number),
+      expectedRevision: document.updated_at,
+    });
+    expect(remoteKnowledgeRows[0].updated_at).toBe("2026-10-01T11:00:00.000Z");
+    await expect(cacheGet<KnowledgeDocument[]>(getDocsCacheKey(userId))).resolves.toEqual([document]);
+    expect(await getPendingOps("knowledge_documents")).toHaveLength(0);
+  });
+
+  it("queues a failed knowledge delete with the exact cached cloud revision", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
+    const document: KnowledgeDocument = {
+      id: "queued-delete-doc",
+      user_id: userId,
+      folder_id: null,
+      title: "Delete after reconnect",
+      content_html: "<p>Lesson</p>",
+      created_at: "2026-10-01T09:00:00.000Z",
+      updated_at: "2026-10-01T10:00:00.000Z",
+    };
+    remoteKnowledgeRows.push({ ...document });
+    await cacheSet(getDocsCacheKey(userId), [document]);
+    vi.mocked(replayQueuedEntityWithOutcome).mockRejectedValueOnce(new Error("network unavailable"));
+
+    await expect(deleteKnowledgeDocument(userId, document.id)).resolves.toBe(true);
+
+    expect(await getPendingOps("knowledge_documents")).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        ownerId: userId,
+        table: "knowledge_documents",
+        op: "delete",
+        match: { id: document.id },
+        expectedRevision: document.updated_at,
+      }),
+    ]));
+  });
+
   it("persists only safe Google Drive image/video metadata on a lesson", async () => {
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
     mockSuccessfulFirestoreWrites();
@@ -570,7 +627,7 @@ describe("knowledgeService", () => {
     });
 
     expect(remoteKnowledgeRows).toContainEqual(doc);
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
   });
 
   it("also blocks deletion for a linked card waiting in the durable outbox", async () => {
@@ -597,7 +654,7 @@ describe("knowledgeService", () => {
       reason: "linked-cards",
       linkedCardCount: 1,
     });
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
   });
 
   it("keeps a lesson when a remote task link still references it", async () => {
@@ -621,7 +678,7 @@ describe("knowledgeService", () => {
     });
 
     expect(remoteKnowledgeRows).toContainEqual(doc);
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
   });
 
   it("also blocks deletion for a task link waiting in the durable outbox", async () => {
@@ -648,7 +705,7 @@ describe("knowledgeService", () => {
       reason: "linked-tasks",
       linkedTaskCount: 1,
     });
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
   });
 
   it("does not treat a task link already queued for removal as a live reference", async () => {
@@ -673,7 +730,7 @@ describe("knowledgeService", () => {
     });
 
     await expect(deleteKnowledgeDocument(userId, doc.id)).resolves.toBe(true);
-    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.objectContaining({ op: "delete" }));
   });
 
   it("fails closed if task links cannot be verified before deleting a lesson", async () => {
@@ -691,7 +748,7 @@ describe("knowledgeService", () => {
     remoteTaskLinkReadFailure.value = true;
 
     await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({ reason: "verify-task-links" });
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
   });
 
   it("fails closed when linked cards cannot be checked, including while offline", async () => {
@@ -707,12 +764,12 @@ describe("knowledgeService", () => {
     await cacheSet(getDocsCacheKey(userId), [doc]);
 
     await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({ reason: "offline" });
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
 
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(true);
     remoteReadFailure.value = true;
     await expect(deleteKnowledgeDocument(userId, doc.id)).rejects.toMatchObject({ reason: "verify-cards" });
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id);
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalledWith(userId, "knowledge_documents", doc.id, expect.anything());
   });
 
   it("reparents knowledge documents and child folders before deleting a folder", async () => {
@@ -745,7 +802,7 @@ describe("knowledgeService", () => {
     expect(saveEntityToFirestore).toHaveBeenCalledWith(
       userId, "knowledge_documents", doc.id, expect.objectContaining({ folder_id: parent.id }),
     );
-    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_folders", target.id);
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(userId, "knowledge_folders", target.id, expect.objectContaining({ op: "delete" }));
   });
 
   it("loads the current remote subtree before deleting so uncached linked content is preserved", async () => {
@@ -777,7 +834,7 @@ describe("knowledgeService", () => {
     expect(saveEntityToFirestore).toHaveBeenCalledWith(
       userId, "knowledge_documents", remoteDocument.id, expect.objectContaining({ folder_id: null }),
     );
-    expect(deleteEntityFromFirestore).toHaveBeenCalledWith(userId, "knowledge_folders", parent.id);
+    expect(replayQueuedEntityWithOutcome).toHaveBeenCalledWith(userId, "knowledge_folders", parent.id, expect.objectContaining({ op: "delete" }));
   });
 
   it("does not delete a folder offline when it cannot verify all remote descendants", async () => {
@@ -789,7 +846,7 @@ describe("knowledgeService", () => {
 
     await expect(deleteKnowledgeFolder(userId, parent.id)).rejects.toThrow(/reconnect/i);
     expect(saveEntityToFirestore).not.toHaveBeenCalled();
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalled();
   });
 
   it("keeps a folder intact when a fresh remote subtree read fails", async () => {
@@ -803,7 +860,7 @@ describe("knowledgeService", () => {
 
     await expect(deleteKnowledgeFolder(userId, parent.id)).rejects.toThrow(/current knowledge/i);
     expect(saveEntityToFirestore).not.toHaveBeenCalled();
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalled();
   });
 
   it("waits for queued mutations to sync before moving folder contents", async () => {
@@ -812,7 +869,7 @@ describe("knowledgeService", () => {
 
     await expect(deleteKnowledgeFolder(userId, pendingFolder.id)).rejects.toThrow(/sync pending changes/i);
     expect(saveEntityToFirestore).not.toHaveBeenCalled();
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalled();
   });
 
   it("keeps the parent folder when a reparent write is queued but not yet remote", async () => {
@@ -830,7 +887,7 @@ describe("knowledgeService", () => {
     vi.mocked(saveEntityToFirestore).mockResolvedValue(false);
 
     await expect(deleteKnowledgeFolder(userId, parent.id)).rejects.toThrow(/still linked/i);
-    expect(deleteEntityFromFirestore).not.toHaveBeenCalled();
+    expect(replayQueuedEntityWithOutcome).not.toHaveBeenCalled();
     expect(remoteFolderRows).toContainEqual(expect.objectContaining({ id: child.id, parent_id: parent.id }));
   });
 });

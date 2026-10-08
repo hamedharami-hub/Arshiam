@@ -77,11 +77,10 @@ describe("parseNaturalDate", () => {
     expect(r.dueDate).toBe("2026-07-17");
   });
 
-  it("time-only in the past rolls to tomorrow", () => {
+  it("does not invent a calendar day from a time-only phrase", () => {
     const r = parse("ساعت ۸ صبح دارو");
-    const d = new Date(r.dueDate!);
-    // 8am already passed (now 10am) → tomorrow.
-    expect(d.getDate()).toBe(16);
-    expect(d.getHours()).toBe(8);
+    expect(r.dueDate).toBeNull();
+    expect(r.cleanedTitle).toBe("ساعت ۸ صبح دارو");
+    expect(parse("call at 5pm")).toMatchObject({ dueDate: null, cleanedTitle: "call at 5pm" });
   });
 });

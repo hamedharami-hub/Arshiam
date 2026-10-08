@@ -91,6 +91,11 @@ service cloud.firestore {
       match /assistant_audit/{docId=**} {
         allow read, write: if false;
       }
+      // API create receipts can contain responses needed for idempotent retries.
+      // They are private server records and must never be read or changed by a client.
+      match /assistant_idempotency/{docId=**} {
+        allow read, write: if false;
+      }
       match /assistant_trash/{docId=**} {
         allow read, write: if false;
       }
@@ -218,6 +223,7 @@ service cloud.firestore {
             'user_roles',
             'assistant_grants',
             'assistant_audit',
+            'assistant_idempotency',
             'assistant_trash',
             'pharmacy_practice',
             'leitner_reviews',

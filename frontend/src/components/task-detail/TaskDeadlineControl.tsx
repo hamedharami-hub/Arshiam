@@ -9,7 +9,7 @@ import type { Task } from "@/lib/taskTypes";
 type TaskWithDeadline = Task & { deadline_date?: string | null };
 type DeadlinePatch = Partial<Task> & { deadline_date: string | null };
 
-/** A compact, independent deadline control that reuses the existing schedule panel and date picker. */
+/** A fixed deadline stays visible through recurrence changes and can be cleared explicitly. */
 export function TaskDeadlineControl({
   task,
   canEdit,

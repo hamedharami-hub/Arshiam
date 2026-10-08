@@ -71,12 +71,21 @@ export async function enqueueOp(op: EnqueueOpInput): Promise<boolean> {
 export async function enqueueOps(ops: EnqueueOpInput[]): Promise<boolean> {
   if (ops.length === 0) return true;
 
+  const activeOwnerId = await getAuthenticatedUserId();
+  // Do not persist a mutation under an explicit owner that disagrees with the
+  // active Firebase account. In particular, don't leave an unowned conflicted
+  // record behind for a later account to encounter.
+  if (ops.some((op) => {
+    const claims = explicitQueueOwnerClaims(op);
+    return hasConflictingQueuedOpOwners(op) || Boolean(activeOwnerId && claims.some((claim) => claim !== activeOwnerId));
+  })) return false;
+
   const items = await Promise.all(ops.map(async (op) => {
     const explicitOwnerId = getQueuedOpOwnerId(op);
     const ownershipConflict = hasConflictingQueuedOpOwners(op);
     const ownerId = ownershipConflict
       ? undefined
-      : explicitOwnerId || await getAuthenticatedUserId();
+      : explicitOwnerId || activeOwnerId;
     return { ...op, mutationId: op.mutationId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`), ownerId, ownershipConflict: ownershipConflict || undefined, createdAt: Date.now(), attempts: 0 };
   }));
 
@@ -130,7 +139,7 @@ function explicitQueueOwnerClaims(item: QueueOwnershipFields): string[] {
   const payloads = Array.isArray(item.payload) ? item.payload : [item.payload];
   const payloadOwners = payloads.flatMap(payload => payload && typeof payload === "object"
     ? [(payload as Record<string, unknown>).user_id, (payload as Record<string, unknown>).userId] : []);
-  return [item.ownerId, ...payloadOwners, item.match?.user_id]
+  return [item.ownerId, ...payloadOwners, item.match?.user_id, item.match?.userId]
     .filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
@@ -371,6 +380,7 @@ type ReplayOutcome = "saved" | "stale" | "failed";
 
 const revisionProtectedCollections = new Set([
   "tasks", "notes", "habits", "folders", "tags", "contacts", "task_contacts",
+  "knowledge_folders", "knowledge_documents",
   "interactive_study_sessions", "socratic_sessions", "pharmacy_practice",
 ]);
 
@@ -429,7 +439,8 @@ async function replayItem(item: QueuedOp, userId: string): Promise<ReplayOutcome
       const docId = (item.op === "delete" ? item.match?.id : payload.id || item.match?.id) as string | undefined;
       if (revisionProtectedCollections.has(item.table) && docId) {
         return replayQueuedEntityWithOutcome(userId, item.table as any, docId, {
-          op: item.op, payload, createdAt: item.createdAt, expectedRevision: item.expectedRevision, mutationId: item.mutationId,
+          op: item.op, payload, createdAt: item.createdAt, expectedRevision: item.expectedRevision,
+          mutationId: item.mutationId,
         });
       }
       if (item.op === "delete") {

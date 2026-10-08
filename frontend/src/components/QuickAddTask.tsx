@@ -136,6 +136,69 @@ const priorityEngKey: Record<Priority, string> = {
   low: "low",
 };
 
+type NamedEntry = { id: string; name: string };
+type ParsedMention = { id: string; start: number; end: number };
+
+/** Match the longest known #tag or @folder name, including names with spaces. */
+function matchNamedMention(tokens: Array<{ text: string; start: number; end: number }>, index: number, marker: "#" | "@", entries: NamedEntry[]): ParsedMention | null {
+  const first = tokens[index]?.text || "";
+  const inlineName = first.startsWith(marker) ? first.slice(1) : "";
+  const separatedMarker = first === marker;
+  let best: ParsedMention | null = null;
+  let bestLastIndex = -1;
+
+  for (const entry of entries) {
+    const words = entry.name.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) continue;
+    const offset = separatedMarker ? 1 : 0;
+    if (separatedMarker && !tokens[index + 1]) continue;
+    if (!separatedMarker && !first.startsWith(marker)) continue;
+    if (!separatedMarker && !inlineName) continue;
+    const firstNameWord = separatedMarker ? tokens[index + 1]?.text : inlineName;
+    if ((firstNameWord || "").toLocaleLowerCase() !== words[0].toLocaleLowerCase()) continue;
+    let matches = true;
+    for (let wordIndex = 1; wordIndex < words.length; wordIndex += 1) {
+      if ((tokens[index + offset + wordIndex]?.text || "").toLocaleLowerCase() !== words[wordIndex].toLocaleLowerCase()) {
+        matches = false;
+        break;
+      }
+    }
+    if (!matches) continue;
+    const lastIndex = index + offset + words.length - 1;
+    if (lastIndex > bestLastIndex) {
+      best = { id: entry.id, start: tokens[index].start, end: tokens[lastIndex].end };
+      bestLastIndex = lastIndex;
+    }
+  }
+  return best;
+}
+
+function mentionTokenRanges(rawTitle: string, marker: "#" | "@", entries: NamedEntry[]): ParsedMention[] {
+  const tokens = Array.from(rawTitle.matchAll(/\S+/g), match => ({
+    text: match[0], start: match.index ?? 0, end: (match.index ?? 0) + match[0].length,
+  }));
+  const mentions: ParsedMention[] = [];
+  for (let index = 0; index < tokens.length;) {
+    const match = matchNamedMention(tokens, index, marker, entries);
+    if (!match) { index += 1; continue; }
+    mentions.push(match);
+    while (index < tokens.length && tokens[index].end <= match.end) index += 1;
+  }
+  return mentions;
+}
+
+function removeKnownMentions(rawTitle: string, marker: "#" | "@", entries: NamedEntry[]): string {
+  const matches = mentionTokenRanges(rawTitle, marker, entries);
+  if (!matches.length) return rawTitle;
+  // Only remove a phrase that the current known-entry list recognizes; unknown
+  // #tags and @folders remain part of the user's title.
+  let without = rawTitle;
+  for (const match of matches.reverse()) {
+    without = `${without.slice(0, match.start)}${without.slice(match.end)}`;
+  }
+  return without.replace(/[ \t]{2,}/g, " ").trim();
+}
+
 export function QuickAddTask({
   defaults = {},
   placeholder,
@@ -250,33 +313,38 @@ export function QuickAddTask({
 
   // Live natural-language parsing: date, #tag, @folder, !priority.
   const parsed = useMemo(() => {
-    const tokens = title.trim().split(/\s+/).filter(Boolean);
+    const tokens = Array.from(title.matchAll(/\S+/g), match => ({
+      text: match[0], start: match.index ?? 0, end: (match.index ?? 0) + match[0].length,
+    }));
     const kept: string[] = [];
     const matchedTagIds: string[] = [];
     let matchedFolderId: string | null = null;
     let matchedPriority: Priority | null = null;
 
-    for (const token of tokens) {
-      if (token.startsWith("#")) {
-        const name = token.slice(1).trim();
-        const tag = tags.find(tg => tg.name.toLowerCase() === name.toLowerCase());
-        if (tag) matchedTagIds.push(tag.id);
+    for (let index = 0; index < tokens.length;) {
+      const token = tokens[index].text;
+      const tagMatch = matchNamedMention(tokens, index, "#", tags);
+      if (tagMatch) {
+        matchedTagIds.push(tagMatch.id);
+        while (index < tokens.length && tokens[index].end <= tagMatch.end) index += 1;
         continue;
       }
-      if (token.startsWith("@")) {
-        const name = token.slice(1).trim().toLowerCase();
-        const folder = folders.find(f => f.name.toLowerCase() === name);
-        if (folder) matchedFolderId = folder.id;
+      const folderMatch = matchNamedMention(tokens, index, "@", folders);
+      if (folderMatch) {
+        matchedFolderId = folderMatch.id;
+        while (index < tokens.length && tokens[index].end <= folderMatch.end) index += 1;
         continue;
       }
       if (token.startsWith("!")) {
         const key = token.slice(1).trim().toLowerCase();
         if (priorityKeywords[key]) {
           matchedPriority = priorityKeywords[key];
+          index += 1;
           continue;
         }
       }
       kept.push(token);
+      index += 1;
     }
 
     const tokenClean = kept.join(" ");
@@ -448,7 +516,7 @@ export function QuickAddTask({
   const applyFolder = (fid: string | null) => {
     setFolderId(fid);
     const currentFolder = folders.find(f => f.id === fid);
-    const clean = title.split(/\s+/).filter(w => !w.startsWith("@")).join(" ");
+    const clean = removeKnownMentions(title, "@", folders);
     if (currentFolder) {
       setTitle(`${clean} @${currentFolder.name}`.trim());
     } else {
@@ -467,8 +535,7 @@ export function QuickAddTask({
     setTagIds(prev => prev.filter(id => id !== tid));
     const tag = tags.find(t => t.id === tid);
     if (tag && tag.name) {
-      const tagNameLower = tag.name.toLowerCase();
-      setTitle((title || "").split(/\s+/).filter(w => (w || "").toLowerCase() !== `#${tagNameLower}`).join(" "));
+      setTitle(removeKnownMentions(title || "", "#", [tag]));
     }
   };
 

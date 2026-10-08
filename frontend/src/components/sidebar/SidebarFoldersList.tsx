@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   FolderTree, Plus, ChevronRight, ChevronDown, Folder as FolderIcon, GripVertical,
 } from "lucide-react";
@@ -26,6 +26,21 @@ export type Folder = {
   emoji?: string | null;
   position?: number;
 };
+
+function buildFolderTreeIndex(folders: Folder[]): {
+  childrenByParent: Map<string | null, Folder[]>;
+  foldersWithChildren: Set<string>;
+} {
+  const childrenByParent = new Map<string | null, Folder[]>();
+  const foldersWithChildren = new Set<string>();
+  for (const folder of folders) {
+    const siblings = childrenByParent.get(folder.parent_id) || [];
+    siblings.push(folder);
+    childrenByParent.set(folder.parent_id, siblings);
+    if (folder.parent_id !== null) foldersWithChildren.add(folder.parent_id);
+  }
+  return { childrenByParent, foldersWithChildren };
+}
 
 export function FolderMarker({ folder, className = "" }: { folder: Folder; className?: string }) {
   if (!folder.emoji) {
@@ -184,11 +199,13 @@ export function SidebarFoldersList({
   setNewFolder,
   createFolder,
 }: SidebarFoldersListProps) {
+  const { childrenByParent, foldersWithChildren } = useMemo(() => buildFolderTreeIndex(folders), [folders]);
+
   const renderTree = (parentId: string | null, depth = 0): React.ReactNode => {
     if (depth > 12) return null;
-    const children = folders.filter((f) => f.parent_id === parentId);
+    const children = childrenByParent.get(parentId) || [];
     return children.map((f) => {
-      const has = folders.some((x) => x.parent_id === f.id);
+      const has = foldersWithChildren.has(f.id);
       const open = expanded[f.id] ?? true;
       return (
         <div key={f.id}>

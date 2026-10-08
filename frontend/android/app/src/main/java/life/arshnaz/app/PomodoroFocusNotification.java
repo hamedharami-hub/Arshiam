@@ -9,6 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.media.AudioAttributes;
+import android.media.RingtoneManager;
 
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -16,6 +18,7 @@ import androidx.core.app.NotificationManagerCompat;
 /** Shows the in-app Pomodoro session in Android's notification shade and restores its end alarm. */
 final class PomodoroFocusNotification {
     static final String CHANNEL_ID = "arshnaz_focus_timer";
+    static final String COMPLETION_CHANNEL_ID = "arshnaz_focus_timer_complete";
     static final int NOTIFICATION_ID = 870025;
     static final String ACTION_FINISH = "life.arshnaz.app.pomodoro.FOCUS_FINISH";
     private static final int ALARM_REQUEST = 870026;
@@ -28,7 +31,7 @@ final class PomodoroFocusNotification {
         if (completed) {
             cancelAlarm(context);
             clear(context);
-            show(context, title, mode, false, 0L, Math.max(0L, remainingSeconds), true);
+            showCompletion(context, title, mode, Math.max(0L, remainingSeconds));
             return;
         }
         if (!active) {
@@ -71,7 +74,7 @@ final class PomodoroFocusNotification {
         String title = state.getString("title", "");
         String mode = state.getString("mode", "work");
         clear(context);
-        show(context, title, mode, false, 0L, 0L, true);
+        showCompletion(context, title, mode, 0L);
     }
 
     static void restoreAfterBoot(Context context) {
@@ -113,7 +116,11 @@ final class PomodoroFocusNotification {
                 alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endAt, finishIntent(context));
             }
         } catch (SecurityException ignored) {
-            // The in-app deadline still recovers when the app resumes; the OS may deliver this alarm late.
+            // Exact-alarm access can change after the check. Keep a best-effort inexact alarm instead.
+            try { alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endAt, finishIntent(context)); }
+            catch (SecurityException alsoIgnored) {
+                // The in-app deadline still recovers when the app resumes; Android may also delay alarms in Doze.
+            }
         }
     }
 
@@ -122,16 +129,47 @@ final class PomodoroFocusNotification {
         if (alarms != null) alarms.cancel(finishIntent(context));
     }
 
+    private static boolean hasActiveCompletion(Context context) {
+        if (Build.VERSION.SDK_INT < 26) return false;
+        try {
+            for (android.service.notification.StatusBarNotification active
+                    : NotificationManagerCompat.from(context).getActiveNotifications()) {
+                Notification notification = active.getNotification();
+                if (active.getId() == NOTIFICATION_ID && notification != null
+                        && COMPLETION_CHANNEL_ID.equals(notification.getChannelId())) return true;
+            }
+        } catch (SecurityException ignored) { /* Notification permission may have been revoked. */ }
+        return false;
+    }
+
+    private static void showCompletion(Context context, String title, String mode, long remainingSeconds) {
+        // Replace the quiet countdown once; repeated syncs update the completion alert silently.
+        if (!hasActiveCompletion(context)) {
+            try { NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID); } catch (SecurityException ignored) {}
+        }
+        show(context, title, mode, false, 0L, remainingSeconds, true);
+    }
+
     private static void ensureChannel(Context context) {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         if (manager == null) return;
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "تایمر تمرکز", NotificationManager.IMPORTANCE_LOW);
-        channel.setDescription("زمان باقی‌ماندهٔ جلسهٔ تمرکز فعال");
-        channel.setSound(null, null);
-        channel.enableVibration(false);
-        channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
-        manager.createNotificationChannel(channel);
+        NotificationChannel countdown = new NotificationChannel(CHANNEL_ID, "تایمر تمرکز", NotificationManager.IMPORTANCE_LOW);
+        countdown.setDescription("زمان باقی‌ماندهٔ جلسهٔ تمرکز فعال");
+        countdown.setSound(null, null);
+        countdown.enableVibration(false);
+        countdown.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        manager.createNotificationChannel(countdown);
+
+        NotificationChannel completion = new NotificationChannel(
+            COMPLETION_CHANNEL_ID, "پایان جلسهٔ تمرکز", NotificationManager.IMPORTANCE_HIGH);
+        completion.setDescription("اعلان پایان تایمر تمرکز و استراحت");
+        completion.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+            new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).build());
+        completion.setVibrationPattern(new long[] {0, 400, 250, 400});
+        completion.enableVibration(true);
+        completion.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        manager.createNotificationChannel(completion);
     }
 
     private static void show(Context context, String taskTitle, String mode, boolean running, long endAt,
@@ -142,7 +180,7 @@ final class PomodoroFocusNotification {
         String title;
         String body;
         if (completed) {
-            title = "زمان تمرکز تمام شد";
+            title = "work".equals(mode) ? "زمان تمرکز تمام شد" : "زمان استراحت تمام شد";
             body = "work".equals(mode) ? "جلسهٔ تمرکزت به پایان رسید · " + task : "زمان استراحت به پایان رسید · " + task;
         } else if ("short".equals(mode) || "long".equals(mode)) {
             title = "استراحت · " + task;
@@ -161,17 +199,19 @@ final class PomodoroFocusNotification {
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent contentIntent = PendingIntent.getActivity(context, NOTIFICATION_ID, open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context,
+                completed ? COMPLETION_CHANNEL_ID : CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_tasks)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(contentIntent)
             .setOnlyAlertOnce(true)
-            .setSilent(true)
+            .setSilent(!completed)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setAutoCancel(completed)
             .setOngoing(!completed);
+        if (completed) builder.setPriority(NotificationCompat.PRIORITY_HIGH);
         if (running && !completed && endAt > 0L) {
             builder.setWhen(endAt).setUsesChronometer(true);
             if (Build.VERSION.SDK_INT >= 24) builder.setChronometerCountDown(true);

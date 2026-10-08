@@ -68,13 +68,14 @@ export const ABOUT_SECTIONS: { id: string; title: string; emoji: string; questio
 ];
 
 export async function loadAboutMe(userId: string): Promise<AboutMeRow | null> {
-  const { data } = await firebaseStore.from("about_me" as any).select("*").eq("user_id", userId).maybeSingle();
+  const { data, error } = await firebaseStore.from("about_me" as any, userId).select("*").eq("user_id", userId).maybeSingle();
+  if (error) throw error;
   return (data as any) || null;
 }
 
 export async function saveAboutMe(userId: string, patch: Partial<AboutMeRow>) {
   const { error } = await firebaseStore
-    .from("about_me" as any)
+    .from("about_me" as any, userId)
     .upsert({ user_id: userId, ...patch }, { onConflict: "user_id" });
   if (error) throw error;
 }

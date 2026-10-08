@@ -5,13 +5,12 @@ import { useTranslation } from "react-i18next";
 import { useSidebar } from "@/components/ui/sidebar";
 import RecentlyDeletedSheet from "@/components/RecentlyDeletedSheet";
 import { isRTL } from "@/i18n";
-import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
+import { shouldShowBottomNavigation, useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { BottomTabItemConfig } from "./bottom-bar/types";
 import { MobileBottomBar } from "./bottom-bar/MobileBottomBar";
 import {
   useMobileBottomTabs,
-  ALL_MOBILE_TAB_OPTIONS,
-  type MobileTabOption,
+  getAccessibleMobileTabs,
 } from "@/lib/mobileBottomBarSettings";
 
 export function BottomTabBar() {
@@ -21,7 +20,8 @@ export function BottomTabBar() {
   const { i18n } = useTranslation();
   const dir = isRTL(i18n.language || "fa") ? "rtl" : "ltr";
   const [trashOpen, setTrashOpen] = useState(false);
-  const { isWindows, isFoldable, isDesktop } = useDeviceFormFactor();
+  const device = useDeviceFormFactor();
+  const modules = useModules();
 
   // Global trash listener
   useEffect(() => {
@@ -46,7 +46,7 @@ export function BottomTabBar() {
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
         switch (e.key) {
           case "1":
-            if (!isPathAllowed("/app/mind")) break;
+            if (!isPathAllowed("/app/mind", modules)) break;
             e.preventDefault();
             navigate("/app/mind");
             break;
@@ -83,17 +83,14 @@ export function BottomTabBar() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate, toggleSidebar]);
+  }, [navigate, toggleSidebar, modules]);
 
   // For compact phone layout: reactive user-chosen tabs from settings (default: today, calendar, notes).
   // The compact bar is the only rendered bar, so this list is the single source of tab config.
   const selectedTabKeys = useMobileBottomTabs();
   const mobileCustomTabs = useMemo<BottomTabItemConfig[]>(() => {
-    return selectedTabKeys
-      .map((key) => ALL_MOBILE_TAB_OPTIONS[key])
-      .filter((tab): tab is MobileTabOption => Boolean(tab))
-      .slice(0, 3);
-  }, [selectedTabKeys]);
+    return getAccessibleMobileTabs(selectedTabKeys, modules);
+  }, [selectedTabKeys, modules]);
 
   const isTaskPage =
     loc.pathname.startsWith("/app/new/task") ||
@@ -102,10 +99,8 @@ export function BottomTabBar() {
 
   if (!loc.pathname.startsWith("/app") || isTaskPage) return null;
 
-  // On Windows, Desktop, Foldable phones/devices, or any wide screen (>= 768px),
-  // completely remove the bottom toolbar — all navigation is merged into the right sidebar.
-  const isWideScreen = typeof window !== "undefined" && window.innerWidth >= 768;
-  const hideBottomBar = isWindows || isDesktop || isFoldable || isWideScreen;
+  // Touch tablets retain bottom navigation even when their viewport is desktop-sized.
+  const hideBottomBar = !shouldShowBottomNavigation(device);
 
   if (hideBottomBar) {
     return <RecentlyDeletedSheet open={trashOpen} onOpenChange={setTrashOpen} />;

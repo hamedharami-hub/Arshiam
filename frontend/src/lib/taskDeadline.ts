@@ -8,9 +8,9 @@ export type DeadlineTaskLike = {
   status?: string | null;
 };
 
-/** The initial deadline feature applies to one-off tasks only. */
-export function supportsTaskDeadline(task: DeadlineTaskLike): boolean {
-  return !task.recurrence_rule && (!task.recurrence || task.recurrence === "none");
+/** Deadlines are independent of recurrence and can be edited or cleared on every task. */
+export function supportsTaskDeadline(_task: DeadlineTaskLike): boolean {
+  return true;
 }
 
 export function isTaskClosed(task: DeadlineTaskLike): boolean {

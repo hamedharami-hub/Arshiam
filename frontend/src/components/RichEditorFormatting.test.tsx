@@ -58,4 +58,53 @@ describe("rich formatting selection", () => {
     fireEvent.click(screen.getByTestId("link-dialog-submit"));
     expect(ref.current?.getHtml()).toMatch(/<a [^>]*href="https:\/\/example.test\/"[^>]*>Select<\/a> these words/);
   });
+
+  it("keeps legacy tables, YouTube embeds, and base64 images after an edit and Markdown save", async () => {
+    const ref = createRef<RichEditorHandle>();
+    const legacyHtml = '<p>Before the legacy content</p><table class="legacy-grid" style="width: 420px"><thead><tr><th scope="col" style="color: red">Step</th><th>Owner</th></tr></thead><tbody><tr><td rowspan="2">Review</td><td>Sam</td></tr><tr><td><strong>Rae</strong></td></tr></tbody></table><div data-youtube-video=""><iframe src="https://www.youtube-nocookie.com/embed/abc123" title="Legacy video" width="640" height="360"></iframe></div><p><img alt="old scan" src="data:image/png;base64,aGVsbG8="></p>';
+    const first = render(<RichEditor ref={ref} initialHtml={legacyHtml} showVoiceButton={false} />);
+
+    await waitFor(() => expect(ref.current?.getHtml()).toContain("legacy-grid"));
+    const loaded = ref.current!.getHtml();
+    const loadedHtml = document.createElement("div");
+    loadedHtml.innerHTML = loaded;
+    expect(loaded).toContain("scope=\"col\"");
+    expect(loaded).toContain("<th");
+    expect(loaded).toContain("rowspan=\"2\"");
+    expect(loadedHtml.querySelector("table")?.style.width).toBe("420px");
+    expect(loadedHtml.querySelector("th")?.style.color).toBe("red");
+    expect(loaded).toContain("data-youtube-video");
+    expect(loaded).toContain("abc123");
+    expect(loaded).toContain('title="Legacy video"');
+    expect(loaded).toContain("data:image/png;base64,aGVsbG8=");
+
+    act(() => {
+      observed.editor!.commands.setTextSelection(1);
+      observed.editor!.commands.insertContent("Edited ");
+    });
+    const saved = ref.current!.getMarkdown();
+    expect(saved).toContain("Edited");
+    expect(saved).toContain('<table class="legacy-grid"');
+    expect(saved).toContain("data-youtube-video");
+    expect(saved).toContain("data:image/png;base64,aGVsbG8=");
+
+    first.unmount();
+    const reopened = createRef<RichEditorHandle>();
+    render(<RichEditor ref={reopened} initialMarkdown={saved} showVoiceButton={false} />);
+    await waitFor(() => expect(reopened.current?.getHtml()).toContain("legacy-grid"));
+    const roundTrip = reopened.current!.getHtml();
+    expect(roundTrip).toContain("scope=\"col\"");
+    expect(roundTrip).toContain("Review");
+    expect(roundTrip).toContain("abc123");
+    expect(roundTrip).toContain('title="Legacy video"');
+    expect(roundTrip).toContain("data:image/png;base64,aGVsbG8=");
+  });
+
+  it("keeps inline code and code blocks explicitly left-to-right", async () => {
+    const ref = createRef<RichEditorHandle>();
+    render(<RichEditor ref={ref} initialMarkdown={'Persian `let value = 1;`\n\n```js\nconst result = 2;\n```'} showVoiceButton={false} />);
+    await waitFor(() => expect(ref.current?.getHtml()).toContain("let value"));
+    expect(ref.current?.getHtml()).toContain('<code dir="ltr">');
+    expect(ref.current?.getHtml()).toContain('<pre dir="ltr">');
+  });
 });

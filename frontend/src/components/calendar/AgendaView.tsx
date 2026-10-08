@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { parseTaskDueDate } from "@/lib/taskDate";
-import type { CalendarTask } from "./CalendarTask";
+import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
+import { useBilingual } from "@/hooks/useBilingual";
 
 export default function AgendaView({
   start, end, tasks, holidays, system,
@@ -16,6 +17,7 @@ export default function AgendaView({
   system: CalendarSystem;
 }) {
   const navigate = useNavigate();
+  const { T } = useBilingual();
   const items = tasks
     .flatMap((t) => {
       const _d = t.due_date ? parseTaskDueDate(t.due_date) : null;
@@ -57,7 +59,9 @@ export default function AgendaView({
                   className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-end hover:bg-accent/30 transition"
                 >
                   <span className="text-xs text-muted-foreground tabular-nums w-12">
-                    {toPersianDigits(format(t._d, "HH:mm"))}
+                    {isAllDayCalendarDate(t.due_date, t.schedule_v)
+                      ? T("تمام‌روز", "All day")
+                      : toPersianDigits(format(t._d, "HH:mm"))}
                   </span>
                   <span className="flex-1 truncate text-foreground/90">{t.title}</span>
                   <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   cacheSet: vi.fn(),
   enqueueOp: vi.fn(),
   getPendingOps: vi.fn(),
+  canReplayForOwner: vi.fn((item: { ownerId?: string }, ownerId: string) => item.ownerId === ownerId),
   getDocs: vi.fn(),
   collection: vi.fn((...parts: string[]) => parts.join("/")),
   query: vi.fn((...parts: unknown[]) => parts),
@@ -26,6 +27,7 @@ vi.mock("@/lib/offlineQueue", () => ({
   cacheSet: mocks.cacheSet,
   enqueueOp: mocks.enqueueOp,
   getPendingOps: mocks.getPendingOps,
+  canReplayForOwner: mocks.canReplayForOwner,
 }));
 
 import {
@@ -45,6 +47,7 @@ describe("interactiveStudyService", () => {
     mocks.cacheSet.mockReset().mockResolvedValue(undefined);
     mocks.enqueueOp.mockReset().mockResolvedValue(true);
     mocks.getPendingOps.mockReset().mockResolvedValue([]);
+    mocks.canReplayForOwner.mockClear();
     mocks.getDocs.mockReset().mockResolvedValue({ docs: [] });
     mocks.collection.mockClear();
     mocks.query.mockClear();
@@ -106,6 +109,49 @@ describe("interactiveStudyService", () => {
       op: "upsert",
       payload: expect.objectContaining({ id: session.id, user_id: "user-a" }),
       match: { id: session.id },
+      expectedRevision: undefined,
+    }));
+  });
+
+  it("queues an edit against the exact cloud revision it was based on", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    const session = {
+      ...createInteractiveStudySessionDraft("user-a", "doc-7", "Study lesson", "en", "<p>Draft</p>"),
+      updated_at: "2026-10-01T10:00:00.000Z",
+    };
+
+    const result = await persistInteractiveStudySession(session);
+
+    expect(result.status).toBe("queued");
+    expect(mocks.enqueueOp).toHaveBeenCalledWith(expect.objectContaining({
+      expectedRevision: "2026-10-01T10:00:00.000Z",
+    }));
+  });
+
+  it("chains later offline edits behind the previous queued revision", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    const session = createInteractiveStudySessionDraft("user-a", "doc-7", "Study lesson", "en", "<p>First draft</p>");
+    const first = await persistInteractiveStudySession(session);
+    mocks.getPendingOps.mockResolvedValueOnce([{
+      ownerId: "user-a",
+      table: "interactive_study_sessions",
+      op: "upsert",
+      payload: { id: session.id, user_id: "user-a", updated_at: first.session.updated_at },
+      expectedRevision: undefined,
+      mutationId: "prior-edit",
+      createdAt: 1,
+      attempts: 0,
+    }]);
+    const second = await persistInteractiveStudySession({
+      ...first.session,
+      content_html: "<div class=\"interactive-learning-block\"><p>Second draft</p></div>",
+    });
+
+    expect(first.status).toBe("queued");
+    expect(second.status).toBe("queued");
+    expect(mocks.saveEntity).not.toHaveBeenCalled();
+    expect(mocks.enqueueOp).toHaveBeenLastCalledWith(expect.objectContaining({
+      expectedRevision: first.session.updated_at,
     }));
   });
 

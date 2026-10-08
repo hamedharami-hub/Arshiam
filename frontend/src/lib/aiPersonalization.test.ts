@@ -1,12 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const mocks = vi.hoisted(() => {
+  const query = { select: vi.fn(), eq: vi.fn(), maybeSingle: vi.fn() };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  const from = vi.fn(() => query);
+  return { auth: { currentUser: null as { uid: string } | null }, query, from };
+});
+vi.mock("@/lib/firebase", () => ({ auth: mocks.auth }));
+vi.mock("@/lib/firebaseStore", () => ({
+  firebaseStore: {
+    from: mocks.from,
+    auth: { getUser: vi.fn(async () => ({ data: { user: mocks.auth.currentUser } })) },
+  },
+}));
+
 import { formatAboutMeForAI, getAboutMeAIPromptDirectives, type AboutMeRow } from "./aboutMe";
 import { buildPersonalizationContext } from "./aiPersonalization";
-import { saveAISettings, setAIPersonalizationOptedIn } from "./aiSettings";
+import { setAIPersonalizationOptedIn } from "./aiSettings";
 
 describe("About Me & AI Personalization Integration", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    mocks.auth.currentUser = null;
+    mocks.from.mockClear();
+    mocks.query.maybeSingle.mockResolvedValue({ data: null, error: null });
   });
 
   describe("formatAboutMeForAI", () => {
@@ -100,7 +119,8 @@ describe("About Me & AI Personalization Integration", () => {
 
   describe("buildPersonalizationContext", () => {
     it("returns empty context when user has opted out of personalization", async () => {
-      setAIPersonalizationOptedIn(false);
+      mocks.auth.currentUser = { uid: "user_test" };
+      setAIPersonalizationOptedIn(false, "user_test");
 
       const res = await buildPersonalizationContext({ uid: "user_test" });
       expect(res.isOptedIn).toBe(false);
@@ -109,13 +129,45 @@ describe("About Me & AI Personalization Integration", () => {
     });
 
     it("compiles About Me and self-knowledge profile when opted in", async () => {
-      setAIPersonalizationOptedIn(true);
+      mocks.auth.currentUser = { uid: "user_with_data" };
+      setAIPersonalizationOptedIn(true, "user_with_data");
 
       const res = await buildPersonalizationContext({ uid: "user_with_data" });
       expect(res.isOptedIn).toBe(true);
       // Even if database has mock or empty records in unit test, it returns valid structure
       expect(res.aboutMePoints).toBeDefined();
       expect(res.mindPoints).toBeDefined();
+    });
+
+    it("does not reuse one account's opt-in for another account", async () => {
+      mocks.auth.currentUser = { uid: "user_a" };
+      setAIPersonalizationOptedIn(true, "user_a");
+
+      const res = await buildPersonalizationContext({ uid: "user_b" });
+      expect(res.isOptedIn).toBe(false);
+      expect(res.contextText).toBe("");
+    });
+
+    it("pins profile reads to the opted-in user and drops context after an account switch", async () => {
+      mocks.auth.currentUser = { uid: "user_a" };
+      setAIPersonalizationOptedIn(true, "user_a");
+      const pending: Array<(result: { data: unknown; error: null }) => void> = [];
+      mocks.query.maybeSingle.mockImplementation(() => new Promise((resolve) => pending.push(resolve)));
+
+      const resultPromise = buildPersonalizationContext({ uid: "user_a" });
+      await vi.waitFor(() => expect(pending).toHaveLength(2));
+      expect(mocks.from.mock.calls).toEqual([["mh_profile", "user_a"], ["about_me", "user_a"]]);
+
+      mocks.auth.currentUser = { uid: "user_b" };
+      pending.forEach((resolve) => resolve({
+        data: { answers: { occupation: "PRIVATE_OLD_ACCOUNT_ROLE" }, free_text: "PRIVATE_OLD_ACCOUNT_NOTE" },
+        error: null,
+      }));
+
+      const result = await resultPromise;
+      expect(result.isOptedIn).toBe(false);
+      expect(result.contextText).toBe("");
+      expect(result.aboutMePoints).toEqual([]);
     });
   });
 });

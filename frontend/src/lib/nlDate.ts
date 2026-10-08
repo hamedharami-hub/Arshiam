@@ -176,12 +176,10 @@ export function parseNaturalDate(rawTitle: string, now: Date = new Date()): Pars
     strip(/ظهر|noon/g);
   }
 
-  // If a time was given but no date, assume today (or tomorrow if already past).
+  // A clock time alone does not identify a calendar day. Keep it in the title
+  // until the user supplies an explicit day instead of guessing today/tomorrow.
   if (!date && hasTime) {
-    date = new Date(base);
-    const candidate = new Date(base);
-    candidate.setHours(hours, minutes, 0, 0);
-    if (candidate.getTime() < now.getTime()) date.setDate(date.getDate() + 1);
+    return { dueDate: null, cleanedTitle: original.trim() };
   }
 
   if (!date) {

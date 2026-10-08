@@ -37,7 +37,7 @@ export function NoteEditorTabs({
   onBusyChange?: (busy: boolean) => void;
   onSelectedTextChange?: (text: string) => void;
 }) {
-  const { T } = useBilingual();
+  const { T, isEn } = useBilingual();
   const { user } = useAuth();
   const [mediaBusy, setMediaBusy] = useState(false);
   const handleBusy = (busy: boolean) => { setMediaBusy(busy); onBusyChange?.(busy); };
@@ -104,7 +104,8 @@ export function NoteEditorTabs({
           onChange={(e) => onChange(e.target.value, markdownToHtml(e.target.value))}
           disabled={readOnly}
           className="min-h-[40vh] font-mono text-sm w-full border-0 focus-visible:ring-0 px-0"
-          dir="ltr"
+          dir={isEn ? "ltr" : "auto"}
+          style={{ unicodeBidi: "plaintext", textAlign: "start" }}
         />
         <div>
           <p className="text-xs text-muted-foreground mb-1">{T("پیش‌نمایش زنده", "Live preview")}</p>

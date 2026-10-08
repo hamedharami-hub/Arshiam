@@ -18,6 +18,6 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["rules.test.ts"],
+    include: ["rules-tests/rules.test.ts"],
   },
 });

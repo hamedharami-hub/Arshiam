@@ -1,7 +1,7 @@
 import { normalizeLearningWorkspace } from "./learningWorkspace";
 import { firebaseStore } from "./firebaseStore";
 import { cacheGet, cacheSet, canReplayForOwner, enqueueOp, getPendingOps } from "./offlineQueue";
-import { saveEntityToFirestoreWithOutcome, deleteEntityFromFirestore } from "./firestoreSync";
+import { replayQueuedEntityWithOutcome, saveEntityToFirestoreWithOutcome } from "./firestoreSync";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "./knowledgeTypes";
 import type { TaskKnowledgeLink } from "./taskKnowledgeTypes";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
@@ -137,15 +137,29 @@ async function saveKnowledgeRowOrQueue(
   return (await saveKnowledgeRowOrQueueWithPersistence(userId, collection, op, item)).accepted;
 }
 
-async function deleteKnowledgeRowOrQueue(userId: string, collection: KnowledgeCollection, id: string): Promise<boolean> {
+async function deleteKnowledgeRowOrQueue(
+  userId: string,
+  collection: KnowledgeCollection,
+  id: string,
+  expectedRevision: string | undefined,
+): Promise<boolean> {
+  // A missing revision cannot safely authorize deleting a record that may have
+  // changed on another device.
+  if (typeof expectedRevision !== "string" || !expectedRevision) return false;
   if (isOnline()) {
     try {
-      if (await deleteEntityFromFirestore(userId, collection, id)) return true;
+      const outcome = await replayQueuedEntityWithOutcome(userId, collection, id, {
+        op: "delete", createdAt: Date.now(), expectedRevision,
+      });
+      if (outcome === "saved") return true;
+      // A confirmed revision conflict or owner mismatch must not be converted
+      // into an optimistic queued deletion.
+      return false;
     } catch {
-      // A failed server delete can still be safely accepted by the outbox.
+      // Network failure can be retried later with the same exact revision.
     }
   }
-  return enqueueOp({ ownerId: userId, table: collection, op: "delete", match: { id } });
+  return enqueueOp({ ownerId: userId, table: collection, op: "delete", match: { id }, expectedRevision });
 }
 
 function requireMutationAccepted(accepted: boolean, action: string): void {
@@ -384,7 +398,7 @@ export async function deleteKnowledgeFolder(userId: string, folderId: string): P
   // orphaned references when the parent delete succeeds first.
   await verifyFolderHasNoDirectContents(userId, folderId);
 
-  const folderDeleted = await deleteKnowledgeRowOrQueue(userId, "knowledge_folders", folderId);
+  const folderDeleted = await deleteKnowledgeRowOrQueue(userId, "knowledge_folders", folderId, folder.updated_at);
   if (!folderDeleted) {
     throw new Error("Could not confirm or queue folder removal. Your knowledge items were kept; retry when storage is available.");
   }
@@ -680,7 +694,7 @@ async function deleteKnowledgeDocumentUnlocked(userId: string, docId: string): P
   }
 
   requireMutationAccepted(
-    await deleteKnowledgeRowOrQueue(userId, "knowledge_documents", docId),
+    await deleteKnowledgeRowOrQueue(userId, "knowledge_documents", docId, existing.find((document) => document.id === docId)?.updated_at),
     "Document deletion",
   );
 

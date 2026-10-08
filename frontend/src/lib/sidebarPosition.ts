@@ -1,14 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
-import i18n from "@/i18n";
+import i18n, { isRTL } from "@/i18n";
 
 // The stored value is the Persian (RTL) layout; the English (LTR) layout mirrors it so the sidebar stays at the reading start.
-const isLtr = () => (i18n.language || "fa").startsWith("en");
+const isLtr = () => !isRTL(i18n.language || "fa");
 const flip = (p: "right" | "left"): "right" | "left" => (p === "right" ? "left" : "right");
 
 export type SidebarPosition = "right" | "left";
 
 export const SIDEBAR_POSITION_STORAGE_KEY = "arshnaz_sidebar_position";
 export const SIDEBAR_POSITION_EVENT = "arshnaz:sidebar-position-changed";
+
+/** Local storage is canonicalized to the RTL side so the layout mirrors in LTR. */
+function toStoredSidebarPosition(pos: SidebarPosition): SidebarPosition {
+  return isLtr() ? flip(pos) : pos;
+}
+
+/** Cloud settings predate canonical storage and contain the visible physical side. */
+export function hydrateSidebarPositionFromCloud(pos?: SidebarPosition | null): void {
+  if (pos === "left" || pos === "right") setSidebarPosition(pos);
+}
 
 export function getSidebarPosition(): SidebarPosition {
   if (typeof window === "undefined") return "right";
@@ -24,7 +34,7 @@ export function getSidebarPosition(): SidebarPosition {
 
 export function setSidebarPosition(pos: SidebarPosition): void {
   try {
-    localStorage.setItem(SIDEBAR_POSITION_STORAGE_KEY, isLtr() ? flip(pos) : pos);
+    localStorage.setItem(SIDEBAR_POSITION_STORAGE_KEY, toStoredSidebarPosition(pos));
   } catch {
     // ignore
   }

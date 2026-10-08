@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { isTaskClosed, isValidDeadlineDate, supportsTaskDeadline, taskDeadlineStatus } from "./taskDeadline";
 
 describe("task deadline date helpers", () => {
-  it("limits the initial deadline feature to active one-off tasks", () => {
+  it("treats deadlines as independent of recurrence", () => {
     expect(supportsTaskDeadline({ recurrence: "none" })).toBe(true);
     expect(supportsTaskDeadline({})).toBe(true);
-    expect(supportsTaskDeadline({ recurrence: "weekly" })).toBe(false);
-    expect(supportsTaskDeadline({ recurrence_rule: { freq: "daily" } })).toBe(false);
+    expect(supportsTaskDeadline({ recurrence: "weekly" })).toBe(true);
+    expect(supportsTaskDeadline({ recurrence_rule: { freq: "daily" } })).toBe(true);
     expect(isTaskClosed({ completed: true })).toBe(true);
     expect(isTaskClosed({ status: "done", completed: false })).toBe(true);
     expect(isTaskClosed({ status: "wont_do", completed: false })).toBe(true);

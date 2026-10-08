@@ -36,7 +36,9 @@ vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
     from: (table: string) => ({
       select: () => ({
-        order: () => Promise.resolve({ data: table === "tags" ? [{ id: "tag-1", name: "Work", color: "#123456" }] : [] }),
+        order: () => Promise.resolve({ data: table === "tags"
+          ? [{ id: "tag-1", name: "Work", color: "#123456" }, { id: "tag-2", name: "Project Alpha", color: null }]
+          : table === "folders" ? [{ id: "folder-1", name: "Research Group" }] : [] }),
       }),
       insert: () => Promise.resolve({ error: null }),
     }),
@@ -57,6 +59,15 @@ vi.mock("@/lib/firestoreDataService", () => ({
 }));
 
 describe("QuickAddTask component", () => {
+  const waitForMetadata = async () => {
+    fireEvent.click(screen.getByTitle("Choose folder"));
+    await screen.findByRole("button", { name: "Research Group" });
+    fireEvent.click(screen.getByTitle("Choose folder"));
+    fireEvent.click(screen.getByTitle("Add tag"));
+    await screen.findByText("Project Alpha");
+    fireEvent.click(screen.getByTitle("Add tag"));
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     templateMocks.list.mockResolvedValue([]);
@@ -91,6 +102,38 @@ describe("QuickAddTask component", () => {
     const operations = vi.mocked(enqueueOps).mock.calls[0][0];
     expect(operations[0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", kanban_column_id: "goal-1", status: "in_progress", priority: "high", planning_horizon: "week", planning_start: "2026-10-03", planning_end: "2026-10-09", work_date: null }));
     expect(operations[1].payload).toEqual([expect.objectContaining({ tag_id: "tag-1" })]);
+  });
+
+  it("parses multiword tags and folders while keeping the task title intact", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<MemoryRouter><QuickAddTask placeholder="+ Add task" /></MemoryRouter>);
+    fireEvent.click(screen.getByText("+ Add task"));
+    await waitForMetadata();
+    fireEvent.change(screen.getByPlaceholderText("+ Add task"), { target: { value: "Review launch #Project Alpha @Research Group !high" } });
+    fireEvent.click(screen.getByTitle("Add task (Enter)"));
+
+    await waitFor(() => expect(enqueueOps).toHaveBeenCalledTimes(1));
+    const operations = vi.mocked(enqueueOps).mock.calls[0][0];
+    expect(operations[0].payload).toEqual(expect.objectContaining({
+      title: "Review launch", folder_id: "folder-1", priority: "high",
+    }));
+    expect(operations[1].payload).toEqual([expect.objectContaining({ tag_id: "tag-2" })]);
+  });
+
+  it("keeps unknown hashtag and folder phrases in the submitted title", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    render(<MemoryRouter><QuickAddTask placeholder="+ Add task" /></MemoryRouter>);
+    fireEvent.click(screen.getByText("+ Add task"));
+    await waitForMetadata();
+    fireEvent.change(screen.getByPlaceholderText("+ Add task"), { target: { value: "Draft #unlisted notes @New Project plan" } });
+    fireEvent.click(screen.getByTitle("Add task (Enter)"));
+
+    await waitFor(() => expect(enqueueOps).toHaveBeenCalledTimes(1));
+    const operations = vi.mocked(enqueueOps).mock.calls[0][0];
+    expect(operations).toHaveLength(1);
+    expect(operations[0].payload).toEqual(expect.objectContaining({
+      title: "Draft #unlisted notes @New Project plan", folder_id: null,
+    }));
   });
 
   it("atomically queues an offline task and its tags before clearing the form", async () => {

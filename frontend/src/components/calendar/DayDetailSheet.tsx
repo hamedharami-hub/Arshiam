@@ -14,8 +14,9 @@ import { useNavigate } from "react-router-dom";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { toast } from "sonner";
 import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
-import type { CalendarTask } from "./CalendarTask";
+import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
+import { useBilingual } from "@/hooks/useBilingual";
 
 const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, none: 3 };
 const PRIORITY_COLOR: Record<string, string> = {
@@ -39,6 +40,7 @@ export default function DayDetailSheet({
   onTaskCreated?: () => void;
 }) {
   const { user } = useAuth();
+  const { T } = useBilingual();
   const navigate = useNavigate();
   const { prefersDialog } = useDeviceFormFactor();
   const [checkin, setCheckin] = useState<any>(null);
@@ -141,8 +143,9 @@ export default function DayDetailSheet({
                 <span className="truncate flex-1">{t.title}</span>
                 <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
                 <span className="text-[10px] text-muted-foreground tabular-nums">
-                  {toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getHours().toString().padStart(2, "0") ?? "--") : "--"))}
-                  :{toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getMinutes().toString().padStart(2, "0") ?? "00") : "00"))}
+                  {isAllDayCalendarDate(t.due_date, t.schedule_v)
+                    ? T("تمام‌روز", "All day")
+                    : `${toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getHours().toString().padStart(2, "0") ?? "--") : "--"))}:${toPersianDigits(String(t.due_date ? (parseTaskDueDate(t.due_date)?.getMinutes().toString().padStart(2, "0") ?? "00") : "00"))}`}
                 </span>
               </button>
             ))}
@@ -156,7 +159,7 @@ export default function DayDetailSheet({
           <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground"><ListChecks className="w-4 h-4 text-primary" /> خط‌زمان</h3>
           <div className="border border-border/60 rounded-xl divide-y max-h-[300px] overflow-y-auto bg-card/40">
             {HOURS.map((h) => {
-              const slot = dayTasks.filter((t) => t.due_date && parseTaskDueDate(t.due_date)?.getHours() === h);
+              const slot = dayTasks.filter((t) => t.due_date && !isAllDayCalendarDate(t.due_date, t.schedule_v) && parseTaskDueDate(t.due_date)?.getHours() === h);
               return (
                 <div key={h} className="grid grid-cols-[40px_1fr] gap-2 p-2 text-xs min-h-[32px]">
                   <div className="text-muted-foreground tabular-nums pt-0.5">{toPersianDigits(String(h).padStart(2, "0"))}</div>

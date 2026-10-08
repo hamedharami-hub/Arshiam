@@ -45,6 +45,38 @@ public class AndroidExperienceTest {
         PomodoroWidgetProvider.finish(c); assertTrue(PomodoroWidgetProvider.state(c).complete());
         assertEquals("00:00",PomodoroWidgetProvider.format(PomodoroWidgetProvider.state(c).remainingMs));
     }
+    @Test public void focusCountdownStaysQuietAndCompletionUsesAnAlertingChannel() {
+        Shadows.shadowOf((Application)c).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS);
+        long endAt=System.currentTimeMillis()+25*60*1000L;
+        PomodoroFocusNotification.sync(c,true,true,false,"session-a","Test focus","work",endAt,1500L);
+
+        NotificationManager manager=c.getSystemService(NotificationManager.class);
+        Notification countdown=Shadows.shadowOf(manager).getNotification(PomodoroFocusNotification.NOTIFICATION_ID);
+        assertNotNull(countdown);
+        assertEquals(PomodoroFocusNotification.CHANNEL_ID,countdown.getChannelId());
+        NotificationChannel countdownChannel=manager.getNotificationChannel(PomodoroFocusNotification.CHANNEL_ID);
+        assertEquals(NotificationManager.IMPORTANCE_LOW,countdownChannel.getImportance());
+        assertNull(countdownChannel.getSound());
+        assertFalse(countdownChannel.shouldVibrate());
+
+        PomodoroFocusNotification.sync(c,false,false,true,"session-a","Test focus","work",0L,0L);
+        Notification completed=Shadows.shadowOf(manager).getNotification(PomodoroFocusNotification.NOTIFICATION_ID);
+        assertNotNull(completed);
+        assertEquals(PomodoroFocusNotification.COMPLETION_CHANNEL_ID,completed.getChannelId());
+        NotificationChannel completionChannel=manager.getNotificationChannel(PomodoroFocusNotification.COMPLETION_CHANNEL_ID);
+        assertEquals(NotificationManager.IMPORTANCE_HIGH,completionChannel.getImportance());
+        assertNotNull(completionChannel.getSound());
+        assertTrue(completionChannel.shouldVibrate());
+        assertFalse((completed.flags&Notification.FLAG_ONGOING_EVENT)!=0);
+
+        PomodoroFocusNotification.sync(c,true,true,false,"session-b","Second focus","work",endAt,1500L);
+        c.getSharedPreferences("arshnaz_pomodoro_focus_notification",Context.MODE_PRIVATE)
+            .edit().putLong("endAt",System.currentTimeMillis()-1L).commit();
+        PomodoroFocusNotification.onAlarm(c);
+        Notification alarmCompletion=Shadows.shadowOf(manager).getNotification(PomodoroFocusNotification.NOTIFICATION_ID);
+        assertNotNull(alarmCompletion);
+        assertEquals(PomodoroFocusNotification.COMPLETION_CHANNEL_ID,alarmCompletion.getChannelId());
+    }
     @Test public void independentWidgetFiltersAndRowRendering() throws Exception {
         login();
         AgendaData.options(c).edit().putString("widget.2.scope","tomorrow").putBoolean("widget.2.light",true).commit();

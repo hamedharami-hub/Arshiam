@@ -27,6 +27,7 @@ import { logoutUser } from "@/lib/authService";
 import { arshAuthHeader } from "@/lib/arshApi";
 import { accountDeletionUrl } from "@/lib/accountDeletionUrl";
 import { clearUserLocalData } from "@/lib/offlineQueue";
+import { clearPersistentFirestoreCache } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSettings, saveSettings, ensureNotificationPermission, type UserSettings } from "@/lib/reminders";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -690,18 +691,23 @@ export default function SettingsView() {
       // Server has deleted owned Storage, the full Firestore tree, then Firebase Auth.
       // Clear only this account's local records; another signed-in profile may
       // have pending work on a shared device.
-      const localDataCleared = await clearUserLocalData(user.id);
-      const [attachmentQueueCleared, albumCleared] = await Promise.all([
+      const [localDataCleared, attachmentQueueCleared, albumCleared, firestoreCacheCleared] = await Promise.all([
+        clearUserLocalData(user.id).catch(() => false),
         import("@/lib/attachmentUpload").then(({ clearQueuedAttachmentsForUser }) => clearQueuedAttachmentsForUser(user.id)).catch(() => false),
         import("@/lib/islandAlbum").then(({ clearAlbumForUser }) => clearAlbumForUser(user.id)).catch(() => false),
+        clearPersistentFirestoreCache().catch(() => false),
       ]);
       try { await logoutUser(); } catch {}
-      const localCleanupSucceeded = localDataCleared && attachmentQueueCleared && albumCleared;
-      toast.success(isEn ? "All account data deleted" : "همهٔ داده‌های حساب حذف شد", {
-        description: localCleanupSucceeded ? undefined : isEn
+      const localCleanupSucceeded = localDataCleared && attachmentQueueCleared && albumCleared && firestoreCacheCleared;
+      if (localCleanupSucceeded) {
+        toast.success(isEn ? "All account data deleted" : "همهٔ داده‌های حساب حذف شد");
+      } else {
+        toast.error(isEn ? "Account deleted; device cleanup incomplete" : "حساب حذف شد؛ پاک‌سازی دستگاه کامل نشد", {
+          description: isEn
           ? "The account was deleted, but some data on this device could not be cleared. Clear this browser's site data before sharing the device."
           : "حساب حذف شد، اما پاک‌سازی بخشی از داده‌های همین دستگاه کامل نشد. پیش از واگذاری دستگاه، داده‌های سایت را پاک کن.",
-      });
+        });
+      }
       window.location.href = "/auth";
     } catch (e) {
       toast.error((e instanceof Error ? e.message : String(e)) || (isEn ? "Delete error" : "خطا در حذف"));
@@ -744,6 +750,16 @@ export default function SettingsView() {
           <LanguageSwitcher />
           <CrisisSupportSettings />
 
+          <SidebarQuickLinksSettings isEn={isEn} />
+          <MobileBottomBarSettings isEn={isEn} />
+          <AppearanceSettingsSection
+            isEn={isEn}
+            reminders={reminders}
+            updateReminder={updateReminder}
+            currentTheme={currentTheme}
+            setAppTheme={setAppTheme}
+          />
+
           <SectionCard
             icon={Compass}
             title={isEn ? "Life Architect & System Design" : "معمار هوشمند زندگی و ساخت سیستم"}
@@ -766,16 +782,6 @@ export default function SettingsView() {
             </div>
           </SectionCard>
 
-          <AppearanceSettingsSection
-            isEn={isEn}
-            reminders={reminders}
-            updateReminder={updateReminder}
-            currentTheme={currentTheme}
-            setAppTheme={setAppTheme}
-          />
-
-          <SidebarQuickLinksSettings isEn={isEn} />
-          <MobileBottomBarSettings isEn={isEn} />
           <CompanionSettings />
         </TabsContent>
 

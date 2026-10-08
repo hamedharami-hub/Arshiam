@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { BottomTabItemConfig } from "@/components/bottom-bar/types";
+import { isPathAllowed, type ModulesState } from "@/lib/appModules";
 
 export interface MobileTabOption extends BottomTabItemConfig {
   descriptionFa: string;
@@ -76,7 +77,8 @@ export const ALL_MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = {
       p.startsWith("/app/calm") ||
       p.startsWith("/app/sleep") ||
       p.startsWith("/app/screener") ||
-      p.startsWith("/app/self"),
+      p.startsWith("/app/self") ||
+      p.startsWith("/app/crisis"),
   },
   inbox: {
     key: "inbox",
@@ -132,6 +134,31 @@ export const ALL_MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = {
 };
 
 export const DEFAULT_MOBILE_BOTTOM_TABS = ["today", "calendar", "notes"];
+
+/** Keep inaccessible module routes out of the live bar and fill their slots with core routes. */
+export function getAccessibleMobileTabs(
+  selectedKeys: string[],
+  modules: ModulesState,
+): MobileTabOption[] {
+  const candidates = [
+    ...selectedKeys,
+    ...DEFAULT_MOBILE_BOTTOM_TABS,
+    ...Object.keys(ALL_MOBILE_TAB_OPTIONS),
+  ];
+  const seen = new Set<string>();
+  const result: MobileTabOption[] = [];
+
+  for (const key of candidates) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const tab = ALL_MOBILE_TAB_OPTIONS[key];
+    if (tab && isPathAllowed(tab.to, modules)) result.push(tab);
+    if (result.length === 3) break;
+  }
+
+  return result;
+}
+
 const STORAGE_KEY = "arshnaz_mobile_bottom_tabs";
 
 let listeners = new Set<() => void>();

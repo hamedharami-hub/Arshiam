@@ -16,6 +16,13 @@ export interface DeviceFormFactorInfo {
   shouldUseBottomSheet: boolean;
 }
 
+/** Touch devices keep bottom navigation available even when their viewport is desktop-sized. */
+export function shouldShowBottomNavigation(
+  info: Pick<DeviceFormFactorInfo, "isWindows" | "isDesktop" | "isTouch">,
+): boolean {
+  return !info.isWindows && (!info.isDesktop || info.isTouch);
+}
+
 function detectFormFactor(): DeviceFormFactorInfo {
   if (typeof window === "undefined") {
     return {

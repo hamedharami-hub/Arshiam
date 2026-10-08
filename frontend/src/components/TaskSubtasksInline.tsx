@@ -7,6 +7,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Trash2, ListTree, GripVertical, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -14,7 +18,11 @@ import { useShowCompletedTasks, setShowCompletedTasks } from "@/lib/completedTas
 import { toPersianDigits } from "@/lib/jalali";
 import { BidiText } from "@/components/BidiText";
 import { persistTask } from "@/lib/firestoreDataService";
-import { deleteTaskCascade } from "@/features/tasks/taskService";
+import {
+  deleteTaskCascade,
+  getServerConfirmedCascadeTasks,
+} from "@/features/tasks/taskService";
+import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import type { Task } from "@/lib/taskTypes";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -50,6 +58,9 @@ export function TaskSubtasksInline({
   currentRows.current = subs;
   const [newTitle, setNewTitle] = useState("");
   const [adding, setAdding] = useState(false);
+  const [deleteCandidate, setDeleteCandidate] = useState<Sub | null>(null);
+  const [deleteWarning, setDeleteWarning] = useState<"nested" | "unverified">("nested");
+  const [deleting, setDeleting] = useState(false);
   const addInFlight = useRef(false);
   const scopeKey = `${user?.id || "guest"}\u0000${taskId}`;
   const activeScope = useRef(scopeKey);
@@ -312,7 +323,7 @@ export function TaskSubtasksInline({
   };
 
   const remove = async (id: string) => {
-    if (readOnly || !user) return;
+    if (readOnly || !user) return false;
     const prevSubs = subs;
     recentAddsRef.current.delete(id);
     const nextSubs = subs.filter((x) => x.id !== id);
@@ -324,9 +335,59 @@ export function TaskSubtasksInline({
       setSubs(prevSubs);
       onSubtasksChange?.(prevSubs);
       toast.error(T("خطا در حذف زیرتسک", "Failed to delete subtask"));
-      return;
+      return false;
     }
     window.dispatchEvent(new Event("tasks-changed"));
+    return true;
+  };
+
+  const requestRemove = async (sub: Sub) => {
+    if (readOnly || !user) return;
+    try {
+      const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+      let candidateTasks: Task[];
+      if (isOffline) {
+        candidateTasks = extractTasksFromCache(await cacheGet<unknown>(`tasks:all:${user.id}`));
+      } else {
+        const serverTasks = await getServerConfirmedCascadeTasks(user.id);
+        if (!serverTasks) {
+          // A failed/cache-only preflight cannot prove this is a leaf.
+          setDeleteWarning("unverified");
+          setDeleteCandidate(sub);
+          return;
+        }
+        candidateTasks = serverTasks;
+      }
+      const descendants = collectTaskDescendantIds(sub.id, buildTaskChildrenMap(candidateTasks));
+      if (descendants.some((id) => id !== sub.id)) {
+        setDeleteWarning("nested");
+        setDeleteCandidate(sub);
+        return;
+      }
+      if (isOffline) {
+        // Even a fresh local cache cannot rule out a child created by another device.
+        setDeleteWarning("unverified");
+        setDeleteCandidate(sub);
+        return;
+      }
+    } catch {
+      // If descendants cannot be checked, show the broader warning before a cascade.
+      setDeleteWarning("unverified");
+      setDeleteCandidate(sub);
+      return;
+    }
+    await remove(sub.id);
+  };
+
+  const confirmRemove = async () => {
+    if (!deleteCandidate || deleting) return;
+    setDeleting(true);
+    const removed = await remove(deleteCandidate.id);
+    setDeleting(false);
+    if (removed) {
+      setDeleteCandidate(null);
+      setDeleteWarning("nested");
+    }
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -401,7 +462,7 @@ export function TaskSubtasksInline({
                 onChangeTitle={(title) => updateTitle(s.id, title)}
                 onBlur={() => void flushPendingTitle(s.id)}
                 onOpen={onOpenSubtask ? () => onOpenSubtask(s.id) : undefined}
-                onDelete={() => remove(s.id)}
+                onDelete={() => { void requestRemove(s); }}
                 isEn={isEn}
                 T={T}
               />
@@ -451,6 +512,35 @@ export function TaskSubtasksInline({
           <Plus className="w-3 h-3" />
         </Button>
       </div>
+      <AlertDialog open={!!deleteCandidate} onOpenChange={(open) => {
+        if (!open && !deleting) {
+          setDeleteCandidate(null);
+          setDeleteWarning("nested");
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("حذف زیرتسک؟", "Delete subtask?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteWarning === "unverified"
+                ? T(
+                    "فهرست زیرتسک‌ها از سرور تأیید نشده است؛ ممکن است زیرتسک‌های تو در تو نیز حذف شوند.",
+                    "The child list could not be verified with the server; nested subtasks may also be deleted.",
+                  )
+                : T(
+                    "این زیرتسک و همهٔ زیرتسک‌های تو در توی آن حذف می‌شوند.",
+                    "This subtask and all of its nested subtasks will be deleted.",
+                  )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { void confirmRemove(); }} disabled={deleting}>
+              {T("حذف زیرتسک", "Delete subtask")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -526,6 +616,7 @@ function SortableSubtaskRow({
           size="icon"
           variant="ghost"
           onClick={onDelete}
+          aria-label={T(`حذف زیرتسک ${sub.title}`, `Delete subtask ${sub.title}`)}
           className="h-6 w-6 text-muted-foreground/60 hover:text-destructive focus-visible:text-destructive"
         >
           <Trash2 className="w-3 h-3" />

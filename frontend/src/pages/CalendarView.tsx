@@ -15,7 +15,7 @@ import { getHolidaysForRange, getOccasionSets, setOccasionSets, HOLIDAYS_EVENT, 
 import { HolidayList } from "@/components/calendar/HolidayList";
 import { getTimeSettings, periodFor, fromLocalISO } from "@/lib/timeHorizon";
 import { addMonths as jAddMonths } from "date-fns-jalali";
-import { parseTaskDueDate } from "@/lib/taskDate";
+import { getLocalDateString, parseTaskDueDate } from "@/lib/taskDate";
 import { filterTasksForVisibility, useShowCompletedTasks, setShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { useBilingual } from "@/hooks/useBilingual";
 import MonthGrid from "@/components/calendar/MonthGrid";
@@ -190,17 +190,32 @@ export default function CalendarView() {
         const seenIds = new Set<string>();
         for (const t of (data || []) as any[]) {
           if (!t.id || seenIds.has(t.id)) continue;
-          let inRange = false;
-          const calendarDate = taskWorkDate(t);
-          if (calendarDate) {
-            const d = parseTaskDueDate(calendarDate);
-            if (d && d.getTime() >= startTime && d.getTime() <= endTime) {
-              inRange = true;
-            }
+          const scheduledDate = taskWorkDate(t);
+          const deadlineDate = typeof t.deadline_date === "string" ? t.deadline_date : null;
+          const isInRange = (value: string | null) => {
+            const parsedDate = value ? parseTaskDueDate(value) : null;
+            return !!parsedDate && parsedDate.getTime() >= startTime && parsedDate.getTime() <= endTime;
+          };
+          const scheduleInRange = isInRange(scheduledDate);
+          const deadlineInRange = isInRange(deadlineDate);
+          const sameCalendarDay = (first: string | null, second: string | null) => {
+            const firstDate = first ? parseTaskDueDate(first) : null;
+            const secondDate = second ? parseTaskDueDate(second) : null;
+            return !!firstDate && !!secondDate && getLocalDateString(firstDate) === getLocalDateString(secondDate);
+          };
+          const entries: CalendarTask[] = [];
+          if (scheduleInRange && scheduledDate) {
+            const deadlineOnScheduledDay = deadlineDate && sameCalendarDay(scheduledDate, deadlineDate)
+              ? deadlineDate
+              : null;
+            entries.push({ ...t, due_date: scheduledDate, deadline_date: deadlineOnScheduledDay, calendar_kind: "schedule" });
           }
-          if (inRange) {
+          if (deadlineInRange && deadlineDate && (!scheduleInRange || !sameCalendarDay(scheduledDate, deadlineDate))) {
+            entries.push({ ...t, due_date: deadlineDate, calendar_kind: "deadline" });
+          }
+          if (entries.length) {
             seenIds.add(t.id);
-            matching.push({ ...t, due_date: calendarDate });
+            matching.push(...entries);
           }
         }
         if (active) setTasks(matching);

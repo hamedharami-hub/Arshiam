@@ -21,11 +21,24 @@ import { useFocusSession } from "@/hooks/useFocusSession";
 import { todayISO } from "@/lib/timeHorizon";
 import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
 import type { Task } from "@/lib/taskTypes";
-import { buildFocusHistoryPage, buildFocusMonthReport, type FocusHistoryCursor, type FocusReportFolder, type FocusReportSession, type FocusReportTask } from "./focusReports";
+import { nativeExperience, isAndroid } from "@/lib/nativeExperience";
+import { buildFocusHistoryPage, buildFocusMonthReport, focusHistoryStateForOwner, isCurrentFocusHistoryRequest, type FocusHistoryCursor, type FocusReportFolder, type FocusReportSession, type FocusReportTask } from "./focusReports";
 
 type SessionRow = FocusReportSession & { started_at?: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; ended_at: string };
 type TaskOption = { id: string; title: string; due_date: string | null };
+type FocusHistoryState = {
+  ownerId: string | null;
+  rows: SessionRow[];
+  cursor: FocusHistoryCursor | null;
+  hasMore: boolean;
+  open: boolean;
+  loading: boolean;
+  error: boolean;
+};
+const emptyFocusHistoryState = (ownerId: string | null): FocusHistoryState => ({
+  ownerId, rows: [], cursor: null, hasMore: false, open: false, loading: false, error: false,
+});
 const HISTORY_PAGE_SIZE = 25;
 const HISTORY_QUERY_SIZE = HISTORY_PAGE_SIZE + 1;
 const MONTH_REPORT_LIMIT = 500;
@@ -40,6 +53,7 @@ export default function PomodoroView() {
   const { user } = useAuth();
   const historyOwner = useRef(user?.id ?? null);
   historyOwner.current = user?.id ?? null;
+  const historyRequestGeneration = useRef(0);
   const navigate = useNavigate();
   const { T, isEn } = useBilingual();
   const [storedToday, setToday] = useState<SessionRow[]>([]);
@@ -52,12 +66,10 @@ export default function PomodoroView() {
   const [monthLimitReached, setMonthLimitReached] = useState(false);
   const [monthOffset, setMonthOffset] = useState(0);
   const [monthGroupBy, setMonthGroupBy] = useState<"task" | "folder">("task");
-  const [history, setHistory] = useState<SessionRow[]>([]);
-  const [historyCursor, setHistoryCursor] = useState<FocusHistoryCursor | null>(null);
-  const [historyHasMore, setHistoryHasMore] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState(false);
+  const [historyState, setHistoryState] = useState<FocusHistoryState>(() => emptyFocusHistoryState(user?.id ?? null));
+  const currentHistory = focusHistoryStateForOwner(historyState, user?.id ?? null)
+    ?? emptyFocusHistoryState(user?.id ?? null);
+  const [androidAlarmStatus, setAndroidAlarmStatus] = useState<{ exactAllowed: boolean; notificationsAllowed: boolean } | null>(null);
   const [storedTasks, setTasks] = useState<TaskOption[]>([]);
   const [dataOwner, setDataOwner] = useState<string | null>(null);
   const today = dataOwner === user?.id ? storedToday : [];
@@ -68,6 +80,23 @@ export default function PomodoroView() {
   const system = getCalendarSystem();
   const focus = useFocusSession();
   const [day, setDay] = useState(todayISO);
+  useEffect(() => {
+    if (!isAndroid()) return;
+    let active = true;
+    const refreshAlarmStatus = () => {
+      void nativeExperience.status().then((status) => {
+        if (active) setAndroidAlarmStatus({ exactAllowed: status.exactAllowed, notificationsAllowed: status.notificationsAllowed });
+      }).catch(() => { if (active) setAndroidAlarmStatus(null); });
+    };
+    refreshAlarmStatus();
+    window.addEventListener("focus", refreshAlarmStatus);
+    document.addEventListener("visibilitychange", refreshAlarmStatus);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", refreshAlarmStatus);
+      document.removeEventListener("visibilitychange", refreshAlarmStatus);
+    };
+  }, []);
   useEffect(() => { const update = () => setDay(todayISO()); const id = window.setInterval(update, 30000); document.addEventListener("visibilitychange", update); return () => { clearInterval(id); document.removeEventListener("visibilitychange", update); }; }, []);
   const reportMonth = useMemo(() => system === "jalali"
     ? addJalaliMonths(startOfJalaliMonth(new Date()), monthOffset)
@@ -190,7 +219,10 @@ export default function PomodoroView() {
     return () => { active = false; };
   }, [user?.id, reportMonth, reportNextMonth, refreshTick, focus?.completedVersion]);
 
-  useEffect(() => { setHistory([]); setHistoryCursor(null); setHistoryHasMore(false); setHistoryError(false); setHistoryOpen(false); }, [user?.id]);
+  useEffect(() => {
+    historyRequestGeneration.current += 1;
+    setHistoryState(emptyFocusHistoryState(user?.id ?? null));
+  }, [user?.id]);
 
   useEffect(() => { setSelectedTaskId(focus?.session.startedAt ? focus.session.taskId : null); }, [user?.id, focus?.session.id]);
   const totalMin = today.reduce((s, r) => s + (r.duration_minutes || 0), 0);
@@ -226,37 +258,71 @@ export default function PomodoroView() {
   const fullFocus = Boolean(focus?.session.startedAt);
 
   const fetchHistory = async (reset = false) => {
-    if (!user || historyLoading) return;
-    if (!reset && !historyCursor) return;
-    setHistoryLoading(true);
-    setHistoryError(false);
+    const ownerId = user?.id;
+    if (!ownerId) return;
+    const ownedHistory = historyState.ownerId === ownerId ? historyState : emptyFocusHistoryState(ownerId);
+    if (ownedHistory.loading) return;
+    const cursor = reset ? null : ownedHistory.cursor;
+    if (!reset && !cursor) return;
+    const request = { ownerId, generation: ++historyRequestGeneration.current };
+    const isCurrentRequest = () => isCurrentFocusHistoryRequest(
+      request, historyOwner.current, historyRequestGeneration.current,
+    );
+    setHistoryState((current) => {
+      const owned = current.ownerId === ownerId ? current : emptyFocusHistoryState(ownerId);
+      return { ...owned, loading: true, error: false };
+    });
     try {
       // Timestamp alone was an ambiguous cursor when sessions shared ended_at.
       // The nested owner path scopes data, while documentId makes pagination stable.
-      const sessionsRef = collection(db, "users", user.id, "pomodoro_sessions");
+      const sessionsRef = collection(db, "users", ownerId, "pomodoro_sessions");
       const order = [orderBy("ended_at", "desc"), orderBy(documentId(), "desc")];
-      const pageQuery = reset || !historyCursor
+      const pageQuery = reset || !cursor
         ? query(sessionsRef, ...order, firestoreLimit(HISTORY_QUERY_SIZE))
-        : query(sessionsRef, ...order, startAfter(historyCursor.endedAt, historyCursor.id), firestoreLimit(HISTORY_QUERY_SIZE));
+        : query(sessionsRef, ...order, startAfter(cursor.endedAt, cursor.id), firestoreLimit(HISTORY_QUERY_SIZE));
       const snapshot = await getDocs(pageQuery);
       if (!snapshot.metadata.fromCache) trackRead(snapshot.size, "pomodoro_sessions");
-      if (historyOwner.current !== user.id || auth.currentUser?.uid !== user.id) return;
+      if (!isCurrentRequest() || auth.currentUser?.uid !== ownerId) return;
       const fetchedRows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as SessionRow));
       const page = buildFocusHistoryPage(fetchedRows, HISTORY_PAGE_SIZE);
-      setHistory((current) => reset ? page.rows : [...current, ...page.rows]);
-      setHistoryCursor(page.cursor);
-      setHistoryHasMore(page.hasMore);
+      setHistoryState((current) => {
+        if (current.ownerId !== ownerId) return current;
+        return {
+          ...current,
+          rows: reset ? page.rows : [...current.rows, ...page.rows],
+          cursor: page.cursor,
+          hasMore: page.hasMore,
+          error: false,
+        };
+      });
     } catch {
-      if (historyOwner.current === user.id) setHistoryError(true);
+      if (isCurrentRequest() && auth.currentUser?.uid === ownerId) {
+        setHistoryState((current) => current.ownerId === ownerId ? { ...current, error: true } : current);
+      }
     } finally {
-      setHistoryLoading(false);
+      if (isCurrentRequest()) {
+        setHistoryState((current) => current.ownerId === ownerId ? { ...current, loading: false } : current);
+      }
     }
   };
 
   const toggleHistory = () => {
-    const next = !historyOpen;
-    setHistoryOpen(next);
-    if (next && history.length === 0) void fetchHistory(true);
+    const ownerId = user?.id ?? null;
+    const ownedHistory = historyState.ownerId === ownerId ? historyState : emptyFocusHistoryState(ownerId);
+    const next = !ownedHistory.open;
+    setHistoryState((current) => {
+      const owned = current.ownerId === ownerId ? current : emptyFocusHistoryState(ownerId);
+      return { ...owned, open: next };
+    });
+    if (next && ownedHistory.rows.length === 0) void fetchHistory(true);
+  };
+
+  const openAndroidAlarmSettings = () => {
+    if (androidAlarmStatus?.notificationsAllowed === false) {
+      void nativeExperience.openNotificationSettings().catch(() => {});
+    } else {
+      void nativeExperience.openExactSettings().catch(() => {});
+    }
   };
 
   return (
@@ -300,6 +366,15 @@ export default function PomodoroView() {
             setRefreshTick((t) => t + 1);
           }}
         />
+        {isAndroid() && <div className="rounded-lg bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground" data-testid="pomodoro-alarm-help" role="status">
+          {androidAlarmStatus?.notificationsAllowed === false ? <>
+            <p>{T("اعلان‌های اندروید خاموش‌اند؛ تایمر ادامه پیدا می‌کند اما اعلان شمارش و پایان دیده نمی‌شود.", "Android notifications are off. The timer can continue, but its countdown and finish alert will not be shown.")}</p>
+            <Button type="button" size="sm" variant="link" className="h-auto px-0 py-1 text-[11px]" onClick={openAndroidAlarmSettings}>{T("تنظیم اعلان‌ها", "Notification settings")}</Button>
+          </> : androidAlarmStatus?.exactAllowed === false ? <>
+            <p>{T("اعلان پایان با زنگ تقریبی زمان‌بندی می‌شود و ممکن است دیر برسد. دسترسی زنگ دقیق می‌تواند زمان‌بندی را بهبود دهد؛ Doze و محدودیت باتری همچنان ممکن است اعلان را عقب بیندازند.", "Android is using an inexact alarm, so the finish alert may arrive late. Exact-alarm access can improve timing, though Doze and battery restrictions can still delay it.")}</p>
+            <Button type="button" size="sm" variant="link" className="h-auto px-0 py-1 text-[11px]" onClick={openAndroidAlarmSettings}>{T("تنظیم زنگ دقیق", "Exact alarm settings")}</Button>
+          </> : <p>{T("اندروید ممکن است اعلان پایان را در حالت Doze یا با محدودیت باتری دیر برساند؛ زمان دقیق تضمین نمی‌شود.", "Android may delay the finish alert in Doze or under battery restrictions; exact delivery is not guaranteed.")}</p>}
+        </div>}
       </Card>
 
 
@@ -415,17 +490,17 @@ export default function PomodoroView() {
       </Card>}
 
       {!fullFocus && <Card className="overflow-hidden" data-testid="pomodoro-history">
-        <button type="button" onClick={toggleHistory} aria-expanded={historyOpen} className="flex min-h-12 w-full items-center gap-2 px-4 py-3 text-start">
+        <button type="button" onClick={toggleHistory} aria-expanded={currentHistory.open} className="flex min-h-12 w-full items-center gap-2 px-4 py-3 text-start">
           <HistoryIcon className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1 text-sm font-medium">{T("تاریخچهٔ جلسه‌ها", "Session history")}</span>
-          {historyOpen && <span role="status" className="text-[10px] text-muted-foreground">{T("صفحه‌بندی‌شده", "Paged history")}</span>}
-          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+          {currentHistory.open && <span role="status" className="text-[10px] text-muted-foreground">{T("صفحه‌بندی‌شده", "Paged history")}</span>}
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${currentHistory.open ? "rotate-180" : ""}`} />
         </button>
-        {historyOpen && <div className="space-y-2 border-t border-border p-3">
+        {currentHistory.open && <div className="space-y-2 border-t border-border p-3">
           <div className="flex justify-end">
-            <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs" disabled={historyLoading} onClick={() => void fetchHistory(true)}><RefreshCw className={`h-3 w-3 ${historyLoading ? "animate-spin" : ""}`} />{T("تازه‌سازی", "Refresh")}</Button>
+            <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs" disabled={currentHistory.loading} onClick={() => void fetchHistory(true)}><RefreshCw className={`h-3 w-3 ${currentHistory.loading ? "animate-spin" : ""}`} />{T("تازه‌سازی", "Refresh")}</Button>
           </div>
-          {history.map((row, index) => {
+          {currentHistory.rows.map((row, index) => {
             const ended = row.ended_at ? new Date(row.ended_at) : null;
             const dateLabel = ended ? (system === "jalali" ? formatDate(ended, "d MMM yyyy", "jalali") : format(ended, "d MMM yyyy")) : "";
             const timeLabel = ended ? format(ended, "HH:mm") : "";
@@ -437,10 +512,10 @@ export default function PomodoroView() {
               <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{isEn ? `${Math.round(row.duration_minutes || 0)}m` : `${toPersianDigits(Math.round(row.duration_minutes || 0))}د`}</span>
             </div>;
           })}
-          {historyLoading && <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>}
-          {!historyLoading && historyError && <p role="status" className="py-3 text-center text-xs text-muted-foreground">{T("تاریخچه بارگذاری نشد. دوباره تلاش کن.", "History could not be loaded. Try again.")}</p>}
-          {!historyLoading && !historyError && history.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">{T("هنوز جلسه‌ای ثبت نشده است.", "No focus sessions have been recorded yet.")}</p>}
-          {!historyLoading && historyHasMore && <Button size="sm" variant="outline" className="w-full" onClick={() => void fetchHistory(false)}>{T("جلسه‌های قدیمی‌تر", "Load older sessions")}</Button>}
+          {currentHistory.loading && <div className="flex justify-center py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>}
+          {!currentHistory.loading && currentHistory.error && <p role="status" className="py-3 text-center text-xs text-muted-foreground">{T("تاریخچه بارگذاری نشد. دوباره تلاش کن.", "History could not be loaded. Try again.")}</p>}
+          {!currentHistory.loading && !currentHistory.error && currentHistory.rows.length === 0 && <p className="py-3 text-center text-xs text-muted-foreground">{T("هنوز جلسه‌ای ثبت نشده است.", "No focus sessions have been recorded yet.")}</p>}
+          {!currentHistory.loading && currentHistory.hasMore && <Button size="sm" variant="outline" className="w-full" onClick={() => void fetchHistory(false)}>{T("جلسه‌های قدیمی‌تر", "Load older sessions")}</Button>}
         </div>}
       </Card>}
     </div>

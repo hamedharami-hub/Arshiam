@@ -47,11 +47,11 @@ describe("TaskDeadlineIndicator", () => {
     expect(screen.queryByTestId("task-deadline-indicator-task-1")).toBeNull();
   });
 
-  it("does not show deadlines for recurring tasks", () => {
+  it("shows deadlines for recurring tasks", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 9, 7, 12));
 
     render(<TaskDeadlineIndicator task={{ ...task("2026-10-06"), recurrence_rule: { freq: "daily", interval: 1 } }} isEn={true} T={(_fa, en) => en} />);
-    expect(screen.queryByTestId("task-deadline-indicator-task-1")).toBeNull();
+    expect(screen.getByTestId("task-deadline-indicator-task-1")).toBeInTheDocument();
   });
 });

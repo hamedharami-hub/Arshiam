@@ -608,6 +608,74 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     expect(Array.from(testStore.tasks.values())).toHaveLength(1);
   });
 
+  it("persists hash-checked memory creation idempotency across process cache resets", async () => {
+    const key = "memory-note-retry-20261008";
+    const body = { title: "Private retry", content: "Do not create this note twice." };
+    const first = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/memories", token,
+      headers: { "idempotency-key": key }, body,
+    });
+    await handleAgentRequest(first.req, first.res);
+    expect(first.res.statusCode).toBe(201);
+    const firstResponse = JSON.parse(first.res.body);
+
+    resetIdempotencyCache();
+    const retry = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/memories", token,
+      headers: { "idempotency-key": key }, body,
+    });
+    await handleAgentRequest(retry.req, retry.res);
+
+    expect(retry.res.statusCode).toBe(201);
+    expect(JSON.parse(retry.res.body)).toEqual(firstResponse);
+    expect(testStore.notes.size).toBe(1);
+    expect(testStore.audit.filter((row) => row.action === "memories:create_note")).toHaveLength(1);
+    const record = Array.from(testStore.idempotency.values())[0];
+    expect(record.requestHash).toMatch(/^[a-f0-9]{64}$/);
+
+    const differentBody = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/memories", token,
+      headers: { "idempotency-key": key }, body: { ...body, content: "Different note body." },
+    });
+    await handleAgentRequest(differentBody.req, differentBody.res);
+    expect(differentBody.res.statusCode).toBe(409);
+    expect(JSON.parse(differentBody.res.body).error.code).toBe("IDEMPOTENCY_CONFLICT");
+    expect(testStore.notes.size).toBe(1);
+  });
+
+  it("persists hash-checked calendar creation idempotency before repeat conflict checks", async () => {
+    const key = "calendar-event-retry-20261008";
+    const body = { title: "Retryable appointment", start_at: "2026-10-08T15:30:00.000Z" };
+    const first = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/calendar/events", token,
+      headers: { "idempotency-key": key }, body,
+    });
+    await handleAgentRequest(first.req, first.res);
+    expect(first.res.statusCode).toBe(201);
+    const firstResponse = JSON.parse(first.res.body);
+
+    resetIdempotencyCache();
+    const retry = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/calendar/events", token,
+      headers: { "idempotency-key": key }, body,
+    });
+    await handleAgentRequest(retry.req, retry.res);
+
+    expect(retry.res.statusCode).toBe(201);
+    expect(JSON.parse(retry.res.body)).toEqual(firstResponse);
+    expect(testStore.tasks.size).toBe(1);
+    expect(testStore.audit.filter((row) => row.action === "calendar:create_event")).toHaveLength(1);
+
+    const differentBody = createMockReqRes({
+      method: "POST", url: "/api/v1/agent/calendar/events", token,
+      headers: { "idempotency-key": key }, body: { ...body, title: "Different appointment" },
+    });
+    await handleAgentRequest(differentBody.req, differentBody.res);
+    expect(differentBody.res.statusCode).toBe(409);
+    expect(JSON.parse(differentBody.res.body).error.code).toBe("IDEMPOTENCY_CONFLICT");
+    expect(testStore.tasks.size).toBe(1);
+  });
+
   it("validates an optional deadline date and includes it in idempotent task creation", async () => {
     const key = "deadline_date_retry_20261007";
     const body = { title: "Task with a separate deadline", work_date: "2026-10-08", deadline_date: "2026-10-31" };

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useDeviceFormFactor } from "./useDeviceFormFactor";
+import { shouldShowBottomNavigation, useDeviceFormFactor } from "./useDeviceFormFactor";
 
 describe("useDeviceFormFactor hook", () => {
   const originalNavigator = window.navigator;
@@ -57,5 +57,14 @@ describe("useDeviceFormFactor hook", () => {
     expect(result.current.isPhone).toBe(false);
     expect(result.current.prefersDialog).toBe(true);
     expect(result.current.shouldUseBottomSheet).toBe(false);
+  });
+
+  it("keeps bottom navigation on touch tablets with desktop-sized viewports", () => {
+    expect(shouldShowBottomNavigation({ isWindows: false, isDesktop: true, isTouch: true })).toBe(true);
+  });
+
+  it("uses the sidebar navigation on non-touch desktops and Windows", () => {
+    expect(shouldShowBottomNavigation({ isWindows: false, isDesktop: true, isTouch: false })).toBe(false);
+    expect(shouldShowBottomNavigation({ isWindows: true, isDesktop: true, isTouch: true })).toBe(false);
   });
 });

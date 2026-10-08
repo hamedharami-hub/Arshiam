@@ -9,12 +9,36 @@ const LEGACY_FORMAT_TAGS = new Set([
   "tbody", "td", "th", "thead", "tr", "u", "ul",
 ]);
 
+function escapeHtmlAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function escapeMarkdownImageAlt(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/([\[\]])/g, "\\$1").replace(/[\r\n]+/g, " ");
+}
+
+function markdownDestination(value: string): string {
+  const safe = value.replace(/[\r\n]+/g, "").replace(/\\/g, "%5C").replace(/</g, "%3C").replace(/>/g, "%3E").replace(/\s/g, "%20");
+  return `<${safe}>`;
+}
+
+/** Old editors sometimes stored base64 images as Markdown image links. Marked
+ * rejects data URLs in link syntax, so make them raw HTML before parsing. */
+function normalizeLegacyBase64Images(source: string): string {
+  return source.replace(/!\[((?:\\.|[^\]])*)\]\((data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=_-]+)\)/gi, (_match, rawAlt: string, src: string) => {
+    const alt = rawAlt.replace(/\\([\\[\]])/g, "$1");
+    return `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}">`;
+  });
+}
+
 /** Recover older notes that saved formatted HTML as escaped text. */
 export function normalizeNoteMarkup(source: string): string {
   if (!source) return "";
   // Only decode when a note starts with an escaped block tag. This avoids
   // turning intentional inline examples such as `&lt;strong&gt;` into markup.
-  if (!/^\s*&lt;\/?(?:p|div|h[1-6]|ul|ol|blockquote|pre|table)\b/i.test(source)) return source;
+  const startsWithEscapedBlock = /^\s*&lt;\/?(?:p|div|h[1-6]|ul|ol|blockquote|pre|table)\b/i.test(source);
+  const startsWithEscapedBase64Image = /^\s*&lt;img\b[\s\S]*?data:image\//i.test(source);
+  if (!startsWithEscapedBlock && !startsWithEscapedBase64Image) return source;
 
   return source.replace(/&lt;(\/?)((?:[a-z][a-z0-9-]*))([\s\S]*?)&gt;/gi, (raw, closing: string, name: string, attributes: string) => {
     const tag = name.toLowerCase();
@@ -43,9 +67,27 @@ turndown.addRule("textAlignment", {
   replacement: (_content, node: HTMLElement) => `\n\n<${node.nodeName.toLowerCase()} style="text-align: ${node.style.textAlign}">${node.innerHTML}</${node.nodeName.toLowerCase()}>\n\n`,
 });
 
+// These blocks cannot be represented by ordinary Markdown without losing
+// attributes or embedded content. Keep their HTML in the Markdown source so
+// visual-editor edits round-trip them intact.
+turndown.addRule("table", {
+  filter: "table",
+  replacement: (_content, node: HTMLElement) => `\n\n${node.outerHTML}\n\n`,
+});
+turndown.addRule("youtubeEmbed", {
+  filter: (node: HTMLElement) => node.nodeName === "DIV" && node.hasAttribute("data-youtube-video"),
+  replacement: (_content, node: HTMLElement) => `\n\n${node.outerHTML}\n\n`,
+});
 turndown.addRule("img", {
   filter: "img",
-  replacement: (_c, node: any) => `![${node.getAttribute("alt") || ""}](${node.getAttribute("src") || ""})`,
+  replacement: (_c, node: HTMLElement) => {
+    const title = node.getAttribute("title")?.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]+/g, " ");
+    return `![${escapeMarkdownImageAlt(node.getAttribute("alt") || "")}](${markdownDestination(node.getAttribute("src") || "")}${title ? ` "${title}"` : ""})`;
+  },
+});
+turndown.addRule("base64Image", {
+  filter: (node: HTMLElement) => node.nodeName === "IMG" && /^data:image\//i.test(node.getAttribute("src") || ""),
+  replacement: (_content, node: HTMLElement) => node.outerHTML,
 });
 
 turndown.addRule("video", {
@@ -76,7 +118,7 @@ export function htmlToMarkdown(html: string): string {
 
 export function markdownToHtml(md: string): string {
   if (!md) return "";
-  let html = marked.parse(normalizeNoteMarkup(md), { async: false }) as string;
+  let html = marked.parse(normalizeLegacyBase64Images(normalizeNoteMarkup(md)), { async: false }) as string;
   // Convert standard markdown task items to TipTap-compatible task items
   // Already serialized TipTap checklists must pass through unchanged. Rewrapping
   // their existing labels/items creates invalid nested list markup in old notes.

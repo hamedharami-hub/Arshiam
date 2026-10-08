@@ -99,6 +99,11 @@ const task = (id: string, parent_id: string | null = null): Task => ({
   position: 0,
 });
 
+const serverSnapshot = (tasks: Task[]) => ({
+  metadata: { fromCache: false, hasPendingWrites: false },
+  docs: tasks.map((item) => ({ id: item.id, data: () => item })),
+});
+
 describe("taskService cascade deletion persistence", () => {
   const originalTasks = [task("root"), task("child", "root"), task("other")];
 
@@ -257,6 +262,7 @@ describe("taskService cascade deletion persistence", () => {
 
   it("uses an atomic Firestore batch for the online task portion", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(originalTasks) as any);
     mocks.taskKnowledgeLinks = [{ id: "link-child", user_id: "task-owner", task_id: "child" }];
     mocks.noteTaskLinks = [{ id: "note-link-child", user_id: "task-owner", task_id: "child", note_id: "note-1" }];
     const batch = { delete: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
@@ -274,6 +280,7 @@ describe("taskService cascade deletion persistence", () => {
 
   it("queues task-scoped relation cleanup when related links cannot be read online", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(originalTasks) as any);
     mocks.taskKnowledgeLinkReadError = true;
 
     const result = await deleteTaskCascade("task-owner", "root", originalTasks);
@@ -288,6 +295,7 @@ describe("taskService cascade deletion persistence", () => {
 
   it("does not claim an online cascade succeeded when Firestore and the durable queue both fail", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(originalTasks) as any);
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const batch = { delete: vi.fn(), commit: vi.fn().mockRejectedValue(new Error("permission denied")) };
     mocks.writeBatch.mockReturnValue(batch);
@@ -298,6 +306,44 @@ describe("taskService cascade deletion persistence", () => {
     expect(result).toEqual({ success: false, deletedIds: [] });
     expect(taskMemoryCache.get("task-owner")).toEqual(originalTasks);
     expect(mocks.cacheSet).not.toHaveBeenCalled();
+  });
+
+  it("uses a server-confirmed descendant tree instead of a stale caller list", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    const currentServerTasks = [task("root"), task("child", "root"), task("grandchild", "child"), task("other")];
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(currentServerTasks) as any);
+    const batch = { delete: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
+    mocks.writeBatch.mockReturnValue(batch);
+
+    const result = await deleteTaskCascade("task-owner", "root", [task("root"), task("other")]);
+
+    expect(result).toEqual({ success: true, deletedIds: ["root", "child", "grandchild"] });
+    expect(batch.delete).toHaveBeenCalledWith([{}, "users", "task-owner", "tasks", "grandchild"]);
+  });
+
+  it("does not delete from an online cache-only task snapshot", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(getDocs).mockResolvedValueOnce({ ...serverSnapshot(originalTasks), metadata: { fromCache: true } } as any);
+
+    const result = await deleteTaskCascade("task-owner", "root", originalTasks);
+
+    expect(result).toEqual({ success: false, deletedIds: [] });
+    expect(mocks.enqueueOps).not.toHaveBeenCalled();
+    expect(mocks.writeBatch).not.toHaveBeenCalled();
+    expect(taskMemoryCache.get("task-owner")).toEqual(originalTasks);
+  });
+
+  it("does not delete from a snapshot with unconfirmed local writes", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(getDocs).mockResolvedValueOnce({ ...serverSnapshot(originalTasks), metadata: { fromCache: false, hasPendingWrites: true } } as any);
+
+    const result = await deleteTaskCascade("task-owner", "root", originalTasks);
+
+    expect(result).toEqual({ success: false, deletedIds: [] });
+    expect(mocks.enqueueOps).not.toHaveBeenCalled();
+    expect(mocks.writeBatch).not.toHaveBeenCalled();
   });
 });
 

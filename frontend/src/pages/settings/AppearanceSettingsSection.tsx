@@ -1,5 +1,5 @@
 import { Palette, Sun, Moon, Settings2, Check, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { ACCENT_COLORS, ACCENT_SWATCH, applyAccent, getStoredAccent, normalizeTheme, type AccentColor } from "@/lib/theme";
 import { resetSidebarOrder } from "@/components/sidebar/SidebarNavSections";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { useTranslation } from "react-i18next";
 import { SectionCard, SettingRow } from "./SectionCard";
-import { getSidebarPosition, setSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
+import { useSidebarPosition, type SidebarPosition } from "@/lib/sidebarPosition";
 import { CompletionFeedbackSettingsCard } from "@/components/CompletionFeedbackSettingsCard";
 import type { UserSettings } from "@/lib/reminders";
 
@@ -38,6 +38,8 @@ export function AppearanceSettingsSection({
   ];
   const activeTheme = normalizeTheme(currentTheme);
   const [accent, setAccent] = useState<AccentColor>(getStoredAccent);
+  const accentGroupRef = useRef<HTMLDivElement>(null);
+  const { sidebarPosition, setSidebarPosition } = useSidebarPosition();
   useEffect(() => {
     const synced = reminders?.accent_color;
     if (synced && (ACCENT_COLORS as string[]).includes(synced) && synced !== accent) {
@@ -46,6 +48,29 @@ export function AppearanceSettingsSection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reminders?.accent_color]);
+  const selectAccent = (color: AccentColor) => {
+    applyAccent(color);
+    setAccent(color);
+    void updateReminder({ accent_color: color });
+  };
+
+  const handleAccentKeyDown = (event: KeyboardEvent<HTMLButtonElement>, color: AccentColor) => {
+    const index = ACCENT_COLORS.indexOf(color);
+    const rtl = !isEn;
+    let delta: number | null = null;
+    if (event.key === "ArrowRight") delta = rtl ? -1 : 1;
+    if (event.key === "ArrowLeft") delta = rtl ? 1 : -1;
+    if (event.key === "ArrowDown") delta = 1;
+    if (event.key === "ArrowUp") delta = -1;
+    if (delta === null) return;
+
+    event.preventDefault();
+    const next = ACCENT_COLORS[(index + delta + ACCENT_COLORS.length) % ACCENT_COLORS.length];
+    accentGroupRef.current
+      ?.querySelector<HTMLButtonElement>(`[data-accent-option="${next}"]`)
+      ?.focus();
+    selectAccent(next);
+  };
   const accentKey: Record<AccentColor, string> = {
     indigo: "ui.accentIndigo", olive: "ui.accentOlive", amber: "ui.accentAmber",
     steel: "ui.accentSteel", rose: "ui.accentRose", brick: "ui.accentBrick",
@@ -114,7 +139,7 @@ export function AppearanceSettingsSection({
 
         <div className="space-y-2">
           <Label className="text-xs">{t("ui.accent")}</Label>
-          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("ui.accent")}>
+          <div ref={accentGroupRef} className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("ui.accent")}>
             {ACCENT_COLORS.map((c) => (
               <button
                 key={c}
@@ -124,7 +149,10 @@ export function AppearanceSettingsSection({
                 title={t(accentKey[c])}
                 aria-label={t(accentKey[c])}
                 data-testid={`accent-option-${c}`}
-                onClick={() => { applyAccent(c); setAccent(c); void updateReminder({ accent_color: c }); }}
+                data-accent-option={c}
+                tabIndex={accent === c ? 0 : -1}
+                onClick={() => selectAccent(c)}
+                onKeyDown={(event) => handleAccentKeyDown(event, c)}
                 className={`grid h-10 w-10 place-items-center rounded-full border-2 ${accent === c ? "border-foreground" : "border-transparent"}`}
               >
                 <span className="grid h-7 w-7 place-items-center rounded-full" style={{ background: ACCENT_SWATCH[c] }}>
@@ -196,7 +224,7 @@ export function AppearanceSettingsSection({
               help={isEn ? "Choose whether navigation opens from the right or left" : "تعیین باز شدن تسک‌بار و منوی برنامه از سمت راست یا چپ در تمام دستگاه‌ها"}
             >
               <Select
-                value={reminders.sidebar_position || getSidebarPosition()}
+                value={sidebarPosition}
                 onValueChange={(v) => {
                   const pos = v as SidebarPosition;
                   setSidebarPosition(pos);

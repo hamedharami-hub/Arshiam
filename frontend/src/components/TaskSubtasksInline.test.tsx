@@ -14,8 +14,18 @@ vi.mock("@/hooks/useBilingual", () => ({
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
-vi.mock("@/lib/offlineQueue", () => ({ cacheGet: vi.fn().mockResolvedValue([]) }));
+const deleteMocks = vi.hoisted(() => ({
+  cascade: vi.fn(async (..._args: unknown[]) => ({ success: true, deletedIds: ["sub-1"] })),
+  cachedTasks: [] as unknown,
+  serverTasks: [] as unknown[] | null,
+}));
+vi.mock("@/lib/offlineQueue", () => ({ cacheGet: vi.fn(async () => deleteMocks.cachedTasks) }));
 vi.mock("./TaskPlanningPicker", () => ({ TaskPlanningPicker: () => null }));
+
+vi.mock("@/features/tasks/taskService", () => ({
+  deleteTaskCascade: (...args: unknown[]) => deleteMocks.cascade(...args),
+  getServerConfirmedCascadeTasks: vi.fn(async () => deleteMocks.serverTasks),
+}));
 
 const mockPersistTask = vi.fn().mockResolvedValue("saved");
 vi.mock("@/lib/firestoreDataService", async (importOriginal) => {
@@ -29,7 +39,11 @@ vi.mock("@/lib/firestoreDataService", async (importOriginal) => {
 describe("TaskSubtasksInline Component", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     mockPersistTask.mockReset().mockResolvedValue("saved");
+    deleteMocks.cascade.mockReset().mockResolvedValue({ success: true, deletedIds: ["sub-1"] });
+    deleteMocks.cachedTasks = [];
+    deleteMocks.serverTasks = [];
   });
 
   it("renders subtasks and allows checking without reverting when parent re-renders", async () => {
@@ -122,6 +136,86 @@ describe("TaskSubtasksInline Component", () => {
     fireEvent.compositionEnd(input);
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(mockPersistTask).toHaveBeenCalledTimes(1));
+  });
+
+  it("deletes a leaf subtask immediately without a confirmation dialog", async () => {
+    render(<TaskSubtasksInline taskId="parent-delete" initialSubs={[
+      { id: "sub-1", title: "مرحله", completed: false, position: 0 },
+    ]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف زیرتسک مرحله" }));
+    await waitFor(() => expect(deleteMocks.cascade).toHaveBeenCalledWith("test-user-subtasks", "sub-1"));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("confirms before deleting a subtask with descendants and explains the cascade", async () => {
+    deleteMocks.cachedTasks = [
+      { id: "sub-1", parent_id: "parent-delete" },
+      { id: "nested-1", parent_id: "sub-1" },
+    ];
+    deleteMocks.serverTasks = [
+      { id: "parent-delete" },
+      { id: "sub-1", parent_id: "parent-delete" },
+      { id: "nested-1", parent_id: "sub-1" },
+    ];
+    render(<TaskSubtasksInline taskId="parent-delete" initialSubs={[
+      { id: "sub-1", title: "مرحله", completed: false, position: 0 },
+    ]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف زیرتسک مرحله" }));
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("همهٔ زیرتسک‌های تو در تو");
+    expect(deleteMocks.cascade).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف زیرتسک" }));
+    await waitFor(() => expect(deleteMocks.cascade).toHaveBeenCalledWith("test-user-subtasks", "sub-1"));
+  });
+
+  it("confirms when the stale local cache misses a server-known nested child", async () => {
+    deleteMocks.cachedTasks = [];
+    deleteMocks.serverTasks = [
+      { id: "parent-delete" },
+      { id: "sub-1", parent_id: "parent-delete" },
+      { id: "server-child", parent_id: "sub-1" },
+    ];
+    render(<TaskSubtasksInline taskId="parent-delete" initialSubs={[
+      { id: "sub-1", title: "مرحله", completed: false, position: 0 },
+    ]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف زیرتسک مرحله" }));
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("همهٔ زیرتسک‌های تو در تو");
+    expect(deleteMocks.cascade).not.toHaveBeenCalled();
+  });
+
+  it("warns before deleting when an online server snapshot cannot confirm whether descendants exist", async () => {
+    deleteMocks.serverTasks = null;
+    render(<TaskSubtasksInline taskId="parent-delete" initialSubs={[
+      { id: "sub-1", title: "مرحله", completed: false, position: 0 },
+    ]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف زیرتسک مرحله" }));
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(deleteMocks.cascade).not.toHaveBeenCalled();
+  });
+
+  it("warns offline even when a fresh cache shows no nested child", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    deleteMocks.cachedTasks = {
+      tasks: [
+        { id: "parent-delete" },
+        { id: "sub-1", parent_id: "parent-delete" },
+      ],
+      cachedAt: Date.now(),
+    };
+    render(<TaskSubtasksInline taskId="parent-delete" initialSubs={[
+      { id: "sub-1", title: "مرحله", completed: false, position: 0 },
+    ]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "حذف زیرتسک مرحله" }));
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("فهرست زیرتسک‌ها از سرور تأیید نشده است");
+    expect(deleteMocks.cascade).not.toHaveBeenCalled();
   });
 
   it("keeps new typing entered while the preceding subtask is being saved", async () => {
