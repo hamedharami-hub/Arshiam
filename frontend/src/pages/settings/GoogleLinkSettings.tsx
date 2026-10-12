@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HardDrive, Loader2, Unlink } from "lucide-react";
+import { HardDrive, Loader2, RefreshCw, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "./SectionCard";
@@ -10,8 +10,22 @@ export function GoogleLinkSettings() {
   const { T } = useBilingual();
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [checkFailed, setCheckFailed] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const refresh = () => getGoogleStatus(true).then(setStatus).catch(() => setStatus(null));
+  const refresh = async () => {
+    setChecking(true);
+    setCheckFailed(false);
+    try {
+      setStatus(await getGoogleStatus(true));
+    } catch {
+      setStatus(null);
+      setCheckFailed(true);
+    } finally {
+      setChecking(false);
+    }
+  };
   useEffect(() => {
     void refresh();
     const result = new URLSearchParams(window.location.search).get("google");
@@ -24,7 +38,12 @@ export function GoogleLinkSettings() {
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
-    try { await fn(); await refresh(); } catch (e: any) { toast.error(e?.message || T("خطا", "Error")); } finally { setBusy(false); }
+    setActionError(null);
+    try { await fn(); await refresh(); } catch (e: any) {
+      const message = e?.message || T("خطا", "Error");
+      setActionError(message);
+      toast.error(message);
+    } finally { setBusy(false); }
   };
 
   return (
@@ -37,8 +56,17 @@ export function GoogleLinkSettings() {
       )}
     >
       <div data-testid="google-link-settings" className="space-y-3">
-        {!status ? (
+        {checking ? (
           <p className="text-xs text-muted-foreground" data-testid="google-link-status">{T("در حال بررسی…", "Checking…")}</p>
+        ) : checkFailed || !status ? (
+          <div className="space-y-2" data-testid="google-link-error">
+            <p className="text-xs text-destructive rounded-lg bg-destructive/5 border border-destructive/30 p-3">
+              {T("بررسی وضعیت اتصال گوگل انجام نشد.", "Could not check the Google connection status.")}
+            </p>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void refresh()} className="gap-1 rounded-full" data-testid="google-link-retry">
+              <RefreshCw className="w-3 h-3" /> {T("تلاش دوباره", "Try again")}
+            </Button>
+          </div>
         ) : !status.configured ? (
           <p className="text-xs text-amber-700 dark:text-amber-300 rounded-lg bg-amber-500/10 p-3" data-testid="google-link-not-configured">
             {T("اتصال گوگل هنوز روی سرور تنظیم نشده است (Client ID و Secret لازم است).", "Google is not configured on the server yet (Client ID and Secret required).")}
@@ -56,6 +84,9 @@ export function GoogleLinkSettings() {
           <Button size="sm" disabled={busy} onClick={() => run(connectGoogle)} className="gap-1 rounded-full" data-testid="google-connect-btn">
             {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <HardDrive className="w-3 h-3" />} {T("اتصال حساب گوگل", "Connect Google account")}
           </Button>
+        )}
+        {actionError && (
+          <p className="text-xs text-destructive" data-testid="google-link-action-error">{actionError}</p>
         )}
       </div>
     </SectionCard>

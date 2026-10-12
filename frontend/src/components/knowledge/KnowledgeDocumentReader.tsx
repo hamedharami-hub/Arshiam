@@ -41,6 +41,7 @@ import type {
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { isPersianText, detectDirection, generateBilingualLesson } from "@/lib/bilingualHelper";
 import { updateKnowledgeDocument } from "@/lib/knowledgeService";
+import { recordLastStudy } from "@/lib/lastStudy";
 import {
   attachInteractiveListeners,
   markAsBilingualMirror,
@@ -69,6 +70,27 @@ const ClinicalRelationsNetwork = React.lazy(() =>
   }))
 );
 import { toast } from "sonner";
+
+/**
+ * A recoverable snapshot of source content that a practice/translation flow is
+ * about to replace. Kept on this device so a source overwrite is never final.
+ */
+interface SourceRevision { content_html?: string; content_en?: string; title_en?: string; savedAt: number }
+const sourceRevisionKey = (userId: string, docId: string) => `arshnaz:knowledge-source-revision:v1:${userId}:${docId}`;
+function writeSourceRevision(userId: string, docId: string, revision: Omit<SourceRevision, "savedAt">) {
+  try { localStorage.setItem(sourceRevisionKey(userId, docId), JSON.stringify({ ...revision, savedAt: Date.now() } satisfies SourceRevision)); } catch { /* storage unavailable */ }
+}
+function readSourceRevision(userId: string, docId: string): SourceRevision | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(sourceRevisionKey(userId, docId)) ?? "null") as Partial<SourceRevision> | null;
+    if (!raw || typeof raw !== "object") return null;
+    const revision: SourceRevision = { savedAt: typeof raw.savedAt === "number" ? raw.savedAt : 0 };
+    if (typeof raw.content_html === "string") revision.content_html = raw.content_html;
+    if (typeof raw.content_en === "string") revision.content_en = raw.content_en;
+    if (typeof raw.title_en === "string") revision.title_en = raw.title_en;
+    return revision;
+  } catch { return null; }
+}
 
 interface KnowledgeDocumentReaderProps {
   document: KnowledgeDocument | null;
@@ -134,6 +156,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const contentContainerRef = useRef<HTMLDivElement>(null);
   const notebookRef = useRef<LearningNotebookHandle>(null);
   const [selectedLearningAnchor, setSelectedLearningAnchor] = useState<LearningAnchor | undefined>();
+  const practiceRef = useRef(false);
+  const [translationProposal, setTranslationProposal] = useState<{ title_en: string; content_en: string } | null>(null);
 
   // Compute smart related documents
   const relatedSuggestions = useMemo(() => {
@@ -181,6 +205,54 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       return () => cancelAnimationFrame(raf);
     }
   }, [document?.id, scrollPositionsMap]);
+
+  // Remember the exact resume position (source version + language + section/card)
+  // so "Continue" lands a returning reader precisely where they left.
+  const recordResume = useCallback((practice: boolean) => {
+    if (!document?.id) return;
+    let section: string | undefined;
+    let card: string | undefined;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const own = params.get('docId') === documentId || params.get('lesson') === documentId;
+      if (own) { section = params.get('section') ?? undefined; card = params.get('card') ?? undefined; }
+    } catch { /* history unavailable */ }
+    const content = docLangMode === 'fa' ? document.content_html : document.content_en || document.content_html;
+    void recordLastStudy(userId, {
+      docId: document.id,
+      title: document.title,
+      titleEn: document.title_en,
+      version: learningVersion(content || ''),
+      language: docLangMode,
+      section,
+      card,
+      practice,
+    });
+  }, [userId, document?.id, document?.title, document?.title_en, document?.content_html, document?.content_en, docLangMode, documentId]);
+
+  // A freshly opened lesson is reading, not practice; re-record on any position change.
+  useEffect(() => { practiceRef.current = false; }, [userId, documentId]);
+  useEffect(() => { recordResume(practiceRef.current); }, [recordResume]);
+
+  // Section tabs rewrite the URL without a document change, so re-record once they settle.
+  useEffect(() => {
+    const container = contentContainerRef.current;
+    if (!container) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onTabClick = (event: MouseEvent) => {
+      if (!(event.target as Element)?.closest?.('[role="tab"]')) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => recordResume(practiceRef.current), 0);
+    };
+    container.addEventListener('click', onTabClick);
+    return () => { if (timer) clearTimeout(timer); container.removeEventListener('click', onTabClick); };
+  }, [recordResume]);
+
+  const handleOpenInteractive = useCallback(() => {
+    practiceRef.current = true;
+    setInteractiveModalOpen(true);
+    recordResume(true);
+  }, [recordResume]);
 
   // Open each document in the user's requested default reading language.
   useEffect(() => {
@@ -230,6 +302,28 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     };
   }, [handleNavigateDocument, onSelectDocument, document?.id]);
 
+  // Practice is separate by default: appending keeps the source lesson. A source
+  // replacement keeps a restorable snapshot and offers a one-tap restore.
+  const restoreSourceRevision = async (docId: string) => {
+    const revision = readSourceRevision(userId, docId);
+    if (!revision) {
+      toast.error(isEn ? "No previous version is stored for this lesson." : "نسخهٔ قبلی برای این درس ذخیره نشده است.");
+      return;
+    }
+    const restore: Partial<KnowledgeDocument> = {};
+    if (typeof revision.content_html === "string") restore.content_html = revision.content_html;
+    if (typeof revision.content_en === "string") restore.content_en = revision.content_en;
+    if (typeof revision.title_en === "string") restore.title_en = revision.title_en;
+    try {
+      const updated = await updateKnowledgeDocument(userId, docId, restore);
+      onDocumentUpdated?.(updated);
+      toast.success(isEn ? "Previous version restored." : "نسخهٔ قبلی بازگردانده شد.");
+    } catch (err: any) {
+      console.error("Error restoring previous content:", err);
+      toast.error(isEn ? "Could not restore the previous version." : "بازگرداندن نسخهٔ قبلی ممکن نشد.");
+    }
+  };
+
   const handleInsertInteractive = async (html: string, mode: "append" | "replace") => {
     if (!document) return;
 
@@ -274,10 +368,23 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       };
     }
 
+    const replaceSnapshot = mode === "replace"
+      ? { content_html: document.content_html, content_en: document.content_en }
+      : null;
+
     try {
       const updated = await updateKnowledgeDocument(userId, document.id, patch);
       if (onDocumentUpdated) {
         onDocumentUpdated(updated);
+      }
+      if (replaceSnapshot) {
+        writeSourceRevision(userId, document.id, replaceSnapshot);
+        toast(isEn ? "Source content replaced. The previous version is kept." : "متن اصلی جایگزین شد؛ نسخهٔ قبلی حفظ شد.", {
+          action: {
+            label: isEn ? "Restore previous" : "بازگرداندن قبلی",
+            onClick: () => { void restoreSourceRevision(document.id); },
+          },
+        });
       }
     } catch (err: any) {
       console.error("Error saving interactive content:", err);
@@ -351,7 +458,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
     ? `Reading language: ${docLangMode === "en" ? "English" : docLangMode === "fa" ? "Persian" : "bilingual"}`
     : `زبان مطالعه: ${docLangMode === "en" ? "انگلیسی" : docLangMode === "fa" ? "فارسی" : "دوزبانه"}`;
 
-  // AI Bilingual Generation
+  // AI Bilingual Generation: produce a reviewable proposal, never an immediate
+  // overwrite. The previous English text is kept so the change is recoverable.
   const handleGenerateBilingualLesson = async () => {
     if (!document) return;
     setIsGeneratingBilingual(true);
@@ -369,26 +477,47 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         targetLang: "en",
       });
 
-      const updated = await updateKnowledgeDocument(userId, document.id, {
-        title_en: result.title_en,
-        content_en: result.content_en,
-        preferred_language: "bilingual",
-      });
-
-      if (onDocumentUpdated) {
-        onDocumentUpdated(updated);
-      }
-      setDocLangMode("bilingual");
-      toast.success(
+      setTranslationProposal({ title_en: result.title_en, content_en: result.content_en });
+      toast.info(
         isEn
-          ? "Bilingual version successfully generated!"
-          : "نسخه دوزبانه درس با موفقیت تولید و ذخیره شد!"
+          ? "Review the proposed translation, then apply or discard it."
+          : "ترجمهٔ پیشنهادی را بررسی کن، سپس اعمال یا کنار بگذار."
       );
     } catch (err: any) {
       console.error("Error generating bilingual lesson:", err);
       toast.error(err.message || (isEn ? "Failed to bilingualize lesson" : "خطا در دوزبانه کردن درس"));
     } finally {
       setIsGeneratingBilingual(false);
+    }
+  };
+
+  const applyTranslationProposal = async () => {
+    if (!document || !translationProposal) return;
+    const snapshot = { content_en: document.content_en, title_en: document.title_en ?? "" };
+    try {
+      const updated = await updateKnowledgeDocument(userId, document.id, {
+        title_en: translationProposal.title_en,
+        content_en: translationProposal.content_en,
+        preferred_language: "bilingual",
+      });
+      onDocumentUpdated?.(updated);
+      setTranslationProposal(null);
+      setDocLangMode("bilingual");
+      writeSourceRevision(userId, document.id, snapshot);
+      toast.success(
+        isEn
+          ? "Bilingual version saved. The previous English text is kept."
+          : "نسخهٔ دوزبانه ذخیره شد؛ متن انگلیسی قبلی حفظ شد.",
+        {
+          action: {
+            label: isEn ? "Restore previous" : "بازگرداندن قبلی",
+            onClick: () => { void restoreSourceRevision(document.id); },
+          },
+        }
+      );
+    } catch (err: any) {
+      console.error("Error saving bilingual lesson:", err);
+      toast.error(err.message || (isEn ? "Failed to save the translation" : "ذخیرهٔ ترجمه ممکن نشد"));
     }
   };
 
@@ -437,7 +566,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         onGenerateAi={handleTriggerAiFromToolbar}
         onGenerateBilingual={handleGenerateBilingualLesson}
         isGeneratingBilingual={isGeneratingBilingual}
-        onOpenInteractive={() => setInteractiveModalOpen(true)}
+        onOpenInteractive={handleOpenInteractive}
         onSchedule={onScheduleStudy ? () => onScheduleStudy(document) : undefined}
         onEdit={() => onEdit(document)}
         onDelete={() => onDelete(document.id)}
@@ -567,6 +696,20 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
                 {isEn
                   ? "The English field contains substantial Persian passages. This may be intentional bilingual content, but this view is not strictly English-only."
                   : "نسخهٔ انگلیسی این سند بخش‌های فارسیِ قابل‌توجه دارد؛ ممکن است محتوای دوزبانه عمدی باشد، اما این نما کاملاً انگلیسی نیست."}
+              </div>
+            )}
+
+            {/* Reviewable translation proposal: applied only on explicit confirmation. */}
+            {translationProposal && (
+              <div role="region" aria-label={isEn ? "Proposed translation" : "ترجمهٔ پیشنهادی"} className="mb-5 space-y-3 rounded-xl border border-primary/30 bg-primary/[0.04] p-4">
+                <p className="text-sm font-semibold text-foreground">{isEn ? "Review the proposed English translation before applying it." : "پیش از اعمال، ترجمهٔ انگلیسی پیشنهادی را بررسی کن."}</p>
+                <p className="text-sm font-bold text-foreground" dir="ltr">{translationProposal.title_en}</p>
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-background p-3 text-xs leading-6" dir="ltr" dangerouslySetInnerHTML={{ __html: sanitizeKnowledgeHtml(translationProposal.content_en) }} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" disabled={isGeneratingBilingual} onClick={() => { void applyTranslationProposal(); }} className="cursor-pointer rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-xs transition disabled:opacity-50">{isEn ? "Apply translation" : "اعمال ترجمه"}</button>
+                  <button type="button" onClick={() => setTranslationProposal(null)} className="cursor-pointer rounded-xl border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:text-foreground">{isEn ? "Discard" : "کنار گذاشتن"}</button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">{isEn ? "The current English text is kept so you can restore it." : "متن انگلیسی فعلی حفظ می‌شود تا بتوانی بازگردانی کنی."}</p>
               </div>
             )}
 

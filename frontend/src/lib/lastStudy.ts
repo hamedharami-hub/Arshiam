@@ -1,4 +1,18 @@
-export interface LastStudy { docId: string; title: string; titleEn?: string; openedAt: number }
+export type LastStudyLanguage = "fa" | "en" | "bilingual";
+/**
+ * The last studied lesson plus enough context to resume it precisely: which
+ * source version, reading language, section/card, and whether the reader was
+ * in practice. Older persisted records simply omit the resume fields.
+ */
+export interface LastStudy {
+  docId: string; title: string; titleEn?: string; openedAt: number;
+  version?: string; language?: LastStudyLanguage; section?: string; card?: string; practice?: boolean;
+}
+/** Callers may record just the lesson; resume context is optional and additive. */
+export interface LastStudyInput {
+  docId: string; title: string; titleEn?: string;
+  version?: string; language?: LastStudyLanguage; section?: string; card?: string; practice?: boolean;
+}
 export interface LastStudyRemote {
   get(uid: string): Promise<LastStudy | null>;
   /** Writes only when `value` is at least as new as the stored one; returns what is stored afterwards. */
@@ -14,7 +28,18 @@ export const isCloudUid = (uid: string) => !!uid && uid !== "guest" && uid !== "
 function parse(raw: unknown): LastStudy | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Partial<LastStudy>;
-  return typeof r.docId === "string" && typeof r.title === "string" ? { docId: r.docId, title: r.title, titleEn: typeof r.titleEn === "string" ? r.titleEn : undefined, openedAt: typeof r.openedAt === "number" ? r.openedAt : 0 } : null;
+  if (typeof r.docId !== "string" || typeof r.title !== "string") return null;
+  return {
+    docId: r.docId,
+    title: r.title,
+    titleEn: typeof r.titleEn === "string" ? r.titleEn : undefined,
+    openedAt: typeof r.openedAt === "number" ? r.openedAt : 0,
+    version: typeof r.version === "string" ? r.version : undefined,
+    language: r.language === "fa" || r.language === "en" || r.language === "bilingual" ? r.language : undefined,
+    section: typeof r.section === "string" ? r.section : undefined,
+    card: typeof r.card === "string" ? r.card : undefined,
+    practice: r.practice === true ? true : undefined,
+  };
 }
 
 const studiedKey = (uid: string) => `arshnaz:studied-docs:v1:${uid}`;
@@ -69,6 +94,11 @@ export function createFirestoreLastStudyRemote(): LastStudyRemote {
         if (stored && stored.openedAt > value.openedAt) return stored;
         const data: Record<string, unknown> = { docId: value.docId, title: value.title, openedAt: value.openedAt };
         if (value.titleEn) data.titleEn = value.titleEn;
+        if (value.version) data.version = value.version;
+        if (value.language) data.language = value.language;
+        if (value.section) data.section = value.section;
+        if (value.card) data.card = value.card;
+        if (value.practice) data.practice = value.practice;
         tx.set(ref, data);
         return value;
       });
@@ -78,8 +108,18 @@ export function createFirestoreLastStudyRemote(): LastStudyRemote {
 const defaultRemote = createFirestoreLastStudyRemote();
 
 /** Saves locally at once, then pushes to the account; a failed push is retried on the next sync. */
-export async function recordLastStudy(uid: string, doc: { docId: string; title: string; titleEn?: string }, remote: LastStudyRemote = defaultRemote): Promise<void> {
-  const value: LastStudy = { ...doc, openedAt: Date.now() };
+export async function recordLastStudy(uid: string, doc: LastStudyInput, remote: LastStudyRemote = defaultRemote): Promise<void> {
+  const value: LastStudy = {
+    docId: doc.docId,
+    title: doc.title,
+    titleEn: doc.titleEn,
+    openedAt: Date.now(),
+    version: doc.version,
+    language: doc.language,
+    section: doc.section,
+    card: doc.card,
+    practice: doc.practice,
+  };
   setLocal(uid, value);
   markStudied(uid, doc.docId);
   if (!isCloudUid(uid)) return;

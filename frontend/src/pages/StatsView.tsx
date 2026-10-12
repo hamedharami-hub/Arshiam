@@ -143,6 +143,13 @@ export default function StatsView() {
 
   const bestHabit = habitStats[0];
 
+  const chartTotals = useMemo(() => {
+    const totalTasks = chartData.reduce((sum, d) => sum + d.tasks, 0);
+    const totalMinutes = chartData.reduce((sum, d) => sum + d.minutes, 0);
+    const bestDay = chartData.reduce((best, d) => (d.minutes > best.minutes ? d : best), chartData[0]);
+    return { totalTasks, totalMinutes, bestDay };
+  }, [chartData]);
+
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-6 pb-safe-bottom page-enter">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -206,7 +213,17 @@ export default function StatsView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-48 w-full">
+          <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "hsl(var(--primary) / 0.75)" }} aria-hidden="true" />
+              {T("تسک (تعداد)", "Tasks (count)")}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-3.5 rounded-full" style={{ background: "hsl(var(--warning))" }} aria-hidden="true" />
+              {T("تمرکز (دقیقه)", "Focus (min)")}
+            </span>
+          </div>
+          <div className="h-48 w-full" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
@@ -236,6 +253,30 @@ export default function StatsView() {
               </ComposedChart>
             </ResponsiveContainer>
           </div>
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+            {isEn
+              ? `Totals: ${chartTotals.totalTasks} tasks, ${chartTotals.totalMinutes} min focus${chartTotals.bestDay.minutes > 0 ? ` · Best day: ${chartTotals.bestDay.label} (${chartTotals.bestDay.minutes} min)` : ""}`
+              : `مجموع: ${toPersianDigits(chartTotals.totalTasks)} تسک، ${toPersianDigits(chartTotals.totalMinutes)} دقیقه تمرکز${chartTotals.bestDay.minutes > 0 ? ` • بهترین روز: ${chartTotals.bestDay.label} (${toPersianDigits(chartTotals.bestDay.minutes)} دقیقه)` : ""}`}
+          </p>
+          <table className="sr-only">
+            <caption>{T("داده‌های فعالیت روزانه: تعداد تسک و دقیقه تمرکز به تفکیک روز", "Daily activity data: tasks and focus minutes by day")}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{T("روز", "Day")}</th>
+                <th scope="col">{T("تسک", "Tasks")}</th>
+                <th scope="col">{T("دقیقه تمرکز", "Focus min")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {chartData.map((d) => (
+                <tr key={format(d.date, "yyyy-MM-dd")}>
+                  <th scope="row">{d.label}</th>
+                  <td>{isEn ? String(d.tasks) : toPersianDigits(d.tasks)}</td>
+                  <td>{isEn ? String(d.minutes) : toPersianDigits(d.minutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </CardContent>
       </Card>
 

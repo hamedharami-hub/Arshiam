@@ -239,6 +239,12 @@ export default function PomodoroView() {
     return days;
   }, [weekSessions, system]);
 
+  const weekSummary = useMemo(() => {
+    const totalMinutes = weekData.reduce((sum, d) => sum + d.minutes, 0);
+    const bestDay = weekData.reduce((best, d) => (d.minutes > best.minutes ? d : best), weekData[0]);
+    return { totalMinutes, bestDay };
+  }, [weekData]);
+
   const taskTotals = new Map<string, { title: string; min: number }>();
   let freeMin = 0;
   for (const r of today) {
@@ -411,8 +417,14 @@ export default function PomodoroView() {
         )}
 
         <div className="border-t border-border pt-3">
-          <div className="mb-2 flex items-center gap-1 text-[11px] text-muted-foreground"><TrendingUp className="w-3 h-3" /> {T("۷ روز اخیر", "Last 7 days")}</div>
-          <div className="h-32 w-full" data-testid="pomodoro-week-chart">
+          <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {T("۷ روز اخیر", "Last 7 days")}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "hsl(var(--primary))" }} aria-hidden="true" />
+              {T("تمرکز (دقیقه)", "Focus (min)")}
+            </span>
+          </div>
+          <div className="h-32 w-full" data-testid="pomodoro-week-chart" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weekData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} reversed={!isEn} />
@@ -426,6 +438,28 @@ export default function PomodoroView() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+            {isEn
+              ? `7-day total: ${weekSummary.totalMinutes} min${weekSummary.bestDay.minutes > 0 ? ` · Best day: ${weekSummary.bestDay.label} (${weekSummary.bestDay.minutes} min)` : ""}`
+              : `مجموع ۷ روز: ${toPersianDigits(weekSummary.totalMinutes)} دقیقه${weekSummary.bestDay.minutes > 0 ? ` • بهترین روز: ${weekSummary.bestDay.label} (${toPersianDigits(weekSummary.bestDay.minutes)} دقیقه)` : ""}`}
+          </p>
+          <table className="sr-only">
+            <caption>{T("داده‌های تمرکز ۷ روز اخیر: دقیقه تمرکز به تفکیک روز", "Focus data for the last 7 days: focus minutes by day")}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{T("روز", "Day")}</th>
+                <th scope="col">{T("دقیقه تمرکز", "Focus min")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weekData.map((d) => (
+                <tr key={format(d.date, "yyyy-MM-dd")}>
+                  <th scope="row">{d.label}</th>
+                  <td>{isEn ? String(d.minutes) : toPersianDigits(d.minutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         <div className="space-y-3 border-t border-border pt-3" data-testid="pomodoro-month-report">

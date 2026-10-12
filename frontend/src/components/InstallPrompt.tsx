@@ -9,6 +9,35 @@ type BIPEvent = Event & {
 };
 
 const DISMISS_KEY = "pwa_install_dismissed_v1";
+const SESSION_KEY = "pwa_install_session_v1";
+
+/**
+ * Dismissal is remembered against a per-session id, so "Later" only hides the
+ * prompt for the current session. A new session gets a new id, which keeps the
+ * install entry available instead of suppressing it forever.
+ */
+function sessionId(): string {
+  try {
+    let id = sessionStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}
+
+function dismissedThisSession(): boolean {
+  const id = sessionId();
+  if (!id) return false;
+  try {
+    return localStorage.getItem(DISMISS_KEY) === id;
+  } catch {
+    return false;
+  }
+}
 
 export default function InstallPrompt() {
   const { i18n } = useTranslation();
@@ -18,7 +47,7 @@ export default function InstallPrompt() {
   const [iosHint, setIosHint] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem(DISMISS_KEY)) return;
+    if (dismissedThisSession()) return;
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       // @ts-ignore
@@ -46,7 +75,10 @@ export default function InstallPrompt() {
   if (!visible) return null;
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, "1");
+    const id = sessionId();
+    if (id) {
+      try { localStorage.setItem(DISMISS_KEY, id); } catch {}
+    }
     setVisible(false);
   };
 

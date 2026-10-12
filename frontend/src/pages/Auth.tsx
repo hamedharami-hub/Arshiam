@@ -11,6 +11,7 @@ import { safeInternalPath } from "@/lib/safeNavigation";
 import { requestPasswordReset } from "@/lib/authService";
 
 const DISCLAIMER_KEY = "clinical_disclaimer_accepted_v1";
+const OAUTH_RETURN_KEY = "oauth_return_to";
 const GUEST_LOGIN_ENABLED = import.meta.env.DEV && import.meta.env.VITE_ENABLE_GUEST_LOGIN === "true";
 
 export default function Auth() {
@@ -42,6 +43,8 @@ export default function Auth() {
     }
   });
   const [highlightDisclaimer, setHighlightDisclaimer] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [retryKind, setRetryKind] = useState<"signin" | "signup" | "google" | "reset" | null>(null);
 
   // Next URL redirect handling
   const rawNext = params.get("next") || "";
@@ -63,14 +66,23 @@ export default function Auth() {
     return true;
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const failAuth = (message: string, kind: "signin" | "signup" | "google" | "reset") => {
+    setAuthError(message);
+    setRetryKind(kind);
+  };
+  const clearAuthError = () => {
+    setAuthError(null);
+    setRetryKind(null);
+  };
+
+  const doSignIn = async () => {
     if (!requireDisclaimer()) return;
     if (!email.trim() || !password) {
       toast.error(T("لطفاً ایمیل و رمز عبور را وارد کنید.", "Please enter email and password."));
       return;
     }
 
+    clearAuthError();
     setLoading(true);
     try {
       const res = await signInWithEmail(email, password);
@@ -78,17 +90,17 @@ export default function Auth() {
         toast.success(T("خوش آمدید! ورود موفقیت‌آمیز بود.", "Welcome! Signed in successfully."));
         navigate(returnTo, { replace: true });
       } else {
-        toast.error(res.error || T("خطا در ورود به حساب کاربری.", "Failed to sign in."));
+        failAuth(res.error || T("خطا در ورود به حساب کاربری.", "Failed to sign in."), "signin");
       }
     } catch (err: any) {
-      toast.error(err?.message || T("خطا در برقراری ارتباط.", "Connection error."));
+      failAuth(err?.message || T("خطا در برقراری ارتباط.", "Connection error."), "signin");
     } finally {
       setLoading(false);
     }
   };
+  const handleSignIn = (e: React.FormEvent) => { e.preventDefault(); void doSignIn(); };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSignUp = async () => {
     if (!requireDisclaimer()) return;
     if (!email.trim() || !password) {
       toast.error(T("لطفاً اطلاعات لازم را وارد کنید.", "Please enter the required information."));
@@ -99,6 +111,7 @@ export default function Auth() {
       return;
     }
 
+    clearAuthError();
     setLoading(true);
     try {
       const res = await signUpWithEmail(email, password, name);
@@ -106,17 +119,22 @@ export default function Auth() {
         toast.success(T("حساب کاربری با موفقیت ساخته شد و وارد شدید!", "Account created successfully! Welcome."));
         navigate(returnTo, { replace: true });
       } else {
-        toast.error(res.error || T("خطا در ساخت حساب کاربری.", "Failed to create account."));
+        failAuth(res.error || T("خطا در ساخت حساب کاربری.", "Failed to create account."), "signup");
       }
     } catch (err: any) {
-      toast.error(err?.message || T("خطا در ساخت حساب.", "Error creating account."));
+      failAuth(err?.message || T("خطا در ساخت حساب.", "Error creating account."), "signup");
     } finally {
       setLoading(false);
     }
   };
+  const handleSignUp = (e: React.FormEvent) => { e.preventDefault(); void doSignUp(); };
 
-  const handleGoogle = async () => {
+  const doGoogle = async () => {
     if (!requireDisclaimer()) return;
+    // Remember where to land after the OAuth round-trip so the callback does not
+    // dump the user on the default page.
+    try { sessionStorage.setItem(OAUTH_RETURN_KEY, returnTo); } catch {}
+    clearAuthError();
     setLoading(true);
     try {
       const res = await signInWithGoogle();
@@ -124,31 +142,43 @@ export default function Auth() {
         toast.success(T("ورود با حساب گوگل با موفقیت انجام شد.", "Signed in with Google successfully."));
         navigate(returnTo, { replace: true });
       } else {
-        toast.error(res.error || T("ورود با گوگل انجام نشد.", "Google sign in failed."));
+        failAuth(res.error || T("ورود با گوگل انجام نشد.", "Google sign in failed."), "google");
       }
     } catch (err: any) {
-      toast.error(err?.message || T("ورود با گوگل انجام نشد.", "Google sign in failed."));
+      failAuth(err?.message || T("ورود با گوگل انجام نشد.", "Google sign in failed."), "google");
     } finally {
       setLoading(false);
     }
   };
+  const handleGoogle = () => { void doGoogle(); };
 
-  const handlePasswordReset = async () => {
+  const doReset = async () => {
     if (!email.trim()) {
       toast.error(T("ابتدا ایمیل حساب را وارد کنید.", "Enter your account email first."));
       return;
     }
+    clearAuthError();
     setLoading(true);
     try {
       await requestPasswordReset(email);
       toast.success(T("اگر این ایمیل حسابِ رمزدار داشته باشد، پیام بازیابی ارسال می‌شود. پوشهٔ اسپم را هم بررسی کنید.", "If this email has a password account, a reset email will arrive. Check spam too."));
     } catch (err: any) {
-      toast.error(err?.code === "auth/invalid-email"
+      failAuth(err?.code === "auth/invalid-email"
         ? T("فرمت ایمیل درست نیست.", "Enter a valid email address.")
-        : T("ارسال ایمیل بازیابی انجام نشد؛ تنظیمات Email/Password در Firebase را بررسی کنید.", "Could not send a reset email. Check Firebase Email/Password settings."));
+        : T("ارسال ایمیل بازیابی انجام نشد؛ تنظیمات Email/Password در Firebase را بررسی کنید.", "Could not send a reset email. Check Firebase Email/Password settings."), "reset");
     } finally {
       setLoading(false);
     }
+  };
+  const handlePasswordReset = () => { void doReset(); };
+
+  const retryAuth = () => {
+    const kind = retryKind;
+    clearAuthError();
+    if (kind === "signin") void doSignIn();
+    else if (kind === "signup") void doSignUp();
+    else if (kind === "google") void doGoogle();
+    else if (kind === "reset") void doReset();
   };
 
   const handleGuestLogin = async () => {
@@ -213,6 +243,37 @@ export default function Auth() {
                 {signup ? T("چند ثانیه، و برنامه‌ات آماده است.", "A few seconds and your space is ready.") : T("خوش برگشتی؛ امروزت منتظر توست.", "Welcome back; your day is waiting.")}
               </p>
             </header>
+
+            {authError && (
+              <div
+                role="alert"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[hsl(var(--auth-line)/0.12)] px-3 py-2 text-[12px]"
+                data-testid="auth-error"
+              >
+                <span style={{ color: "hsl(var(--auth-muted))" }}>{authError}</span>
+                <span className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={retryAuth}
+                    disabled={loading}
+                    className="font-medium underline-offset-4 hover:underline disabled:opacity-50"
+                    style={{ color: "hsl(var(--auth-ink))" }}
+                    data-testid="auth-error-retry"
+                  >
+                    {T("تلاش دوباره", "Try again")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearAuthError}
+                    className="underline-offset-4 hover:underline"
+                    style={{ color: "hsl(var(--auth-line))" }}
+                    data-testid="auth-error-dismiss"
+                  >
+                    {T("بستن", "Dismiss")}
+                  </button>
+                </span>
+              </div>
+            )}
 
             <form onSubmit={signup ? handleSignUp : handleSignIn} className="space-y-5" data-testid={signup ? "auth-signup-form" : "auth-signin-form"}>
               {signup && (

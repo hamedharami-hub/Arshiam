@@ -10,11 +10,13 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
   const [results, setResults] = useState<CitySuggestion[]>([]);
   const [busy, setBusy] = useState<"gps" | "search" | null>(null);
   const [gpsDenied, setGpsDenied] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<{ message: string; kind: "gps" | "search" } | null>(null);
+  const [noResults, setNoResults] = useState(false);
 
-  const useGps = async () => {
+  const requestGps = async () => {
     setBusy("gps");
     setErr(null);
+    setNoResults(false);
     try {
       const { lat, lon } = await locateByGps();
       setWeatherLocation({ mode: "gps", name: isEn ? "Current location" : "موقعیت فعلی", lat, lon });
@@ -22,7 +24,7 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
       onDone?.();
     } catch (e: any) {
       if (e?.code === 1) setGpsDenied(true);
-      else setErr(isEn ? "Could not get your location." : "موقعیت پیدا نشد.");
+      else setErr({ message: isEn ? "Could not get your location." : "موقعیت پیدا نشد.", kind: "gps" });
     } finally {
       setBusy(null);
     }
@@ -32,10 +34,13 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
     if (q.trim().length < 2) return;
     setBusy("search");
     setErr(null);
+    setNoResults(false);
     try {
-      setResults(await searchCity(q.trim(), isEn ? "en" : "fa"));
+      const items = await searchCity(q.trim(), isEn ? "en" : "fa");
+      setResults(items);
+      setNoResults(items.length === 0);
     } catch {
-      setErr(isEn ? "City search is unavailable offline." : "جستجوی شهر آفلاین در دسترس نیست.");
+      setErr({ message: isEn ? "City search is unavailable offline." : "جستجوی شهر آفلاین در دسترس نیست.", kind: "search" });
     } finally {
       setBusy(null);
     }
@@ -51,7 +56,7 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
       <p className="text-[11px] text-muted-foreground">
         {isEn ? "Use your location for local weather, or pick a city manually." : "برای هواشناسی محلی از موقعیت خودت استفاده کن یا شهر را دستی انتخاب کن."}
       </p>
-      <Button variant="outline" className="w-full h-11 gap-2" onClick={useGps} disabled={busy !== null} data-testid="weather-use-gps">
+      <Button variant="outline" className="w-full h-11 gap-2" onClick={requestGps} disabled={busy !== null} data-testid="weather-use-gps">
         {busy === "gps" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
         {isEn ? "Use my location (GPS)" : "استفاده از موقعیت من (GPS)"}
       </Button>
@@ -67,7 +72,25 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
           {busy === "search" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
         </Button>
       </form>
-      {err && <p className="text-[11px] text-destructive">{err}</p>}
+      {err && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-2 text-[11px]" data-testid="weather-location-error">
+          <span className="text-destructive">{err.message}</span>
+          <button
+            type="button"
+            className="font-semibold text-primary underline-offset-4 hover:underline disabled:opacity-50"
+            disabled={busy !== null}
+            onClick={() => (err.kind === "gps" ? void requestGps() : void search())}
+            data-testid="weather-location-retry"
+          >
+            {isEn ? "Try again" : "تلاش دوباره"}
+          </button>
+        </div>
+      )}
+      {noResults && !err && (
+        <p className="text-[11px] text-muted-foreground" data-testid="weather-no-results">
+          {isEn ? "No matching city found. Check the spelling and try again." : "شهری با این نام پیدا نشد. املا را بررسی کن و دوباره تلاش کن."}
+        </p>
+      )}
       {results.length > 0 && (
         <ul className="space-y-1 max-h-48 overflow-y-auto">
           {results.map((r, i) => (
