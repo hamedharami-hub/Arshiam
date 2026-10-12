@@ -3,11 +3,11 @@ import { planOf } from "@/lib/planCascade";
 import { isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, endOfDay, startOfDay } from "date-fns";
 import {
-  ChevronDown, ChevronRight, CheckSquare, Columns2, CircleDot, X,
+  ChevronDown, ChevronRight, CheckSquare, Columns2, Play, Pause, Square, Timer,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTasksData } from "@/hooks/useTasksData";
@@ -15,7 +15,7 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
-import { PRIORITY_META } from "@/lib/priority";
+import { PRIORITY_META, normalizeTaskPriority } from "@/lib/priority";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import type { Task, TaskStatus, ConfirmState } from "@/lib/taskTypes";
 import { persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
@@ -51,7 +51,11 @@ import { toast } from "sonner";
 import { StreakCard } from "@/components/StreakCard";
 import { NavLink } from "@/components/NavLink";
 import { useTodayPlanning } from "@/hooks/useTodayPlanning";
-import { countActiveWip, shouldClearInvalidNextTask } from "@/lib/todayPlanning";
+import { countActiveWip, isTaskEligibleForNext, shouldClearInvalidNextTask } from "@/lib/todayPlanning";
+import { useFocusSession } from "@/hooks/useFocusSession";
+import { finishFocus, toggleFocus } from "@/lib/focusSession";
+import { requestFocusNotificationPermission } from "@/lib/focusNotifications";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function TodayDashboardView() {
   const { user } = useAuth();
@@ -158,7 +162,10 @@ export default function TodayDashboardView() {
 
   const [currentDayKey, setCurrentDayKey] = useState(() => getLocalDateString());
   const [clockRevision, setClockRevision] = useState(0);
+  const [nextPickerOpen, setNextPickerOpen] = useState(false);
   const todayPlanning = useTodayPlanning(user?.id, currentDayKey);
+  const focus = useFocusSession();
+  const activeFocusSession = focus?.session.startedAt ? focus.session : null;
   const selectedNextTask = todayPlanning.nextTaskId ? allTasks.find(task => task.id === todayPlanning.nextTaskId) || null : null;
   const nextTaskIdRef = useRef<string | null>(todayPlanning.nextTaskId);
   nextTaskIdRef.current = todayPlanning.nextTaskId;
@@ -288,6 +295,27 @@ export default function TodayDashboardView() {
     { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
   ), [allTasks, isDueOverdue, taskMap, todaySort]);
 
+  // Candidate tasks for the single "next action" chooser. The four visible lists
+  // already render disjoint sets; the Map guarantees a task is offered once.
+  const nextTaskCandidates = useMemo(() => {
+    const map = new Map<string, Task>();
+    for (const task of [...activeTodayTasks, ...activeTodayStudyTasks, ...overdueTasks, ...overdueStudyTasks]) {
+      if (isTaskEligibleForNext(task)) map.set(task.id, task);
+    }
+    return [...map.values()];
+  }, [activeTodayTasks, activeTodayStudyTasks, overdueTasks, overdueStudyTasks]);
+
+  const nextActionContext = useMemo(() => {
+    if (!selectedNextTask) return "";
+    const study = getStudyTaskNavigation(selectedNextTask);
+    if (study.isStudyTask) return isEn ? study.badgeLabelEn : study.badgeLabelFa;
+    const parent = selectedNextTask.parent_id ? taskMap.get(selectedNextTask.parent_id) : null;
+    if (parent) return T(`در «${parent.title}»`, `In “${parent.title}”`);
+    const priority = normalizeTaskPriority(selectedNextTask.priority);
+    if (priority !== "none") return isEn ? PRIORITY_META[priority].labelEn : PRIORITY_META[priority].label;
+    return T("کار امروز", "Today's task");
+  }, [selectedNextTask, taskMap, T, isEn]);
+
   const totalCount = todayTasks.length;
   const completedCount = completedTodayTasks.length + completedTodayStudyTasks.length;
 
@@ -341,6 +369,23 @@ export default function TodayDashboardView() {
     setSelectedTaskHistory([]);
     setSelectedTask(task);
   }, [allTasks]);
+
+  // Single next-action primary: review for study tasks, focus timer for the rest.
+  // Reuses the shared focus-session wiring (no second timer).
+  const handleStartNext = useCallback(async () => {
+    if (!selectedNextTask) return;
+    const study = getStudyTaskNavigation(selectedNextTask);
+    if (study.isStudyTask) { navigate(study.navUrl); return; }
+    if (!focus?.session.startedAt) {
+      await requestFocusNotificationPermission();
+      toggleFocus(selectedNextTask.id, selectedNextTask.title);
+    }
+    navigate("/app/pomodoro");
+  }, [selectedNextTask, focus, navigate]);
+
+  const handleOpenNext = useCallback(() => {
+    if (selectedNextTask) handleSelectTask(selectedNextTask);
+  }, [selectedNextTask, handleSelectTask]);
 
   // 4. Canonical persistence with optimistic update & rollback
   const handleToggleTask = useCallback(async (task: Task) => {
@@ -567,6 +612,118 @@ export default function TodayDashboardView() {
     />
   );
 
+  const focusClock = activeFocusSession
+    ? `${String(Math.floor(activeFocusSession.remaining / 60)).padStart(2, "0")}:${String(activeFocusSession.remaining % 60).padStart(2, "0")}`
+    : "";
+  const focusTitle = activeFocusSession?.taskTitle
+    || (activeFocusSession?.taskId ? T("تمرکز روی کار", "Task focus") : T("تمرکز آزاد", "Free focus"));
+
+  const renderNextPicker = (trigger: ReactNode) => (
+    <Popover open={nextPickerOpen} onOpenChange={setNextPickerOpen}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent align={isEn ? "start" : "end"} className="w-72 p-1" data-testid="today-next-picker">
+        <p className="px-2 py-1.5 text-[11px] font-medium text-muted-foreground">{T("کار بعدی را انتخاب کنید", "Choose your next task")}</p>
+        <div className="max-h-72 overflow-y-auto">
+          {nextTaskCandidates.length === 0 ? (
+            <p className="px-2 py-2 text-xs text-muted-foreground">{T("کاری برای انتخاب نیست", "No task available")}</p>
+          ) : nextTaskCandidates.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              aria-pressed={task.id === selectedNextTask?.id}
+              onClick={() => { todayPlanning.setNextTask(task.id); setNextPickerOpen(false); }}
+              className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-sm hover:bg-accent ${task.id === selectedNextTask?.id ? "bg-primary/10 text-primary" : ""}`}
+            >
+              {task.id === selectedNextTask?.id && <CheckSquare className="h-3.5 w-3.5 shrink-0" />}
+              <span className="min-w-0 flex-1 truncate">{task.title}</span>
+            </button>
+          ))}
+        </div>
+        {selectedNextTask && (
+          <button
+            type="button"
+            onClick={() => { todayPlanning.setNextTask(null); setNextPickerOpen(false); }}
+            className="mt-1 w-full rounded-md px-2 py-1.5 text-start text-xs text-muted-foreground hover:bg-accent"
+          >
+            {T("پاک‌کردن کار بعدی", "Clear next task")}
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+
+  // One user-chosen next action. When a real focus session is live, the same row
+  // surfaces its runtime controls instead of offering a second timer.
+  const renderNextAction = () => {
+    if (activeFocusSession) {
+      const running = activeFocusSession.endAt != null;
+      return (
+        <div data-testid="today-next-action" className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate("/app/pomodoro")}
+              className="shrink-0 rounded-md p-1 text-primary hover:bg-primary/10"
+              aria-label={T("بازکردن تمرکز", "Open focus")}
+              title={T("بازکردن تمرکز", "Open focus")}
+            >
+              <Timer className="h-4 w-4" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{T("تمرکز فعال", "Focus active")}</p>
+              <p className="truncate text-sm font-semibold text-foreground">{focusTitle}</p>
+              <p className="text-xs tabular-nums text-muted-foreground" dir="ltr">
+                {focusClock}
+                {activeFocusSession.mode !== "work" && <span className="ms-2">{T("استراحت", "Break")}</span>}
+              </p>
+            </div>
+            <Button
+              size="icon" variant="ghost" className="h-9 w-9"
+              onClick={async () => { if (!running) await requestFocusNotificationPermission(); toggleFocus(); }}
+              aria-label={running ? T("مکث", "Pause") : T("ادامه", "Resume")}
+              title={running ? T("مکث", "Pause") : T("ادامه", "Resume")}
+            >
+              {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </Button>
+            <Button
+              size="icon" variant="ghost" className="h-9 w-9"
+              onClick={() => finishFocus(false)}
+              aria-label={T("پایان و ثبت زمان", "Finish and save time")}
+              title={T("پایان و ثبت زمان", "Finish and save time")}
+            >
+              <Square className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    const study = selectedNextTask ? getStudyTaskNavigation(selectedNextTask) : null;
+    return (
+      <div data-testid="today-next-action" className="rounded-xl border border-border bg-card/60 p-3">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{T("کار بعدی", "Next action")}</p>
+        {selectedNextTask ? (
+          <>
+            <div className="mt-1 min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground" data-testid="today-next-title">{selectedNextTask.title}</p>
+              <p className="truncate text-xs text-muted-foreground">{nextActionContext}</p>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={handleStartNext} data-testid="today-next-primary">
+                {study?.isStudyTask ? T("شروع مرور", "Start review") : T("شروع تمرکز", "Start focus")}
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleOpenNext} data-testid="today-next-open">{T("بازکردن", "Open")}</Button>
+              {renderNextPicker(<Button size="sm" variant="ghost" data-testid="today-next-change">{T("تغییر", "Change")}</Button>)}
+            </div>
+          </>
+        ) : (
+          <div className="mt-2">
+            {renderNextPicker(<Button size="sm" data-testid="today-next-choose">{T("کار بعدی را انتخاب کنید", "Choose your next task")}</Button>)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Never claim "no tasks today" before the first load resolves: tasksReady is
   // false on every cold start, which used to flash the empty state.
   const isEmpty =
@@ -588,16 +745,6 @@ export default function TodayDashboardView() {
 
       <HeaderActionsPortal>
         <div className="flex items-center gap-2 shrink-0">
-          {selectedNextTask && (
-            <div data-testid="today-next-selection" className="flex items-center gap-1 rounded-full border border-primary/25 bg-primary/5 px-2 py-1 text-[10px] sm:text-xs text-primary max-w-[150px] sm:max-w-[210px]">
-              <CircleDot className="w-3 h-3 shrink-0" />
-              <span className="hidden sm:inline shrink-0">{T("بعدی:", "Next:")}</span>
-              <span className="truncate">{selectedNextTask.title}</span>
-              <button type="button" aria-label={T("پاک‌کردن کار بعدی", "Clear next task")} onClick={() => todayPlanning.setNextTask(null)} className="shrink-0 rounded-full hover:bg-primary/10">
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
           <NavLink to="/app/stats" className="hidden sm:block" activeClassName="" data-testid="today-streak-link">
             <StreakCard compact />
           </NavLink>
@@ -698,10 +845,8 @@ export default function TodayDashboardView() {
             />
           </div>
 
-          <div className="mb-3 flex">
-            <Link to="/app/recall" className="recall-launch" data-testid="start-recall">
-              {T("شروع مرور", "Start review")}
-            </Link>
+          <div className="mb-3">
+            {renderNextAction()}
           </div>
 
           {/* ۳. لیست تسک‌ها با خط زمان و ریتم فشرده هفتگی */}

@@ -9,11 +9,8 @@ import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { cacheGet } from "@/lib/offlineQueue";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
-import {
-  ListTodo, FileText, Calendar, Target, Heart, Brain, Sparkles,
-  Timer, Settings, BarChart3, BookOpen, Folder, Hash, Compass,
-  PlusCircle, Database, CheckSquare, Search, ShieldAlert,
-} from "lucide-react";
+import { FileText, Folder, Hash, PlusCircle, Database, CheckSquare, Search } from "lucide-react";
+import { FEATURES, featureSearchText, getFeatureLabel } from "@/lib/featureRegistry";
 
 import { useBilingual } from "@/hooks/useBilingual";
 import { parseTaskDueDate, taskWorkDate } from "@/lib/taskDate";
@@ -26,27 +23,6 @@ type Hit = {
   action?: () => void;
 };
 
-const getNavItems = (T: (fa: string, en: string) => string) => [
-  { label: T("اینباکس", "Inbox"), to: "/app/inbox", icon: ListTodo, keywords: "inbox اینباکس ورودی" },
-  { label: T("امروز", "Today"), to: "/app/today", icon: ListTodo, keywords: "today امروز" },
-  { label: T("فردا", "Tomorrow"), to: "/app/tomorrow", icon: Calendar, keywords: "tomorrow فردا" },
-  { label: T("هفت روز آینده", "Next 7 Days"), to: "/app/next7", icon: Calendar, keywords: "week 7 آینده" },
-  { label: T("تقویم", "Calendar"), to: "/app/calendar", icon: Calendar, keywords: "calendar تقویم" },
-  { label: T("نوت‌ها", "Notes"), to: "/app/notes", icon: FileText, keywords: "notes نوت یادداشت" },
-  { label: T("عادات", "Habits"), to: "/app/habits", icon: Heart, keywords: "habits عادت" },
-  { label: T("پومودورو", "Pomodoro"), to: "/app/pomodoro", icon: Timer, keywords: "pomodoro تمرکز پومودورو" },
-  { label: T("آمار و عملکرد", "Stats & Summary"), to: "/app/stats", icon: BarChart3, keywords: "stats summary statistics آمار خلاصه" },
-  { label: T("داشبورد ذهن", "Mind Dashboard"), to: "/app/mind", icon: Brain, keywords: "mind ذهن داشبورد" },
-  { label: T("خودشناسی", "Self Knowledge"), to: "/app/self", icon: Brain, keywords: "self شخصیت" },
-  { label: T("چک‌این روزانه", "Daily Check-in"), to: "/app/checkin", icon: Heart, keywords: "checkin checkin روزانه" },
-  { label: T("ثبت افکار CBT", "CBT Thoughts"), to: "/app/thoughts", icon: Brain, keywords: "thought cbt افکار" },
-  { label: T("مدل ABC", "ABC Model"), to: "/app/abc", icon: Brain, keywords: "abc الگو" },
-  { label: T("تمرین تنفس", "Breathing Exercise"), to: "/app/breathing", icon: Heart, keywords: "breath breathing تنفس مدیتیشن" },
-  { label: T("پشتیبانی بحران و اضطراری (SOS)", "Crisis Support & Emergency (SOS)"), to: "/app/crisis", icon: ShieldAlert, keywords: "crisis sos help emergency بحران اضطراری کمک اورژانس خودکشی" },
-  { label: T("معمار زندگی", "Life Architect"), to: "/app/life-architect", icon: Compass, keywords: "life architect معمار زندگی برنامه ریزی هدف اهداف" },
-  { label: T("تنظیمات و پشتیبان‌گیری", "Settings & Backup"), to: "/app/settings", icon: Settings, keywords: "settings تنظیمات بکاپ firestore firebaseStore" },
-];
-
 export default function CommandPalette() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -56,7 +32,10 @@ export default function CommandPalette() {
   const [hits, setHits] = useState<Hit[]>([]);
 
   const modules = useModules();
-  const navItems = useMemo(() => getNavItems(T).filter((n) => isPathAllowed(n.to, modules)), [T, modules]);
+  const features = useMemo(
+    () => FEATURES.filter((f) => isPathAllowed(f.to, modules)).sort((a, b) => a.order - b.order),
+    [modules],
+  );
 
   useEffect(() => {
     const keyHandler = (e: KeyboardEvent) => {
@@ -317,12 +296,12 @@ export default function CommandPalette() {
         )}
 
         <CommandGroup heading={T("بخش‌ها و صفحات اپلیکیشن", "App Sections & Pages")}>
-          {navItems.map((n) => {
-            const Icon = n.icon;
+          {features.map((f) => {
+            const Icon = f.icon;
             return (
-              <CommandItem key={n.to} value={`${n.label} ${n.keywords}`} onSelect={() => go(n.to)} className="cursor-pointer">
+              <CommandItem key={f.to} value={featureSearchText(f)} onSelect={() => go(f.to)} className="cursor-pointer">
                 <Icon className="w-4 h-4 ms-2 text-muted-foreground" />
-                <span>{n.label}</span>
+                <span>{getFeatureLabel(f, isEn)}</span>
               </CommandItem>
             );
           })}

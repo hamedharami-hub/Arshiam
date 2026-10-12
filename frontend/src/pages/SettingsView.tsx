@@ -1,8 +1,8 @@
 import { CompanionSettings } from "./settings/CompanionSettings";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef, type ReactNode } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Shield, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
+import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Shield, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical, ChevronDown } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { applyFontSize, applyUIScale, type FontSize } from "@/lib/uiScale";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -86,6 +87,45 @@ type PwaGlobals = {
   __applyPwaUpdate?: () => void;
   __pwaCheckUpdate?: () => Promise<boolean>;
 };
+
+/**
+ * Progressive disclosure for genuinely advanced/diagnostic settings. Collapsed by
+ * default so the primary settings surface stays simple; nothing is removed.
+ */
+function AdvancedDisclosure({
+  isEn,
+  children,
+  defaultOpen = false,
+}: {
+  isEn: boolean;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="rounded-2xl border border-border/70 bg-card/40"
+    >
+      <CollapsibleTrigger
+        className="flex w-full items-center justify-between gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+        data-testid="settings-advanced-toggle"
+      >
+        <span className="flex items-center gap-2">
+          <Sliders className="h-4 w-4 text-primary" />
+          {isEn ? "Advanced" : "پیشرفته"}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-5 px-1 pb-1 pt-1">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const { t } = useTranslation();
@@ -1004,7 +1044,6 @@ export default function SettingsView() {
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-5 mt-5">
-          <AssistantAccessSettings />
           <AISettingsTab
             settings={settings}
             setSettings={setSettings}
@@ -1012,11 +1051,14 @@ export default function SettingsView() {
             setLang={setLang}
             isEn={isEn}
           />
+          {/* Advanced: AI agent tokens & raw connection details */}
+          <AdvancedDisclosure isEn={isEn}>
+            <AssistantAccessSettings />
+          </AdvancedDisclosure>
         </TabsContent>
 
         <TabsContent value="data" className="space-y-5 mt-5">
           <FirebaseSyncCard />
-          <FirestoreUsageCard />
 
           <SectionCard
             icon={Database}
@@ -1081,6 +1123,11 @@ export default function SettingsView() {
               </AlertDialog>
             </div>
           </SectionCard>
+
+          {/* Advanced: Firestore usage diagnostics */}
+          <AdvancedDisclosure isEn={isEn}>
+            <FirestoreUsageCard />
+          </AdvancedDisclosure>
 
           <Dialog open={!!pendingImport} onOpenChange={(o) => { if (!o) setPendingImport(null); }}>
             <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md">

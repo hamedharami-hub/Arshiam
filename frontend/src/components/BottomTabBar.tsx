@@ -13,6 +13,22 @@ import {
   getAccessibleMobileTabs,
 } from "@/lib/mobileBottomBarSettings";
 
+/**
+ * Canonical compact labels for the mobile bottom bar. The full labels stay on
+ * the tab's aria-label and in the settings picker; these keep the bar legible
+ * (Material-3 style) down to a 320px-wide viewport.
+ */
+const MOBILE_TAB_SHORT_LABELS: Record<string, { fa: string; en: string }> = {
+  today: { fa: "امروز", en: "Today" },
+  calendar: { fa: "تقویم", en: "Calendar" },
+  notes: { fa: "یادداشت", en: "Notes" },
+  mind: { fa: "ذهن", en: "Mind" },
+  inbox: { fa: "صندوق", en: "Inbox" },
+  pomodoro: { fa: "تمرکز", en: "Focus" },
+  planning: { fa: "برنامه", en: "Plan" },
+  knowledge: { fa: "یادگیری", en: "Study" },
+};
+
 export function BottomTabBar() {
   const loc = useLocation();
   const navigate = useNavigate();
@@ -89,7 +105,12 @@ export function BottomTabBar() {
   // The compact bar is the only rendered bar, so this list is the single source of tab config.
   const selectedTabKeys = useMobileBottomTabs();
   const mobileCustomTabs = useMemo<BottomTabItemConfig[]>(() => {
-    return getAccessibleMobileTabs(selectedTabKeys, modules);
+    return getAccessibleMobileTabs(selectedTabKeys, modules).map((tab) => {
+      const short = MOBILE_TAB_SHORT_LABELS[tab.key];
+      return short
+        ? { ...tab, shortLabelFa: short.fa, shortLabelEn: short.en }
+        : tab;
+    });
   }, [selectedTabKeys, modules]);
 
   const isTaskPage =

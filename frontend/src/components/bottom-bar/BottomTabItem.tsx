@@ -25,6 +25,10 @@ export function BottomTabItem({
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const label = isEn ? tab.labelEn : tab.labelFa;
+  // Compact Material-3 label under the icon; falls back to the full label.
+  const shortLabel = isEn
+    ? tab.shortLabelEn || tab.labelEn
+    : tab.shortLabelFa || tab.labelFa;
   const Icon = tab.icon;
 
   const handleClick = () => {
@@ -91,11 +95,11 @@ export function BottomTabItem({
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`group/tab relative z-10 h-full flex-1 flex items-center justify-center select-none active:scale-[0.94] transition-transform duration-200 ease-out min-w-0 ${className}`}
+      className={`group/tab relative z-10 h-full flex-1 flex flex-col items-center justify-center gap-0.5 select-none active:scale-[0.94] transition-transform duration-200 ease-out min-w-0 ${className}`}
     >
       {/* Material 3 Capsule Active Indicator (68px x 36px) */}
       <div
-        className={`relative flex items-center justify-center h-9 w-[4.25rem] rounded-full transition-all duration-300 ease-out ${
+        className={`relative flex items-center justify-center h-9 w-[4.25rem] max-w-full rounded-full transition-all duration-300 ease-out ${
           isActive
             ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100 ring-1 ring-primary/20 shadow-[0_3px_14px_hsl(var(--primary)/0.14),inset_0_1px_0_hsl(var(--primary-foreground)/0.18)]"
             : "text-muted-foreground/75 group-hover/tab:text-foreground group-hover/tab:bg-muted/45 group-hover/tab:scale-[1.04]"
@@ -115,6 +119,17 @@ export function BottomTabItem({
           </span>
         ) : null}
       </div>
+
+      {/* Material 3 destination label — must stay legible down to 320px */}
+      <span
+        className={`max-w-full truncate text-[10px] leading-none tracking-tight transition-colors duration-200 ${
+          isActive
+            ? "font-semibold text-primary"
+            : "font-medium text-muted-foreground/75 group-hover/tab:text-foreground"
+        }`}
+      >
+        {shortLabel}
+      </span>
 
     </button>
   );

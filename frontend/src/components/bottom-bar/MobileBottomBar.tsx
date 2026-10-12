@@ -33,7 +33,7 @@ export function MobileBottomBar({
     <button
       key="bottom-bar-menu-toggle"
       type="button"
-      className="group relative z-10 h-full flex-1 flex items-center justify-center select-none active:scale-95 transition-transform duration-150 min-w-0"
+      className="group relative z-10 h-full flex-1 flex flex-col items-center justify-center gap-0.5 select-none active:scale-95 transition-transform duration-150 min-w-0"
       aria-label={t("nav.menu", "منو")}
       onClick={() => {
         haptic("light");
@@ -42,7 +42,7 @@ export function MobileBottomBar({
     >
       {/* Material 3 Capsule Indicator */}
       <div
-        className={`relative flex items-center justify-center h-8 w-14 rounded-full transition-all duration-300 ease-out ${
+        className={`relative flex items-center justify-center h-8 w-14 max-w-full rounded-full transition-all duration-300 ease-out ${
           openMobile
             ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100"
             : "text-muted-foreground/75 hover:text-foreground group-hover:bg-muted/35"
@@ -56,6 +56,15 @@ export function MobileBottomBar({
           }`}
         />
       </div>
+      {/* Visible short label (matches the labelled tab items) */}
+      <span
+        aria-hidden="true"
+        className={`text-[10px] leading-none truncate max-w-full transition-colors ${
+          openMobile ? "text-primary font-semibold" : "text-muted-foreground/75"
+        }`}
+      >
+        {t("nav.menu", "منو")}
+      </span>
 
     </button>
   );

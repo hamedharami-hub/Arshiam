@@ -1,12 +1,20 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import type { Task } from "@/lib/taskTypes";
 import { getLocalDateString } from "@/lib/taskDate";
+import { updateTodayPlanning } from "@/lib/todayPlanning";
 
 const mockSetAllTasks = vi.fn();
 let mockTasks: Task[] = [];
 const actions = vi.hoisted(() => ({ persist: vi.fn(), advance: vi.fn() }));
+const focusMocks = vi.hoisted(() => ({
+  state: null as null | {
+    userId: string;
+    session: { startedAt: number | null; endAt: number | null; remaining: number; mode: "work" | "short" | "long"; taskId: string | null; taskTitle?: string };
+  },
+}));
+vi.mock("@/hooks/useFocusSession", () => ({ useFocusSession: () => focusMocks.state }));
 vi.mock("@/lib/firestoreDataService", async original => ({
   ...await original<typeof import("@/lib/firestoreDataService")>(), persistTask: actions.persist,
 }));
@@ -491,3 +499,80 @@ it("puts pinned tasks first without the former top-three section", () => {
   expect(list.textContent!.indexOf("Pinned by me")).toBeLessThan(list.textContent!.indexOf("Urgent but not pinned"));
   expect(screen.queryByTestId("top-priorities")).not.toBeInTheDocument();
 });
+
+describe("Today leads with one user-chosen next action", () => {
+  const now = new Date();
+  const todayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59).toISOString();
+  const day = getLocalDateString();
+  const setNext = (taskId: string | null) =>
+    act(() => { updateTodayPlanning("user-123", (current) => ({ ...current, nextTaskId: taskId, nextTaskDate: taskId ? day : null })); });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    mockTasks = [];
+    focusMocks.state = null;
+    vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+    setNext(null);
+  });
+  afterEach(() => {
+    focusMocks.state = null;
+    setNext(null);
+    vi.unstubAllGlobals();
+  });
+
+  it("shows the chosen next task with Start focus, Open and Change", () => {
+    mockTasks = [{ id: "next-1", user_id: "user-123", title: "Write spec", completed: false, status: "todo", priority: "high", due_date: todayIso, parent_id: null } as Task];
+    setNext("next-1");
+    render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+
+    const row = screen.getByTestId("today-next-action");
+    expect(row).toHaveTextContent("Write spec");
+    expect(screen.getByTestId("today-next-primary")).toHaveTextContent("Start focus");
+    expect(screen.getByTestId("today-next-open")).toHaveTextContent("Open");
+    expect(screen.getByTestId("today-next-change")).toHaveTextContent("Change");
+    // The old duplicated header chip is gone.
+    expect(screen.queryByTestId("today-next-selection")).not.toBeInTheDocument();
+  });
+
+  it("offers Start review for a study next task and opens the review session", async () => {
+    mockTasks = [{ id: "study-1", user_id: "user-123", title: "Leitner cards", completed: false, status: "todo", priority: "medium", due_date: todayIso, source_type: "leitner", source_id: "doc-7", parent_id: null } as Task];
+    setNext("study-1");
+    render(<MemoryRouter initialEntries={["/app/today"]}><LocationProbe /><TodayDashboardView /></MemoryRouter>);
+
+    const primary = screen.getByTestId("today-next-primary");
+    expect(primary).toHaveTextContent("Start review");
+    fireEvent.click(primary);
+    await waitFor(() => expect(screen.getByTestId("location-probe")).toHaveTextContent("/app/recall?docId=doc-7"));
+  });
+
+  it("surfaces the live focus runtime controls instead of a second timer", () => {
+    focusMocks.state = {
+      userId: "user-123",
+      session: { startedAt: 1, endAt: 2, remaining: 90, mode: "work", taskId: "x", taskTitle: "Deep work" },
+    };
+    render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+
+    const row = screen.getByTestId("today-next-action");
+    expect(row).toHaveTextContent("Deep work");
+    expect(row).toHaveTextContent("01:30");
+    expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finish and save time" })).toBeInTheDocument();
+    expect(screen.queryByTestId("today-next-primary")).not.toBeInTheDocument();
+  });
+
+  it("shows Choose your next task when nothing is selected and lets the user pick one", async () => {
+    mockTasks = [{ id: "cand-1", user_id: "user-123", title: "Candidate task", completed: false, status: "todo", priority: "none", due_date: todayIso, parent_id: null } as Task];
+    render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
+
+    expect(screen.queryByTestId("today-next-primary")).not.toBeInTheDocument();
+    const choose = screen.getByTestId("today-next-choose");
+    expect(choose).toHaveTextContent("Choose your next task");
+
+    fireEvent.click(choose);
+    const picker = await screen.findByTestId("today-next-picker");
+    fireEvent.click(within(picker).getByText("Candidate task"));
+    await waitFor(() => expect(screen.getByTestId("today-next-title")).toHaveTextContent("Candidate task"));
+  });
+});
+
