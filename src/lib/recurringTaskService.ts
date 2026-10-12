@@ -5,7 +5,7 @@ import { showMascotMoment } from "./mascot";
 import { getCachedTasks } from "@/features/tasks/taskService";
 import { buildTaskChildrenMap, collectTaskDescendantIds } from "@/features/tasks/taskTree";
 import { nextOccurrence, type RecurrenceRule } from "./recurrence";
-import { parseTaskDueDate, getLocalDateString } from "./taskDate";
+import { parseTaskDueDate, getLocalDateString, taskWorkDate } from "./taskDate";
 import { logTaskActivity } from "./taskActivity";
 import type { Task } from "./taskTypes";
 
@@ -99,7 +99,7 @@ export type AdvanceRecurringTaskResult = {
 /**
  * Advances a recurring task to its next recurrence instance:
  * 1. Calculates the next recurrence date (e.g. tomorrow for daily).
- * 2. Shifts due_date, reminder_at, start_at, and due_at.
+ * 2. Shifts the scheduled work date and reminder.
  * 3. Resets the task's completion status to uncompleted (completed: false, status: "todo").
  * 4. Resets all subtasks and their checkboxes (completed: false, status: "todo") and advances their dates.
  * 5. Resets any checklist steps in task_step_lists / task_steps.
@@ -124,13 +124,13 @@ export async function advanceRecurringTask(
   }
 
   const now = options?.now || new Date();
-  const savedDue = parseTaskDueDate(task.work_date === undefined ? task.due_date : task.work_date);
-  const occurrenceDate = task.work_date === undefined ? task.due_date : task.work_date;
+  const savedDue = parseTaskDueDate(taskWorkDate(task));
+  const occurrenceDate = taskWorkDate(task);
   const hasRepeatHour = typeof rule.byhour === "number";
   const legacyAllDay = !!savedDue && savedDue.getHours() === 23 && savedDue.getMinutes() === 59;
   const isAllDay = !hasRepeatHour && (
     /^\d{4}-\d{2}-\d{2}$/.test(occurrenceDate || "") || legacyAllDay ||
-    (!savedDue && !task.due_at && !task.start_at)
+    !savedDue
   );
   const anchor = savedDue || now;
   const baseDate = isAllDay
@@ -160,16 +160,8 @@ export async function advanceRecurringTask(
     status: "todo",
     completed_at: null,
     work_date: nextDueDateStr,
-    due_date: task.due_date && task.work_date !== undefined
-      ? (() => {
-        const deadline = parseTaskDueDate(task.due_date);
-        if (!deadline) return task.due_date;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(task.due_date)) {
-          return getLocalDateString(new Date(deadline.getFullYear(), deadline.getMonth(), deadline.getDate() + calendarDaysShift));
-        }
-        return new Date(deadline.getTime() + deltaMs).toISOString();
-      })()
-      : null,
+    // The first recurrence version does not invent the next deadline.
+    deadline_date: null,
     reminder_at: nextReminderIso,
     ...(task.reminder_plan?.enabled && nextReminderIso ? { reminder_plan: {
       ...task.reminder_plan,
@@ -194,25 +186,8 @@ export async function advanceRecurringTask(
     taskPatch.period_start = nextDay;
     taskPatch.period_end = nextDay;
   }
-  if (task.bucket_anchor && ["day", "morning", "noon", "afternoon", "night"].includes(task.bucket_kind || "")) {
+  if (task.bucket_anchor && task.bucket_kind === "day") {
     taskPatch.bucket_anchor = nextDay;
-  }
-
-  if (task.start_at) {
-    const sTime = new Date(task.start_at).getTime();
-    if (!isNaN(sTime)) taskPatch.start_at = new Date(sTime + deltaMs).toISOString();
-  }
-  if (task.end_at) {
-    const eTime = new Date(task.end_at).getTime();
-    if (!isNaN(eTime)) taskPatch.end_at = new Date(eTime + deltaMs).toISOString();
-  }
-  if (task.due_at) {
-    const dTime = new Date(task.due_at).getTime();
-    if (!isNaN(dTime)) taskPatch.due_at = new Date(dTime + deltaMs).toISOString();
-  }
-  if (isAllDay && (task.is_exact || task.due_at)) {
-    taskPatch.due_at = null;
-    taskPatch.is_exact = false;
   }
 
   // 1. Advance and reset all subtasks under this recurring task
@@ -245,12 +220,12 @@ export async function advanceRecurringTask(
         updated_at: new Date().toISOString(),
       };
 
-      if (sub.due_date) {
-        const subDue = parseTaskDueDate(sub.due_date);
+      if (taskWorkDate(sub)) {
+        const subDue = parseTaskDueDate(taskWorkDate(sub));
         if (subDue) {
           const newSubDue = new Date(subDue.getTime() + deltaMs);
-          const subIsDateOnly = !sub.due_date.includes("T") && /^\d{4}-\d{2}-\d{2}$/.test(sub.due_date);
-          subPatch.due_date = subIsDateOnly ? getLocalDateString(newSubDue) : newSubDue.toISOString();
+          const subIsDateOnly = !taskWorkDate(sub)!.includes("T");
+          subPatch.work_date = subIsDateOnly ? getLocalDateString(newSubDue) : newSubDue.toISOString();
         }
       }
 
@@ -289,7 +264,7 @@ export async function advanceRecurringTask(
   // 4. Log activity
   await logTaskActivity(task.id, userId, "recurrence_advanced", {
     next_due: nextDueDateStr,
-    previous_due: task.due_date,
+    previous_due: taskWorkDate(task),
   }).catch(() => {});
 
   // 5. Notify UI

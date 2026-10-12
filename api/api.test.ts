@@ -263,7 +263,7 @@ describe("Firestore Encoding & User Isolation (_lib/firestore.ts)", () => {
         name: "projects/p/databases/d/documents/users/u1/tasks/t1",
         fields: encodeFirestoreFields({
           title: "Due Today",
-          due_date: todayStr,
+          work_date: todayStr,
           completed: false,
         }),
       },
@@ -271,7 +271,7 @@ describe("Firestore Encoding & User Isolation (_lib/firestore.ts)", () => {
         name: "projects/p/databases/d/documents/users/u1/tasks/t2",
         fields: encodeFirestoreFields({
           title: "Due Today Done",
-          due_date: todayStr,
+          work_date: todayStr,
           completed: true,
         }),
       },
@@ -279,7 +279,7 @@ describe("Firestore Encoding & User Isolation (_lib/firestore.ts)", () => {
         name: "projects/p/databases/d/documents/users/u1/tasks/t3",
         fields: encodeFirestoreFields({
           title: "Overdue",
-          due_date: "2020-01-01",
+          work_date: "2020-01-01",
           completed: false,
         }),
       },

@@ -1,3 +1,5 @@
+import { isExplicitScheduleApply, scheduleApplyDeleteKeys, supportedTaskPatch } from "./taskScheduleMigration";
+import { taskScheduleWrite } from "./taskScheduleWrite";
 import { getDocFromCache, runTransaction } from "firebase/firestore";
 import { liveDoc, liveRows } from "./firestoreLive";
 import { isQuotaError, markQuotaExhausted, trackWrite } from "./firestoreUsage";
@@ -11,6 +13,7 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
 } from "./firebase";
 import { firebaseStore } from "./firebaseStore";
@@ -138,6 +141,7 @@ export async function saveEntityToFirestoreWithOutcome(
   }
 
   if (!userId || !docId || !collectionName) return "failed";
+  if (collectionName === "tasks") data = supportedTaskPatch(data);
 
   try {
     const docRef = doc(db, "users", userId, collectionName, docId);
@@ -216,6 +220,10 @@ export async function saveEntityToFirestoreWithOutcome(
       docRef,
       {
         ...stripUndefinedDeep(data),
+        ...(collectionName === "tasks" ? taskScheduleWrite(stripUndefinedDeep(data)) : {}),
+        ...(collectionName === "tasks" && isExplicitScheduleApply(data)
+          ? Object.fromEntries(scheduleApplyDeleteKeys(data).map((key) => [key, deleteField()]))
+          : {}),
         id: docId,
         userId,
         updatedAt: new Date().toISOString(),

@@ -22,10 +22,12 @@ export function RecurrenceEditor({
   value,
   onChange,
   defaultTime,
+  compact = false,
 }: {
   value: RecurrenceRule | null;
   onChange: (v: RecurrenceRule | null) => void;
   defaultTime?: string | null;
+  compact?: boolean;
 }) {
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
@@ -53,7 +55,7 @@ export function RecurrenceEditor({
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+    <div className={compact ? "space-y-3 p-1" : "space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3"}>
       {!enabled ? (
         <button
           type="button"
@@ -61,7 +63,7 @@ export function RecurrenceEditor({
           className="flex min-h-10 w-full items-center justify-between gap-3 rounded-lg px-2 text-start transition hover:bg-muted/60"
         >
           <span>
-            <span className="block text-xs font-medium text-foreground">{T("تکرار تسک", "Repeat task")}</span>
+            {!compact && <span className="block text-xs font-medium text-foreground">{T("تکرار تسک", "Repeat task")}</span>}
             <span className="mt-0.5 block text-[11px] text-muted-foreground">{T("بدون تکرار", "Does not repeat")}</span>
           </span>
           <span className="rounded-full border bg-background px-3 py-1 text-[11px] font-medium text-primary">{T("افزودن", "Add")}</span>
@@ -70,7 +72,7 @@ export function RecurrenceEditor({
         <>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <Label className="text-xs font-semibold">{T("تکرار تسک", "Repeat task")}</Label>
+              {!compact && <Label className="text-xs font-semibold">{T("تکرار تسک", "Repeat task")}</Label>}
               <p className="mt-0.5 text-[11px] text-muted-foreground">{describeRule(v, isEn)}</p>
             </div>
             <button

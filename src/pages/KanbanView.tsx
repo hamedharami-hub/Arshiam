@@ -91,7 +91,7 @@ type Task = {
   user_id?: string;
   title: string;
   priority: Priority;
-  due_date?: string | null;
+  work_date?: string | null;
   status: Status;
   completed: boolean;
   completed_at?: string | null;

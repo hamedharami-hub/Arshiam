@@ -14,7 +14,6 @@ export async function saveTaskTemplate(userId: string, task: Task, title?: strin
       recurrence: task.recurrence,
       payload: {
         parent_id: task.parent_id,
-        estimated_minutes: task.estimated_minutes,
         is_avoidance: task.is_avoidance,
         location: task.location,
       },
@@ -49,7 +48,7 @@ export function buildTaskFromTemplate(template: TaskTemplate): Partial<Task> {
     description: template.description || null,
     priority: template.priority,
     folder_id: template.folder_id || null,
-    due_date: due,
+    work_date: due,
     recurrence: template.recurrence || "none",
     ...(template.payload || {}),
   };

@@ -138,7 +138,7 @@ export function applyFilter(
 }
 
 const rank = (p?: Priority) => PRIORITY_META[p || "none"]?.rank ?? 99;
-const timeKey = (t: Task) => t.due_at || t.period_start || t.due_date || "9999";
+const timeKey = (t: Task) => t.work_date || t.planning_start || t.period_start || "9999";
 
 export function sortTasks(tasks: Task[], sort: SortKey): Task[] {
   const done = (t: Task) => (t.completed ? 1 : 0);

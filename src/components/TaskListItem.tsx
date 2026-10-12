@@ -16,15 +16,21 @@ import SwipeableRow, { type SwipeAction } from "@/components/gestures/SwipeableR
 import { useLongPress } from "@/lib/useLongPress";
 import { addDays } from "date-fns";
 import { formatDate } from "@/lib/jalali";
-import { formatTaskDueDateDisplay, getLocalDateString, taskWorkDate, workDatePatch } from "@/lib/taskDate";
+import { formatTaskDueDateDisplay, getLocalDateString, taskWorkDate } from "@/lib/taskDate";
+import { clockFromWorkDate, commitSchedule, dayOrClock } from "@/lib/taskScheduleChoices";
+import { deadlineSignal, readTaskSchedule } from "@/lib/taskSchedule";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
-import { isSubDayBucket, kindLabel } from "@/lib/timeBuckets";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import type { Task } from "@/lib/taskTypes";
 import { PRIORITY_META } from "@/lib/priority";
-import { isTaskOverdue } from "@/lib/taskPlanning";
+import { isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+
+const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+function faDayCount(days: number): string {
+  return `${String(days).replace(/\d/g, (digit) => FA_DIGITS[Number(digit)])} روز`;
+}
 
 export function outcomeMeta(
   task: Task,
@@ -128,8 +134,12 @@ const TaskListItemComponent = ({
   const priorityMeta = PRIORITY_META[t.priority] ?? PRIORITY_META.none;
   // Today/Next-7 group overdue rows under a header, so only ungrouped lists need a row-level pill.
   const overdue = useMemo(
-    () => (showOverdueBadge ? isTaskOverdue(t, getTimeSettings()) : false),
+    () => (showOverdueBadge ? isTaskMissedWorkDay(t, getTimeSettings()) : false),
     [showOverdueBadge, t],
+  );
+  const deadline = useMemo(
+    () => deadlineSignal(t.deadline_date || null, getLocalDateString()),
+    [t.deadline_date],
   );
   const isScheduledLeitnerReview = isLeitnerStudyTask(t);
   const parentTask = parent || (t.parent_id ? taskMap?.get(t.parent_id) : null);
@@ -191,7 +201,14 @@ const TaskListItemComponent = ({
                 baseClass: "bg-amber-500/80",
                 activeClass: "bg-amber-700",
                 textClass: "text-white",
-                onActivate: () => onPatchTask(t.id, workDatePatch(t, getLocalDateString(addDays(new Date(), 1)))),
+                onActivate: () => {
+                  const tomorrow = getLocalDateString(addDays(new Date(), 1));
+                  const schedule = readTaskSchedule(t);
+                  const clock = schedule.mode === "clock" ? clockFromWorkDate(schedule.workDate, schedule.timezone) : null;
+                  const input = dayOrClock(tomorrow, clock);
+                  const patch = input ? commitSchedule(input) : null;
+                  if (patch) onPatchTask(t.id, patch);
+                },
               },
               {
                 id: "move",
@@ -389,10 +406,23 @@ const TaskListItemComponent = ({
                   <span
                     data-testid="task-overdue-badge"
                     className="inline-flex h-5 items-center gap-1 rounded-full border border-rose-500/25 bg-rose-500/10 px-2 text-[10px] font-medium text-rose-700 dark:text-rose-300"
-                    title={T("مهلت این تسک گذشته است", "The deadline has passed")}
+                    title={T("روز انجام این تسک گذشته است", "The scheduled day has passed")}
                   >
                     <AlertTriangle className="h-3 w-3" />
-                    {T("عقب‌افتاده", "Overdue")}
+                    {T("روز انجام گذشته", "Missed work day")}
+                  </span>
+                )}
+
+                {deadline && (
+                  <span
+                    data-testid="task-deadline-badge"
+                    className="inline-flex h-5 items-center gap-1 rounded-full border border-border px-2 text-[10px] font-medium text-foreground/80"
+                    title={T("مهلت", "Deadline")}
+                  >
+                    {T("مهلت", "Deadline")}
+                    <span>
+                      {deadline.state === "passed" ? T("گذشته", "Passed") : T(faDayCount(deadline.days), `${deadline.days} days`)}
+                    </span>
                   </span>
                 )}
 
@@ -410,15 +440,6 @@ const TaskListItemComponent = ({
                     {(t.recurrence_rule || (t.recurrence && t.recurrence !== "none")) && <Repeat className="h-3 w-3 text-violet-600" aria-label={T("تکراری", "Repeats")} />}
                   </button>
                 </TaskScheduleSheet>
-                {t.work_date !== undefined && t.due_date && (
-                  <TaskScheduleSheet task={t} onPatch={patch => onPatchTask(t.id, patch)}>
-                    <button type="button" onClick={e => e.stopPropagation()}
-                      className="inline-flex h-5 items-center gap-1 rounded-full border border-rose-500/20 bg-rose-500/5 px-2 text-[10px] text-rose-700 dark:text-rose-300"
-                      title={T("مهلت نهایی", "Deadline")}>
-                      <Clock className="h-3 w-3" /><bdi dir="ltr">{formatTaskDueDateDisplay(t.due_date, isEn)}</bdi>
-                    </button>
-                  </TaskScheduleSheet>
-                )}
                 {effectiveProgress.total > 0 && (visibleSubs.length > 0 ? (
                   <button
                     type="button"

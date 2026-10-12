@@ -1,7 +1,9 @@
+import { FieldValue } from "firebase-admin/firestore";
+import { normalizeTaskSchedule, scheduleApplyDeleteKeys } from "../../src/lib/taskScheduleMigration.js";
 import { createHash, randomBytes } from "node:crypto";
 import { adminDb, type AssistantGrant } from "./assistantAccess.js";
 
-const allowedFields = ["title", "description", "priority", "status", "completed", "due_date", "folder_id", "pinned", "start_at", "end_at", "estimated_minutes"] as const;
+const allowedFields = ["title", "description", "priority", "status", "completed", "work_date", "folder_id", "pinned"] as const;
 const writeFields = new Set<string>(allowedFields);
 
 export function assistantTaskCollectionPath(grant: AssistantGrant) {
@@ -22,7 +24,7 @@ export async function listAssistantTasks(grant: AssistantGrant, search?: string,
   const snapshot = await collection(grant).get();
   const needle = (search || "").toLocaleLowerCase();
   const pageSize = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 100) : 100;
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  return snapshot.docs.map((doc) => normalizeTaskSchedule({ id: doc.id, ...doc.data() }))
     .filter((task: any) => !needle || `${task.title || ""} ${task.description || ""}`.toLocaleLowerCase().includes(needle))
     .sort((a: any, b: any) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
     .slice(0, pageSize);
@@ -30,7 +32,7 @@ export async function listAssistantTasks(grant: AssistantGrant, search?: string,
 
 export async function getAssistantTask(grant: AssistantGrant, id: string) {
   const doc = await collection(grant).doc(id).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  return doc.exists ? normalizeTaskSchedule({ id: doc.id, ...doc.data() }) : null;
 }
 
 export async function createAssistantTask(grant: AssistantGrant, input: any) {
@@ -47,9 +49,8 @@ export async function createAssistantTask(grant: AssistantGrant, input: any) {
   const task: Record<string, unknown> = {
     id, user_id: grant.userId, title: input.title.trim(), description: input.description || null,
     completed: Boolean(input.completed), priority: input.priority || "p4",
-    status: input.status || (input.completed ? "done" : "todo"), due_date: input.due_date || null,
-    folder_id: input.folder_id || null, pinned: Boolean(input.pinned), start_at: input.start_at || null,
-    end_at: input.end_at || null, estimated_minutes: input.estimated_minutes ?? null,
+    status: input.status || (input.completed ? "done" : "todo"), work_date: input.work_date || null,
+    folder_id: input.folder_id || null, pinned: Boolean(input.pinned),
     created_at: now, updated_at: now, ...(externalRef ? { external_ref: externalRef } : {}),
   };
   const batch = adminDb().batch();
@@ -72,10 +73,11 @@ export async function updateAssistantTask(grant: AssistantGrant, id: string, inp
   if (Object.keys(patch).length === 0) throw new Error("No editable fields supplied.");
   patch.updated_at = new Date().toISOString();
   const batch = adminDb().batch();
-  batch.update(ref, patch);
+  const applyDeletes = Object.fromEntries(scheduleApplyDeleteKeys(patch).map((key) => [key, FieldValue.delete()]));
+  batch.update(ref, { ...patch, ...applyDeletes });
   batch.create(adminDb().collection(`users/${grant.userId}/assistant_audit`).doc(), auditData(grant, "update", id, snapshot.data()));
   await batch.commit();
-  return { id, ...snapshot.data(), ...patch };
+  return normalizeTaskSchedule({ id, ...snapshot.data(), ...patch });
 }
 
 export async function deleteAssistantTask(grant: AssistantGrant, id: string) {

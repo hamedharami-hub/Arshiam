@@ -2,7 +2,8 @@ import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import React from "react";
 import { startOfDay, endOfDay, addDays, format } from "date-fns";
 import { parseTaskDueDate, taskDueTimestamp, taskWorkDate, getLocalDateString } from "@/lib/taskDate";
-import { getTaskPlanning, isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
+import { isScheduledToday, readTaskSchedule } from "@/lib/taskSchedule";
+import { getTaskPlanning, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { PRIORITY_META } from "@/lib/priority";
 import type { Task } from "@/lib/taskTypes";
@@ -23,7 +24,7 @@ export function buildGroupedTasks(
   const settings = getTimeSettings();
   const todayISOStr = getLocalDateString(now);
   const exactDatesFor = (task: Task) =>
-    [taskWorkDate(task), task.work_date === undefined ? null : task.due_date]
+    [taskWorkDate(task)]
       .filter((date): date is string => !!date)
       .sort((a, b) => taskDueTimestamp(a) - taskDueTimestamp(b));
   const dateForGrouping = (task: Task) => {
@@ -47,21 +48,24 @@ export function buildGroupedTasks(
   for (const task of sorted) {
     const dueValue = dateForGrouping(task);
     const hasExactDate = exactDatesFor(task).length > 0;
-    const plan = hasExactDate ? null : getTaskPlanning(task, settings);
+    const schedule = readTaskSchedule(task);
+    const dated = schedule.mode === "day" || schedule.mode === "clock" || schedule.conflict;
+    const plan = dated ? null : getTaskPlanning(task, settings);
     const currentWeekPlan = Boolean(plan && plan.horizon === "week" && plan.start <= todayISOStr && plan.end >= todayISOStr);
+    const nonDayPlan = Boolean(plan && plan.horizon !== "day");
     const due = taskDueTimestamp(dueValue);
     let key: string;
     let label: string;
-    if (isTaskOverdue(task, settings, now)) {
-      key = "overdue";
-      label = T("عقب‌افتاده", "Overdue");
-    } else if (isTaskMissedWorkDay(task, settings, now) || (hasExactDate && due < todayStart)) {
+    if (isTaskMissedWorkDay(task, settings, now) || (hasExactDate && due < todayStart)) {
       key = "missed";
       label = T("از برنامه عقب‌مانده", "Missed work day");
+    } else if (isScheduledToday(schedule, todayISOStr)) {
+      key = "today";
+      label = T("امروز", "Today");
     } else if (currentWeekPlan) {
       key = "week-plan";
       label = T("این هفته", "This week");
-    } else if (dueValue && due >= todayStart && due <= todayEnd) {
+    } else if (dueValue && due >= todayStart && due <= todayEnd && !nonDayPlan) {
       key = "today";
       label = T("امروز", "Today");
     } else if (dueValue && due > todayEnd && due <= tomorrowEnd) {
@@ -86,7 +90,6 @@ export function buildGroupedTasks(
   // Keep today's tasks first; overdue is still visible, but below today's work.
   const orderedKeys: string[] = [];
   if (groups.has("today")) orderedKeys.push("today");
-  if (groups.has("overdue")) orderedKeys.push("overdue");
   if (groups.has("missed")) orderedKeys.push("missed");
   if (groups.has("tomorrow")) orderedKeys.push("tomorrow");
   if (groups.has("week-plan")) orderedKeys.push("week-plan");
@@ -107,7 +110,7 @@ export function TaskDueDateGroups({ groupedTasks, renderTaskItem }: TaskDueDateG
     <div className="space-y-3">
       {groupedTasks.map((group) => (
         <div key={group.key}>
-          <TaskGroupHeader label={group.label} count={group.tasks.length} tone={group.key === "overdue" ? "overdue" : "default"} testid={`task-group-${group.key}`} />
+          <TaskGroupHeader label={group.label} count={group.tasks.length} tone={group.key === "missed" ? "overdue" : "default"} testid={`task-group-${group.key}`} />
           <div className="space-y-1">{group.tasks.map((t) => renderTaskItem(t))}</div>
         </div>
       ))}

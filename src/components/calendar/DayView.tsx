@@ -1,21 +1,22 @@
 import { useState, useRef } from "react";
-import { isSameDay, format, differenceInMinutes } from "date-fns";
+import { isSameDay, format } from "date-fns";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { useNavigate } from "react-router-dom";
 import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 import { parseTaskDueDate } from "@/lib/taskDate";
+import { toLocalISO } from "@/lib/timeHorizon";
+import { isLiteralDeadlineDay } from "@/lib/taskSchedule";
+import { DeadlineMark } from "./DeadlineMark";
 
 type Task = {
   id: string;
   title: string;
-  due_date: string | null;
+  work_date: string | null;
   priority: string;
   description?: string | null;
-  start_at?: string | null;
-  end_at?: string | null;
-  estimated_minutes?: number | null;
+  deadline_date?: string | null;
 };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -50,7 +51,8 @@ function HourSlot({
             onClick={(e) => { e.stopPropagation(); onTaskClick?.(t.id); }}
             className="bg-card text-foreground/80 text-xs rounded-md px-2 py-1 truncate border border-border/60 hover:border-primary/30 hover:bg-accent/30 transition"
           >
-            {t.title}
+            <span className="truncate">{t.title}</span>
+            {isLiteralDeadlineDay(t.deadline_date, toLocalISO(date)) && <> <DeadlineMark /></>}
           </div>
         ))}
       </div>
@@ -81,29 +83,20 @@ export default function DayView({
 
   const onPinchStart = (e: React.TouchEvent) => { if (e.touches.length === 2) showHint(); pinchHandlers.onTouchStart(e); };
 
+  const dayKey = toLocalISO(date);
   const dayTasks = tasks.filter((t) => {
-    const ref = t.start_at ? new Date(t.start_at) : t.due_date ? parseTaskDueDate(t.due_date) : null;
+    const ref = t.work_date ? parseTaskDueDate(t.work_date) : null;
     return !!ref && isSameDay(ref, date);
   });
+  const drawn = new Set(dayTasks.map((t) => t.id));
+  const deadlineOnly = tasks.filter((t) => isLiteralDeadlineDay(t.deadline_date, dayKey) && !drawn.has(t.id));
 
-  const blocks = dayTasks
-    .filter((t) => t.start_at)
-    .map((t) => {
-      const s = new Date(t.start_at!);
-      const e = t.end_at
-        ? new Date(t.end_at)
-        : new Date(s.getTime() + (t.estimated_minutes || 60) * 60000);
-      const startMin = s.getHours() * 60 + s.getMinutes();
-      const dur = Math.max(15, differenceInMinutes(e, s));
-      return { task: t, top: (startMin / 60) * HOUR_HEIGHT, height: (dur / 60) * HOUR_HEIGHT, s, e };
-    });
-
-  const dueOnly = dayTasks.filter((t) => !t.start_at && t.due_date);
+  const dueOnly = dayTasks;
 
   const quickCreate = (hour: number) => {
     const d = new Date(date);
     d.setHours(hour, 0, 0, 0);
-    navigate(`/app/tasks/new?due_date=${encodeURIComponent(d.toISOString())}`);
+    navigate(`/app/tasks/new?work_date=${encodeURIComponent(d.toISOString())}`);
   };
 
   return (
@@ -116,6 +109,17 @@ export default function DayView({
           {system === "jalali" ? format(date, "EEEE, MMMM d") : formatDate(date, "EEEE d MMMM yyyy", "jalali")}
         </p>
       </div>
+
+      {deadlineOnly.length > 0 && (
+        <div className="space-y-1 rounded-xl border border-border/60 bg-card/40 p-2">
+          {deadlineOnly.map((t) => (
+            <button key={t.id} type="button" onClick={() => onTaskClick?.(t.id)} className="flex w-full items-center gap-2 text-start text-xs text-foreground/80">
+              <span className="truncate">{t.title}</span>
+              <DeadlineMark />
+            </button>
+          ))}
+        </div>
+      )}
 
       <div
         className="relative border border-border/60 rounded-xl overflow-hidden touch-pan-y bg-card/40"
@@ -130,7 +134,7 @@ export default function DayView({
         )}
         <div>
           {HOURS.map((h) => {
-            const slotDue = dueOnly.filter((t) => parseTaskDueDate(t.due_date!)?.getHours() === h);
+            const slotDue = dueOnly.filter((t) => parseTaskDueDate(t.work_date!)?.getHours() === h);
             return (
               <HourSlot
                 key={h} date={date} h={h} slotDue={slotDue} height={HOUR_HEIGHT}
@@ -140,25 +144,9 @@ export default function DayView({
           })}
         </div>
 
-        <div className="absolute inset-0 pointer-events-none pl-[68px] pr-2">
-          {blocks.map(({ task, top, height, s, e }) => (
-            <div
-              key={task.id}
-              onClick={(ev) => { ev.stopPropagation(); onTaskClick?.(task.id); }}
-              className="absolute right-2 left-0 pointer-events-auto cursor-pointer rounded-md bg-primary/15 text-primary border border-primary/20 text-xs px-2 py-1 overflow-hidden hover:bg-primary/25 transition"
-              style={{ top: top + 4, height: Math.max(height - 6, 22) }}
-              title={`${task.title} (${format(s, "HH:mm")}–${format(e, "HH:mm")})`}
-            >
-              <div className="font-medium truncate">{task.title}</div>
-              <div className="text-[10px] opacity-90 tabular-nums">
-                {toPersianDigits(format(s, "HH:mm"))} – {toPersianDigits(format(e, "HH:mm"))}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
-      {blocks.length === 0 && dueOnly.length === 0 && (
+      {dueOnly.length === 0 && deadlineOnly.length === 0 && (
         <p className="text-center text-sm text-muted-foreground py-8 border border-dashed border-border/60 rounded-xl">
           هیچ تسکی برای این روز زمان‌بندی نشده.
         </p>

@@ -1,7 +1,7 @@
 import type { Priority } from "@/lib/priority";
 import type { RecurrenceRule } from "@/lib/recurrence";
 
-export type TaskStatus = "todo" | "in_progress" | "done" | "wont_do";
+export type TaskStatus = "todo" | "in_progress" | "waiting" | "done" | "wont_do";
 
 export type ReminderMode = "once" | "until_ack" | "count";
 export type ReminderImportance = "normal" | "important";
@@ -29,11 +29,18 @@ export type Task = {
   title: string;
   description?: string | null;
   priority: Priority;
-  due_date?: string | null;
-  /** Day the user intends to work on this task; independent of its deadline. */
+  /** Scheduled work day, optionally with a precise local clock time. */
   work_date?: string | null;
   completed: boolean;
   status: TaskStatus;
+  /** Set only by an explicit user action. Never inferred from list order. */
+  is_next?: boolean | null;
+  waiting_reason?: string | null;
+  prerequisite_id?: string | null;
+  /** Optional end criterion. Completion does not require it. */
+  done_when?: string | null;
+  if_then?: string | null;
+  small_step?: string | null;
   folder_id?: string | null;
   kanban_column_id?: string | null;
   reminder_at?: string | null;
@@ -46,16 +53,9 @@ export type Task = {
   source_id?: string | null;
   outcome_review?: { helpful: "helpful" | "somewhat" | "not_helpful"; note?: string; created_at: string } | null;
   pinned?: boolean;
-  start_at?: string | null;
-  end_at?: string | null;
-  estimated_minutes?: number | null;
   is_avoidance?: boolean;
   location?: string | null;
   bucket_kind?:
-    | "morning"
-    | "noon"
-    | "afternoon"
-    | "night"
     | "day"
     | "week"
     | "month"
@@ -64,18 +64,22 @@ export type Task = {
     | null;
   bucket_calendar?: "jalali" | "gregorian" | null;
   bucket_anchor?: string | null;
-  planning_horizon?: "day" | "week" | "month" | "quarter" | "year" | null;
+  planning_horizon?: "day" | "week" | "month" | "quarter" | "year" | "range" | null;
   planning_start?: string | null;
   planning_end?: string | null;
   planning_calendar?: "jalali" | "gregorian" | null;
+  /** Schedule contract version. Absent does not mean unscheduled. */
+  schedule_v?: 2 | null;
+  schedule_timezone?: string | null;
+  /** Separate from the work day. Never written by a schedule patch. */
+  deadline_date?: string | null;
+  schedule_legacy?: Record<string, unknown> | null;
   /** Cascade link to an item one or more planning levels higher (year → quarter → month → week → day). */
   plan_parent_id?: string | null;
   // Time horizon v2 (see src/lib/timeHorizon.ts)
   horizon?: "day" | "week" | "month" | "quarter" | "year" | null;
   period_start?: string | null;
   period_end?: string | null;
-  due_at?: string | null;
-  is_exact?: boolean | null;
   postpone_count?: number | null;
   completed_at?: string | null;
   created_at?: string;

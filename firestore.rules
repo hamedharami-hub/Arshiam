@@ -38,6 +38,13 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Agent calendar events are written only by the Admin SDK. The owner may
+      // read them; a client write could turn an event into a task.
+      match /agent_events/{docId=**} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       // Permanent, non-sensitive deletion markers fence both old clients and concurrent batches.
       match /cycle_profile_tombstones/{profileId} {
         allow read: if isOwner(userId);
@@ -71,6 +78,7 @@ service cloud.firestore {
             'assistant_grants',
             'assistant_audit',
             'assistant_trash',
+            'agent_events',
             'cycle_profiles',
             'cycle_logs',
             'cycle_profile_tombstones'

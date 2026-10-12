@@ -56,14 +56,14 @@ describe("QuickAddTask component", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
   });
 
-  it("queues planning and an exact deadline together without changing the folder", async () => {
+  it("queues planning and an exact work date together without changing the folder", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
-    render(<MemoryRouter><QuickAddTask placeholder="+ Planned task" defaults={{ folder_id: "folder-1", due_date: "2026-06-10T10:00:00.000Z", planning: { horizon: "month", start: "2026-05-01", end: "2026-05-31" } }} /></MemoryRouter>);
+    render(<MemoryRouter><QuickAddTask placeholder="+ Planned task" defaults={{ folder_id: "folder-1", work_date: "2026-06-10T10:00:00.000Z", planning: { horizon: "month", start: "2026-05-01", end: "2026-05-31" } }} /></MemoryRouter>);
     fireEvent.click(screen.getByText("+ Planned task"));
     fireEvent.change(screen.getByPlaceholderText("+ Planned task"), { target: { value: "Keep both times" } });
     fireEvent.click(screen.getByTitle("Add task (Enter)"));
     await waitFor(() => expect(enqueueOps).toHaveBeenCalled());
-    expect(vi.mocked(enqueueOps).mock.calls[0][0][0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", due_date: "2026-06-10T10:00:00.000Z", planning_horizon: "month", planning_start: "2026-05-01", planning_end: "2026-05-31" }));
+    expect(vi.mocked(enqueueOps).mock.calls[0][0][0].payload).toEqual(expect.objectContaining({ folder_id: "folder-1", work_date: null, schedule_timezone: null, planning_horizon: "month", planning_start: "2026-05-01", planning_end: "2026-05-31", schedule_v: 2 }));
   });
   it("retains folder, column status, priority, tags and bucket period when adding offline", async () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: false });

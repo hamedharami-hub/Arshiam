@@ -1,3 +1,4 @@
+import { taskWorkDate } from "./taskDate";
 /**
  * Time horizons ("Time Bucket" v2).
  *
@@ -131,41 +132,46 @@ export function periodContains(p: Pick<Period, "start" | "end">, iso: string): b
 
 // ---------------- task <-> time fields ----------------
 const LEGACY_TO_HORIZON: Record<string, Horizon> = {
-  morning: "day", noon: "day", afternoon: "day", night: "day", day: "day",
+  day: "day",
   week: "week", month: "month", quarter: "quarter", year: "year",
 };
 
-function hasClockTime(iso: string): boolean {
-  if (!iso.includes("T")) return false;
-  const d = new Date(iso);
-  return !(d.getHours() === 0 && d.getMinutes() === 0);
+/** A written clock instant is exact even at 00:00 or 23:59. Date-only values are not. */
+function workDateIsExact(iso: string): boolean {
+  return iso.includes("T");
 }
 
-/** Reads the v2 fields, falling back to legacy bucket_* / due_date written by older screens. */
+/** Reads the v2 fields, falling back to legacy bucket_* / work_date written by older screens. */
 export function getTaskTime(task: Partial<Task>, s: TimeSettings): TimeFields | null {
   const postpone_count = task.postpone_count || 0;
   const legacyH = task.bucket_kind ? LEGACY_TO_HORIZON[task.bucket_kind] : undefined;
+  const workDate = taskWorkDate(task);
+  if (workDate) {
+    const d = workDate.includes("T") ? new Date(workDate) : fromLocalISO(workDate);
+    if (Number.isNaN(d.getTime())) return null;
+    const iso = toLocalISO(d);
+    const exact = workDateIsExact(workDate);
+    return { horizon: "day", period_start: iso, period_end: iso, due_at: exact ? d.toISOString() : null, is_exact: exact, postpone_count };
+  }
+  if (task.planning_horizon && task.planning_start && task.planning_end) {
+    return { horizon: task.planning_horizon as Horizon, period_start: task.planning_start, period_end: task.planning_end, due_at: null, is_exact: false, postpone_count };
+  }
   const v2Consistent = task.horizon && task.period_start && task.period_end && (
-    task.is_exact
-      ? !task.due_date || task.due_date === task.due_at
-      : !legacyH || (legacyH === task.horizon && task.bucket_anchor === task.period_start)
+    !legacyH || (legacyH === task.horizon && task.bucket_anchor === task.period_start)
   );
   if (v2Consistent) {
-    return {
-      horizon: task.horizon!, period_start: task.period_start!, period_end: task.period_end!,
-      due_at: task.due_at || null, is_exact: !!task.is_exact, postpone_count,
-    };
+    return { horizon: task.horizon!, period_start: task.period_start!, period_end: task.period_end!, due_at: null, is_exact: false, postpone_count };
   }
   if (legacyH && task.bucket_anchor) {
     const cal = (task.bucket_calendar as CalendarSystem) || s.calendar;
     const p = periodFor(legacyH, fromLocalISO(task.bucket_anchor), { ...s, calendar: cal });
     return { horizon: legacyH, period_start: p.start, period_end: p.end, due_at: null, is_exact: false, postpone_count };
   }
-  if (task.due_date) {
-    const d = task.due_date.includes("T") ? new Date(task.due_date) : fromLocalISO(task.due_date);
+  if (task.work_date) {
+    const d = task.work_date.includes("T") ? new Date(task.work_date) : fromLocalISO(task.work_date);
     if (Number.isNaN(d.getTime())) return null;
     const iso = toLocalISO(d);
-    const exact = hasClockTime(task.due_date);
+    const exact = workDateIsExact(task.work_date);
     return { horizon: "day", period_start: iso, period_end: iso, due_at: exact ? d.toISOString() : null, is_exact: exact, postpone_count };
   }
   return null;
@@ -183,18 +189,16 @@ export function isOverdue(task: Partial<Task>, s: TimeSettings, now: Date = new 
   return tf.period_end < todayISO(now);
 }
 
-/** Fields to persist (v2 + legacy mirror so older screens keep working). */
+/** Store exact work dates and planning periods in their dedicated fields. */
 export function timePatch(tf: TimeFields, s: TimeSettings): Partial<Task> {
   return {
     horizon: tf.horizon,
     period_start: tf.period_start,
     period_end: tf.period_end,
-    due_at: tf.due_at,
-    is_exact: tf.is_exact,
     postpone_count: tf.postpone_count,
     ...(tf.is_exact && tf.due_at
-      ? { due_date: tf.due_at, bucket_kind: null, bucket_anchor: null, bucket_calendar: null }
-      : { due_date: null, bucket_kind: tf.horizon, bucket_anchor: tf.period_start, bucket_calendar: s.calendar }),
+      ? { work_date: tf.due_at, bucket_kind: null, bucket_anchor: null, bucket_calendar: null }
+      : { planning_horizon: tf.horizon, planning_start: tf.period_start, planning_end: tf.period_end, planning_calendar: s.calendar, bucket_kind: null, bucket_anchor: null, bucket_calendar: null }),
   };
 }
 

@@ -80,15 +80,12 @@ const task = (id: string, parent_id: string | null = null): Task => ({
   status: "todo",
   description: null,
   priority: "none",
-  due_date: null,
+  work_date: null,
   folder_id: null,
   reminder_at: null,
   recurrence: "none",
   recurrence_rule: null,
   pinned: false,
-  start_at: null,
-  end_at: null,
-  estimated_minutes: null,
   position: 0,
 });
 
@@ -137,7 +134,7 @@ describe("taskService cascade deletion persistence", () => {
   });
 
   it("reloads a recently edited task from durable cache instead of stale memory", async () => {
-    const edited = { ...task("root"), priority: "high" as const, due_date: "2026-09-30T10:00:00.000Z" };
+    const edited = { ...task("root"), priority: "high" as const, work_date: "2026-09-30T10:00:00.000Z" };
     mocks.cache.set("tasks:all:task-owner", { tasks: [edited], cachedAt: Date.now() });
 
     expect(await getCachedTasks("task-owner")).toEqual([edited]);

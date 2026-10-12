@@ -136,8 +136,8 @@ export function TasksHeader({
                 <DropdownMenuRadioItem value="priority" className="rounded-lg cursor-pointer">
                   {T("بر اساس اولویت", "By Priority")}
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="due_date" className="rounded-lg cursor-pointer">
-                  {T("بر اساس سررسید", "By Due Date")}
+                <DropdownMenuRadioItem value="work_date" className="rounded-lg cursor-pointer">
+                  {T("بر اساس روز انجام", "By work date")}
                 </DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="alphabetical" className="rounded-lg cursor-pointer">
                   {T("الفبایی", "Alphabetical")}

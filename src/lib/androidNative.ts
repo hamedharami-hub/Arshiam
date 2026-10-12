@@ -1,7 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { arshnazNativePlugin } from "@/lib/arshnazNativePlugin";
 import type { Task } from "@/lib/taskTypes";
-import { parseTaskDueDate } from "@/lib/taskDate";
+import { parseTaskDueDate, taskWorkDate } from "@/lib/taskDate";
 
 type NativePlugin = {
   addCalendarEvent(options: { title: string; startMillis: number; endMillis?: number }): Promise<{ opened: boolean }>;
@@ -10,15 +10,10 @@ type NativePlugin = {
 
 const Native = arshnazNativePlugin as unknown as NativePlugin;
 
-export async function addTaskToAndroidCalendar(task: Pick<Task, "title" | "start_at" | "due_date" | "estimated_minutes">) {
+export async function addTaskToAndroidCalendar(task: Pick<Task, "title" | "work_date" | "work_date">) {
   if (!Capacitor.isNativePlatform()) return false;
-  const start = task.start_at
-    ? new Date(task.start_at)
-    : task.due_date
-      ? parseTaskDueDate(task.due_date) || new Date()
-      : new Date();
-  const end = task.estimated_minutes ? new Date(start.getTime() + task.estimated_minutes * 60_000) : undefined;
-  await Native.addCalendarEvent({ title: task.title, startMillis: start.getTime(), endMillis: end?.getTime() });
+  const start = parseTaskDueDate(taskWorkDate(task)) || new Date();
+  await Native.addCalendarEvent({ title: task.title, startMillis: start.getTime() });
   return true;
 }
 

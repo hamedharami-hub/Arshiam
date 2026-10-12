@@ -12,7 +12,7 @@ vi.mock("firebase/auth", () => ({ onIdTokenChanged: (_: unknown, callback: any) 
 vi.mock("./firebase", () => ({ auth: mocks.auth }));
 vi.mock("./offlineQueue", () => ({ getPendingOps: async () => [] }));
 import { startWidgetSessionSync, syncAndroidWidget, widgetPayload } from "./androidWidget";
-const task = (id: string, due: string, extra = {}) => ({ id, title: id, due_date: due, ...extra } as Task);
+const task = (id: string, due: string, extra = {}) => ({ id, title: id, work_date: due, ...extra } as Task);
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe("widget data and session boundary", () => {
@@ -23,7 +23,17 @@ describe("widget data and session boundary", () => {
       task("d", "2026-09-10"), task("c", "2026-09-10"), task("b", "2026-09-10"), task("a", "2026-09-10"),
       task("done", "2026-09-10", { status: "done" }), task("bad", "invalid"), task("other", "2026-09-11"),
     ], date);
-    expect(result).toEqual({ activeCount: 4, nextTaskId: "a", nextTaskTitle: "• a\n• b\n• c" });
+    expect(result).toEqual({ activeCount: 4, nextTaskId: "", nextTaskTitle: "• a\n• b\n• c" });
+  });
+  it("uses an explicit is_next flag and does not fall back to the first today task", () => {
+    const date = new Date(2026, 8, 10, 12);
+    const result = widgetPayload([
+      task("a", "2026-09-10"),
+      task("later", "2026-09-11", { is_next: true }),
+      task("done-next", "2026-09-10", { is_next: true, completed: true }),
+    ], date);
+    expect(result.nextTaskId).toBe("later");
+    expect(result.activeCount).toBe(1);
   });
   it("uses the local day for a timestamp stored as UTC", () => {
     const today = new Date(2026, 8, 10, 12);
@@ -62,7 +72,7 @@ describe("widget data and session boundary", () => {
     await syncAndroidWidget([task("early-task", due)], "A");
     expect(mocks.sync).not.toHaveBeenCalled();
     finish({ token: "test-token", expirationTime: "2026-09-10T12:00:00Z" });
-    await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ userId: "A", nextTaskId: "early-task" })));
+    await vi.waitFor(() => expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ userId: "A", nextTaskId: "" })));
     stop();
   });
   it("preserves study source metadata for Android widget review navigation", async () => {

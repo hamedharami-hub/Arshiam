@@ -311,7 +311,7 @@ public final class AppFunctionTaskDispatcher {
         try {
             clean.put("taskId", raw.optString("id", ""));
             clean.put("title", raw.optString("title", ""));
-            clean.put("dueDateTime", raw.optString("due_date", ""));
+            clean.put("dueDateTime", raw.optString("work_date", ""));
             clean.put("priority", raw.optString("priority", "none"));
             clean.put("completed", raw.optBoolean("completed", false));
             clean.put("status", raw.optString("status", "todo"));

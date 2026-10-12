@@ -23,7 +23,7 @@ import { parseTaskDueDate } from "@/lib/taskDate";
 
 type TaskLite = {
   id: string; title: string; description?: string | null;
-  priority: Priority; due_date: string | null; recurrence_rule?: RecurrenceRule | null;
+  priority: Priority; work_date: string | null; recurrence_rule?: RecurrenceRule | null;
 };
 
 type ClarifyQ = { question: string; options: string[] };
@@ -52,7 +52,7 @@ export function TaskAIPanel({
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
   // Metadata
-  const [meta, setMeta] = useState<{ priority?: Priority; due_date?: string; recurrence_rule?: RecurrenceRule; reason?: string } | null>(null);
+  const [meta, setMeta] = useState<{ priority?: Priority; work_date?: string; recurrence_rule?: RecurrenceRule; reason?: string } | null>(null);
 
   // Chat
   const [chat, setChat] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -66,10 +66,10 @@ export function TaskAIPanel({
   }, [open]);
 
   const buildContext = async (): Promise<string> => {
-    let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDue: ${task.due_date || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null, true)}`;
+    let ctx = `Current task:\nTitle: ${task.title}\nDescription: ${task.description || "(none)"}\nPriority: ${task.priority}\nDue: ${task.work_date || "(none)"}\nRecurrence: ${describeRule(task.recurrence_rule || null, true)}`;
     if (globalCtx && user) {
       const [{ data: tasks }, { data: notes }] = await Promise.all([
-        firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(40),
+        firebaseStore.from("tasks").select("title,priority,work_date,completed").limit(40),
         firebaseStore.from("notes").select("title").limit(20),
       ]);
       ctx += `\n\nAll tasks: ${JSON.stringify(tasks || [])}`;
@@ -138,7 +138,7 @@ export function TaskAIPanel({
     if (!meta) return;
     const patch: any = {};
     if (meta.priority) patch.priority = meta.priority;
-    if (meta.due_date) patch.due_date = meta.due_date;
+    if (meta.work_date) patch.work_date = meta.work_date;
     if (meta.recurrence_rule) patch.recurrence_rule = meta.recurrence_rule;
     const { error } = await firebaseStore.from("tasks").update(patch).eq("id", task.id);
     if (error) toast.error(error.message);
@@ -277,8 +277,8 @@ export function TaskAIPanel({
                     </span>
                   </div>
                 )}
-                {meta.due_date && (
-                  <div className="text-sm"><span className="text-muted-foreground">{T("سررسید:", "Due:")}</span> {parseTaskDueDate(meta.due_date)?.toLocaleString(isEn ? "en-US" : "fa-IR") || meta.due_date}</div>
+                {meta.work_date && (
+                  <div className="text-sm"><span className="text-muted-foreground">{T("روز انجام:", "Work date:")}</span> {parseTaskDueDate(meta.work_date)?.toLocaleString(isEn ? "en-US" : "fa-IR") || meta.work_date}</div>
                 )}
                 {meta.recurrence_rule && (
                   <div className="text-sm"><span className="text-muted-foreground">{T("تکرار:", "Repeat:")}</span> {describeRule(meta.recurrence_rule, isEn)}</div>

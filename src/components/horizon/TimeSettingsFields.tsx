@@ -1,6 +1,7 @@
 import { Switch } from "@/components/ui/switch";
 import { getCalendarSystem, setCalendarSystem, type CalendarSystem } from "@/lib/jalali";
 import { setSeasonsEnabled, setWeekStart, type TimeSettings } from "@/lib/timeHorizon";
+import { getWipWarningEnabled, setWipWarningEnabled } from "@/lib/dayFlow";
 import { AU_STATES, getAuState, setAuState, type AuState } from "@/lib/holidays";
 import { useState } from "react";
 
@@ -26,12 +27,23 @@ export function TimeSettingsFields({ settings, fa, onChanged }: { settings: Time
         </div>
       </div>
       <AuStateField fa={fa} />
+      <WipWarningField fa={fa} onChanged={onChanged} />
       <label className="flex items-center justify-between gap-2 text-xs font-semibold">
         <span>{fa ? "نمایش فصل‌ها" : "Show seasons (quarters)"}</span>
         <Switch checked={settings.seasonsEnabled} onCheckedChange={(v) => { setSeasonsEnabled(v); onChanged(); }} data-testid="seasons-toggle" />
       </label>
       <p className="text-[11px] text-muted-foreground">{fa ? "همهٔ مرزهای روز و هفته بر اساس منطقهٔ زمانی دستگاه محاسبه می‌شوند." : "Day and week boundaries follow your device time zone (DST-safe)."}</p>
     </div>
+  );
+}
+
+function WipWarningField({ fa, onChanged }: { fa: boolean; onChanged: () => void }) {
+  const [enabled, setEnabled] = useState(getWipWarningEnabled);
+  return (
+    <label className="flex items-center justify-between gap-2 text-xs font-semibold">
+      <span>{fa ? "هشدار کار هم‌زمان" : "Work-in-progress warning"}</span>
+      <Switch checked={enabled} onCheckedChange={(v) => { setWipWarningEnabled(v); setEnabled(v); onChanged(); }} data-testid="wip-warning-toggle" />
+    </label>
   );
 }
 

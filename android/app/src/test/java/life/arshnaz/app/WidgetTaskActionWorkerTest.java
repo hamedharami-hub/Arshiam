@@ -23,7 +23,7 @@ public class WidgetTaskActionWorkerTest {
         assertTrue(fields.has("title"));
         assertTrue(fields.has("priority"));
         assertTrue(fields.has("updated_at"));
-        assertFalse(fields.has("due_date"));
+        assertFalse(fields.has("work_date"));
     }
 
     @Test public void completionRecordsAndReopenClearsTheCompletionTime() throws Exception {
@@ -40,7 +40,7 @@ public class WidgetTaskActionWorkerTest {
         JSONObject fields = WidgetTaskActionWorker.editFields("Critical Outage", "urgent", "2026-09-17", false);
         assertEquals("Critical Outage", fields.getJSONObject("title").getString("stringValue"));
         assertEquals("urgent", fields.getJSONObject("priority").getString("stringValue"));
-        assertEquals("2026-09-17", fields.getJSONObject("due_date").getString("stringValue"));
+        assertEquals("2026-09-17", fields.getJSONObject("work_date").getString("stringValue"));
         assertTrue(fields.has("updated_at"));
     }
 }

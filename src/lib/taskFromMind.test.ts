@@ -29,13 +29,13 @@ describe("createTaskFromMind", () => {
     expect(res.task).toBeDefined();
     expect(res.task?.source_type).toBe("worry_tree");
     expect(res.task?.source_id).toBe("worry-456");
-    expect(res.task?.due_date).not.toBeNull();
-    const taskDate = new Date(res.task!.due_date!);
+    expect(res.task?.work_date).not.toBeNull();
+    const taskDate = new Date(res.task!.work_date!);
     const now = new Date();
     expect(taskDate.getDate()).toBe(now.getDate());
   });
 
-  it("creates a task with due_in_days: null having null due_date (Inbox)", async () => {
+  it("creates a task with due_in_days: null having null work_date (Inbox)", async () => {
     const res = await createTaskFromMind({
       user_id: "user-123",
       title: "تمرین بازسازی شناختی",
@@ -44,7 +44,7 @@ describe("createTaskFromMind", () => {
     });
 
     expect(res.ok).toBe(true);
-    expect(res.task?.due_date).toBeNull();
+    expect(res.task?.work_date).toBeNull();
     expect(res.task?.source_type).toBe("cbt_thought");
   });
 });

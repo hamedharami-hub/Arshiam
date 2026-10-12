@@ -1,7 +1,7 @@
 import { auth, db, doc } from "@/lib/firebase";
 import { runTransaction } from "firebase/firestore";
 
-type DraftTask = { id: string; title: string; description: string | null; priority: string; due_date: string | null };
+type DraftTask = { id: string; title: string; description: string | null; priority: string; work_date: string | null };
 type Draft = { tasks: DraftTask[]; saved: string[]; createdAt: string };
 
 /** Durable per-image intent + create-if-absent transactions make retries safe even after a lost acknowledgement. */
@@ -29,7 +29,7 @@ export async function saveImageTaskBatch(input: {
       return [{ id: crypto.randomUUID(), title: value.title.trim(),
         description: typeof value.description === "string" ? value.description : null,
         priority: typeof value.priority === "string" ? value.priority : "none",
-        due_date: typeof value.due_date === "string" ? value.due_date : null }];
+        work_date: typeof value.work_date === "string" ? value.work_date : null }];
     });
     draft = { tasks, saved: [], createdAt: new Date().toISOString() };
     // Fail before the first remote write if the retry intent cannot be persisted.

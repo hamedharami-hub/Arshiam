@@ -1,9 +1,10 @@
+import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useState } from "react";
 import type { Task } from "@/lib/taskTypes";
 import { PRIORITY_META } from "@/lib/priority";
 import { taskDueTimestamp } from "@/lib/taskDate";
 import { startOfDay, endOfDay, addDays } from "date-fns";
-import { isTaskOverdue } from "@/lib/taskPlanning";
+import { isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import type { GoalKanban } from "@/lib/kanbanGoals";
 
@@ -203,7 +204,7 @@ export function useSmartListProfiles(): [SmartListProfile[], (next: SmartListPro
 export const SORT_KEYS: SortKey[] = ["due", "priority", "created", "title", "time_bucket", "goal"];
 
 export const SORT_LABELS: Record<SortKey, { fa: string; en: string }> = {
-  due: { fa: "سررسید", en: "Due Date" },
+  due: { fa: "روز انجام", en: "Work date" },
   priority: { fa: "اهمیت و اولویت", en: "Priority" },
   created: { fa: "تاریخ ساخت", en: "Created Date" },
   title: { fa: "عنوان الفبایی", en: "Title" },
@@ -226,8 +227,8 @@ export const DUE_WINDOW_OPTIONS: { id: DueWindow; fa: string; en: string; icon: 
   { id: "tomorrow", fa: "فردا", en: "Tomorrow", icon: "🌅" },
   { id: "this_week", fa: "این هفته", en: "This Week", icon: "📆" },
   { id: "next_7_days", fa: "۷ روز آینده", en: "Next 7 Days", icon: "🔮" },
-  { id: "has_date", fa: "دارای سررسید", en: "Has Date", icon: "🗓️" },
-  { id: "no_date", fa: "بدون سررسید", en: "No Due Date", icon: "⏳" },
+  { id: "has_date", fa: "دارای روز انجام", en: "Has Date", icon: "🗓️" },
+  { id: "no_date", fa: "بدون روز انجام", en: "No Due Date", icon: "⏳" },
 ];
 
 export function doesTaskMatchTimeFilters(
@@ -264,9 +265,9 @@ export function doesTaskMatchTimeFilters(
 
   // 2. Due window filter
   if (dueWindows && dueWindows.length > 0) {
-    const rawDue = t.due_date || t.due_at || null;
+    const rawDue = taskWorkDate(t);
     const dueTime = rawDue ? taskDueTimestamp(rawDue) : null;
-    const overdue = dueWindows.includes("overdue") && isTaskOverdue(t, getTimeSettings(), now);
+    const overdue = dueWindows.includes("overdue") && isTaskMissedWorkDay(t, getTimeSettings(), now);
 
     let windowMatched = false;
     for (const w of dueWindows) {
@@ -340,8 +341,8 @@ export function cmpForSortLevel(lvl: SortLevel): (a: Task, b: Task) => number {
     let res = 0;
     switch (lvl.key) {
       case "due": {
-        const av = a.due_date ? taskDueTimestamp(a.due_date) : Infinity;
-        const bv = b.due_date ? taskDueTimestamp(b.due_date) : Infinity;
+        const av = taskWorkDate(a) ? taskDueTimestamp(taskWorkDate(a)) : Infinity;
+        const bv = taskWorkDate(b) ? taskDueTimestamp(taskWorkDate(b)) : Infinity;
         res = av - bv;
         break;
       }

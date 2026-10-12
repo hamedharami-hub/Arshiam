@@ -1,3 +1,4 @@
+import { normalizeTaskSchedule, scheduleApplyDeleteKeys, supportedTaskPatch } from "../../src/lib/taskScheduleMigration.js";
 import firebaseConfig from "../../firebase-applet-config.json" with { type: "json" };
 import type { AuthUser } from "./auth.js";
 
@@ -154,7 +155,7 @@ export async function listUserTasks(
   }
 
   const data: any = await res.json();
-  let tasks = (data.documents || []).map(parseFirestoreDoc);
+  let tasks = (data.documents || []).map(parseFirestoreDoc).map(normalizeTaskSchedule);
 
   // Filter completed
   if (options?.completed !== undefined) {
@@ -188,11 +189,11 @@ export async function listUserTasks(
     );
   }
 
-  // Sort: pinned first, then due_date ascending, then created_at desc
+  // Sort: pinned first, then work_date ascending, then created_at desc
   tasks.sort((a: any, b: any) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    const dateA = a.due_date || "9999-12-31";
-    const dateB = b.due_date || "9999-12-31";
+    const dateA = a.work_date || "9999-12-31";
+    const dateB = b.work_date || "9999-12-31";
     if (dateA !== dateB) return dateA.localeCompare(dateB);
     return (
       new Date(b.created_at || 0).getTime() -
@@ -230,7 +231,7 @@ export async function getUserTaskById(
   }
 
   const doc = await res.json();
-  return parseFirestoreDoc(doc);
+  return normalizeTaskSchedule(parseFirestoreDoc(doc));
 }
 
 /**
@@ -254,15 +255,9 @@ export async function createUserTask(
     priority: taskInput.priority || "p4",
     status:
       taskInput.status || (taskInput.completed ? "done" : "todo"),
-    due_date: taskInput.due_date || null,
+    work_date: taskInput.work_date || null,
     folder_id: taskInput.folder_id || null,
     pinned: Boolean(taskInput.pinned),
-    start_at: taskInput.start_at || null,
-    end_at: taskInput.end_at || null,
-    estimated_minutes:
-      taskInput.estimated_minutes !== undefined
-        ? taskInput.estimated_minutes
-        : null,
     created_at: now,
     updated_at: now,
   };
@@ -296,6 +291,7 @@ export async function updateUserTask(
   taskId: string,
   updates: Record<string, any>
 ): Promise<any | null> {
+  updates = supportedTaskPatch(updates);
   const existing = await getUserTaskById(user, taskId);
   if (!existing) {
     return null;
@@ -318,7 +314,9 @@ export async function updateUserTask(
   delete fieldsToUpdate.user_id;
   delete fieldsToUpdate.id;
 
-  const fieldPaths = Object.keys(fieldsToUpdate);
+  const deleteKeys = scheduleApplyDeleteKeys(fieldsToUpdate);
+  for (const key of deleteKeys) delete fieldsToUpdate[key];
+  const fieldPaths = [...new Set([...Object.keys(fieldsToUpdate), ...deleteKeys])];
   if (fieldPaths.length === 0) {
     return existing;
   }
@@ -345,7 +343,7 @@ export async function updateUserTask(
   }
 
   const doc = await res.json();
-  return parseFirestoreDoc(doc);
+  return normalizeTaskSchedule(parseFirestoreDoc(doc));
 }
 
 /**
@@ -394,8 +392,8 @@ export async function getTodayTasks(user: AuthUser): Promise<{
   const overdueTasks: any[] = [];
 
   for (const t of allTasks) {
-    if (!t.due_date) continue;
-    const taskDueDate = t.due_date.slice(0, 10);
+    if (!t.work_date) continue;
+    const taskDueDate = t.work_date.slice(0, 10);
     if (taskDueDate === todayStr) {
       todayTasks.push(t);
     } else if (taskDueDate < todayStr && !t.completed) {

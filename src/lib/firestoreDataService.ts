@@ -1,3 +1,5 @@
+import { isExplicitScheduleApply, normalizeTaskSchedule, scheduleApplyDeleteKeys, supportedTaskPatch } from "@/lib/taskScheduleMigration";
+import { taskScheduleWrite, withApplyDeleteMarkers, withoutApplyDeleteMarkers } from "./taskScheduleWrite";
 import { showMascotMoment } from "./mascot";
 import { reconcileRemoteRowsWithPending } from "./offlineReconcile";
 import {
@@ -166,7 +168,7 @@ export function subscribeTasks(
         if (!fromCache) hasReceivedSnapshot = true;
         const items: Task[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
 
         // Sort: pinned first, then position, then created_at desc
@@ -281,10 +283,18 @@ export async function persistTask(
   options: { quietCompanion?: boolean } = {},
 ): Promise<TaskPersistenceStatus> {
   if (!userId || !task.id) return "failed";
+  const applying = isExplicitScheduleApply(task);
   const dataToSave = {
-    ...task,
+    ...(applying ? task : supportedTaskPatch(task)),
     user_id: userId,
     updated_at: new Date().toISOString(),
+  };
+  const firestorePayload = applying ? withApplyDeleteMarkers(dataToSave) : taskScheduleWrite(dataToSave);
+  const cachePayload = applying ? withoutApplyDeleteMarkers(dataToSave) : dataToSave;
+  const dropArchived = (row: Record<string, unknown>) => {
+    if (!applying) return row;
+    for (const key of scheduleApplyDeleteKeys(task)) delete row[key];
+    return row;
   };
 
   // 1. Update local cache optimistically first so task is never lost
@@ -300,9 +310,9 @@ export async function persistTask(
       let next: Task[];
       if (index >= 0) {
         next = [...cached];
-        next[index] = { ...next[index], ...dataToSave } as Task;
+        next[index] = dropArchived({ ...next[index], ...cachePayload }) as Task;
       } else {
-        next = [dataToSave as Task, ...cached];
+        next = [dropArchived({ ...cachePayload }) as Task, ...cached];
       }
       await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(next));
     });
@@ -314,17 +324,17 @@ export async function persistTask(
   const celebrateAcceptedChange = () => {
     if (!previousTask || options.quietCompanion) return;
     if (task.completed === true && !previousTask.completed) showMascotMoment("celebrate");
-    else if (task.due_date && task.due_date !== previousTask.due_date) {
+    else if (task.work_date && task.work_date !== previousTask.work_date) {
       const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
       const localDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
-      const date = new Date(task.due_date);
-      const taskDate = task.due_date.length === 10 ? task.due_date : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const date = new Date(task.work_date);
+      const taskDate = task.work_date.length === 10 ? task.work_date : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       if (taskDate === localDate) showMascotMoment("tomorrow");
     }
   };
   try {
     const taskRef = doc(db, "users", userId, "tasks", task.id);
-    await setDoc(taskRef, dataToSave, { merge: true });
+    await setDoc(taskRef, firestorePayload, { merge: true });
     celebrateAcceptedChange();
     return "saved";
   } catch (err) {
@@ -336,7 +346,7 @@ export async function persistTask(
           ownerId: userId,
           table: "tasks",
           op: "upsert",
-          payload: dataToSave,
+          payload: applying ? withoutApplyDeleteMarkers(dataToSave) : dataToSave,
           match: { id: task.id },
         });
         if (!queued) return;
@@ -345,15 +355,15 @@ export async function persistTask(
         // the same critical section as cascaded deletes for deterministic order.
         const latest = extractTasksFromCache(await cacheGet<unknown>(CACHE_KEYS.tasks(userId)));
         const index = latest.findIndex((candidate) => candidate.id === task.id);
-        if (index >= 0) latest[index] = { ...latest[index], ...dataToSave } as Task;
-        else latest.unshift(dataToSave as Task);
+        if (index >= 0) latest[index] = dropArchived({ ...latest[index], ...cachePayload }) as Task;
+        else latest.unshift(dropArchived({ ...cachePayload }) as Task);
         await cacheSet(CACHE_KEYS.tasks(userId), createTaskCacheEnvelope(latest));
       });
     } catch (queueError) {
       console.warn("[FirestoreData] task could not be queued after write failure:", queueError);
     }
     if (!queued) {
-      await rollbackOptimisticTaskWrite(userId, task.id, dataToSave, previousTask, previousIndex);
+      await rollbackOptimisticTaskWrite(userId, task.id, cachePayload as Partial<Task> & { id: string }, previousTask, previousIndex);
     }
     if (queued) celebrateAcceptedChange();
     return queued ? "queued" : "failed";
@@ -443,7 +453,7 @@ export function subscribeFolders(
       (snap) => {
         const items: FolderItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         emit(items);
@@ -516,7 +526,7 @@ export function subscribeTags(
       (snap) => {
         const items: TagItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => a.name.localeCompare(b.name));
         emit(items);
@@ -578,7 +588,7 @@ export function subscribeNotes(
       (snap) => {
         const items: NoteItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => {
           if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
@@ -756,7 +766,7 @@ export function subscribeHabits(
       (snap) => {
         const items: HabitItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         cacheSet(CACHE_KEYS.habits(userId), items);
         onUpdate(items);
@@ -818,7 +828,7 @@ export function subscribeDailyCheckins(
       (snap) => {
         const items: DailyCheckinItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => (b.checkin_date || "").localeCompare(a.checkin_date || ""));
         cacheSet(CACHE_KEYS.checkins(userId), items);
@@ -886,7 +896,7 @@ export function subscribeThoughtRecords(
       (snap) => {
         const items: ThoughtRecordItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         cacheSet(CACHE_KEYS.thoughtRecords(userId), items);
@@ -961,7 +971,7 @@ export function subscribeAbcRecords(
       (snap) => {
         const items: AbcRecordItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         cacheSet(CACHE_KEYS.abcRecords(userId), items);
@@ -1037,7 +1047,7 @@ export function subscribeAssessmentResults(
       (snap) => {
         let items: AssessmentResultItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         if (type) {
           items = items.filter((x) => x.assessment_type === type);
@@ -1211,7 +1221,7 @@ export function subscribeMindGoals(
       (snap) => {
         const items: MindGoalItem[] = [];
         snap.forEach((d) => {
-          items.push({ id: d.id, ...(d.data() as any) });
+          items.push(normalizeTaskSchedule({ id: d.id, ...(d.data() as any) }));
         });
         items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         cacheSet(CACHE_KEYS.mindGoals(userId), items);

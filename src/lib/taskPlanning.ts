@@ -2,35 +2,21 @@ import { differenceInCalendarMonths as gregorianMonths, getMonth as gregorianMon
 import { differenceInCalendarMonths as jalaliMonths, getMonth as jalaliMonth } from "date-fns-jalali";
 import type { Task } from "./taskTypes";
 import { taskDueTimestamp, taskWorkDate } from "./taskDate";
-import { ALL_HORIZONS, addDaysLocal, fromLocalISO, getTaskTime, periodFor, todayISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
+import { ALL_HORIZONS, addDaysLocal, fromLocalISO, periodFor, todayISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
 
-/** Planning is independent of due_date / due_at; old fuzzy buckets remain readable. */
+/** Planning is independent of the scheduled work date; old planning periods remain readable. */
 export function getTaskPlanning(task: Partial<Task>, settings: TimeSettings): Period | null {
   if (task.planning_horizon !== undefined) {
     return task.planning_horizon && task.planning_start && task.planning_end
-      ? { horizon: task.planning_horizon, start: task.planning_start, end: task.planning_end } : null;
+      ? { horizon: task.planning_horizon as Horizon, start: task.planning_start, end: task.planning_end } : null;
   }
   if (task.bucket_kind && ALL_HORIZONS.includes(task.bucket_kind as Horizon) && task.bucket_anchor) {
     return periodFor(task.bucket_kind as Horizon, fromLocalISO(task.bucket_anchor), { ...settings, calendar: task.bucket_calendar || settings.calendar });
   }
-  if (task.horizon && !task.is_exact && task.period_start && task.period_end) {
+  if (task.horizon && !taskWorkDate(task) && task.period_start && task.period_end) {
     return { horizon: task.horizon, start: task.period_start, end: task.period_end };
   }
   return null;
-}
-
-/**
- * Only an expired deadline is overdue. Missing an intended work day is a
- * separate state, so planning does not silently become a hard deadline.
- */
-export function isTaskOverdue(task: Partial<Task>, _settings: TimeSettings, now = new Date()): boolean {
-  if (task.completed || task.status === "done" || task.status === "wont_do") return false;
-
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const due = task.due_date || (task.work_date === undefined ? task.due_at : null);
-  if (due && taskDueTimestamp(due) < todayStart) return true;
-
-  return false;
 }
 
 export function isTaskMissedWorkDay(task: Partial<Task>, settings: TimeSettings, now = new Date()): boolean {
@@ -42,11 +28,6 @@ export function isTaskMissedWorkDay(task: Partial<Task>, settings: TimeSettings,
   const plan = getTaskPlanning(task, settings);
   if (plan?.horizon === "day") return plan.end < today;
 
-  // Older time-horizon records may have used sub-day buckets such as morning.
-  if (task.planning_horizon === undefined) {
-    const legacy = getTaskTime(task, settings);
-    if (legacy?.horizon === "day") return legacy.period_end < today;
-  }
   return false;
 }
 export function planningPatch(period: Period | null, settings: TimeSettings): Partial<Task> {

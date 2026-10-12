@@ -1,6 +1,7 @@
 // Cascading planning: year → quarter → month → week → day, linked by plan_parent_id.
 import type { Task } from "./taskTypes";
-import { getTaskPlanning, planningPatch } from "./taskPlanning";
+import { getTaskPlanning } from "./taskPlanning";
+import { scheduleWriteForPeriod } from "./taskScheduleChoices";
 import { taskWorkDate, parseTaskDueDate, getLocalDateString } from "./taskDate";
 import { addDaysLocal, fromLocalISO, getTaskTime, nextPeriod, periodFor, toLocalISO, type Horizon, type Period, type TimeSettings } from "./timeHorizon";
 
@@ -88,7 +89,8 @@ export function defaultChildPeriod(parent: Period, level: Horizon, s: TimeSettin
 }
 
 export function planPatch(period: Period | null, s: TimeSettings, parentId?: string | null): Partial<Task> {
-  return { ...planningPatch(period, s), ...(parentId !== undefined ? { plan_parent_id: parentId } : {}) };
+  const written = scheduleWriteForPeriod(period, s);
+  return { ...(written ?? {}), ...(parentId !== undefined ? { plan_parent_id: parentId } : {}) };
 }
 
 export function weekDays(week: Period): string[] {

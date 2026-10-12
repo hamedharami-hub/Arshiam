@@ -57,8 +57,11 @@ import { TaskOutcomeSheet } from "@/components/TaskOutcomeSheet";
 import { TaskOutcomesInline } from "@/components/TaskOutcomesInline";
 import { listTaskOutcomes } from "@/lib/taskOutcomes";
 import { DueDatePicker } from "@/components/DueDatePicker";
-import { BucketPickerBody } from "@/components/BucketPickerInline";
 import { TaskMetaBar, type TaskMetaPanel } from "@/components/task-detail/TaskMetaBar";
+import { TaskDeadlineRow } from "@/components/task-detail/TaskDeadlineRow";
+import { TaskConfirmedDrafts, TaskNextButton, TaskWaitingRow } from "@/components/task-detail/TaskDayFlowRows";
+import { clearNextOnClose, nextTaskPatch, waitingPatch } from "@/lib/dayFlow";
+import { TaskScheduleLegacyRow } from "@/components/task-detail/TaskScheduleLegacyRow";
 import { TaskSection, TaskSectionAction } from "@/components/task-detail/TaskSection";
 import { formatDueLabel } from "@/lib/localeFormat";
 import { TaskDetailBottomRail } from "@/components/task-detail/TaskDetailBottomRail";
@@ -76,10 +79,11 @@ import { TaskKnowledgeLinkModal } from "@/components/task-detail/TaskKnowledgeLi
 import { getTaskKnowledgeDocs, linkTaskKnowledge, unlinkTaskKnowledge } from "@/lib/taskKnowledgeService";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import { logTaskActivity } from "@/lib/taskActivity";
-import { bucketLabel, kindLabel, isSubDayBucket } from "@/lib/timeBuckets";
+import { taskWorkDate } from "@/lib/taskDate";
+import { isExplicitScheduleApply, scheduleApplyDeleteKeys } from "@/lib/taskScheduleMigration";
+import { withoutApplyDeleteMarkers } from "@/lib/taskScheduleWrite";
 import { describeRule } from "@/lib/recurrence";
-import { addDays } from "date-fns";
-import { getLocalDateString, parseTaskDueDate, workDatePatch } from "@/lib/taskDate";
+import { postponeSchedule } from "@/lib/taskScheduleChoices";
 import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
@@ -149,8 +153,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   // The subtask editor is always visible: a task's hierarchy must never be hidden
   // behind a secondary rail control, including while the app is offline.
-  const hasTimeBlock = !!(t.start_at || t.end_at || t.estimated_minutes);
-  const isScheduled = !!t.work_date || !!t.due_date || !!t.reminder_at || !!t.recurrence_rule || !!t.bucket_kind || hasTimeBlock;
+  const isScheduled = !!taskWorkDate(t) || !!t.reminder_at || !!t.recurrence_rule;
   const [showSubtasks, setShowSubtasks] = useState(true);
   const [showSteps, setShowSteps] = useState(false);
   const [showAttachments, setShowAttachments] = useState(false);
@@ -167,7 +170,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   const setFolderOpen = panelSetter("folder");
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
-  const [showTimeBlock, setShowTimeBlock] = useState(hasTimeBlock);
   const [showOutcomes, setShowOutcomes] = useState(false);
   const [stepListCount, setStepListCount] = useState(0);
   const [attachmentCount, setAttachmentCount] = useState(0);
@@ -322,14 +324,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setAttachmentCount(attCount);
       if (attCount > 0) setShowAttachments(true);
 
-      if (hasTimeBlock) setShowTimeBlock(true);
 
       const outCount = outcomesRes.count || 0;
       setOutcomeCount(outCount);
       if (outCount > 0) setShowOutcomes(true);
     })();
     return () => { cancelled = true; };
-  }, [task.id, hasTimeBlock, user?.id]);
+  }, [task.id, user?.id]);
 
   useEffect(() => {
     setFolders([]);
@@ -491,15 +492,25 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
 
   const save = useCallback(async (patch: Partial<Task>, force = false) => {
     if (!canEdit) return;
-    if (!force && !Object.keys(patch).length) return;
+    const raw = patch as Record<string, unknown>;
+    const applying = isExplicitScheduleApply(raw);
+    const statePatch = (applying ? withoutApplyDeleteMarkers(raw) : patch) as Partial<Task>;
+    if (!force && !Object.keys(statePatch).length && !applying) return;
     const current = latestTaskRef.current;
-    const next = { ...current, ...patch };
+    const next = { ...current, ...statePatch } as Task;
+    if (applying) {
+      for (const key of scheduleApplyDeleteKeys(raw)) delete (next as Record<string, unknown>)[key];
+    }
     latestTaskRef.current = next;
     setT(next);
     setSaveState("saving");
 
     const finish = (state: "saved" | "queued") => {
-      savedTaskRef.current = { ...savedTaskRef.current, ...patch };
+      const saved = { ...savedTaskRef.current, ...statePatch } as Task;
+      if (applying) {
+        for (const key of scheduleApplyDeleteKeys(raw)) delete (saved as Record<string, unknown>)[key];
+      }
+      savedTaskRef.current = saved;
       if (!Object.keys(taskPatch(latestTaskRef.current, savedTaskRef.current)).length) clearTaskDraft(current.id);
       setSaveState(state);
       // Refreshing a parent list is helpful, but must never turn a successful
@@ -515,7 +526,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       try {
         // Autosave sends only the changed fields (merge write), so edits made on
         // another device to other fields are not overwritten by this editor.
-        const result = await persistTask(user.id, { id: current.id, ...patch });
+        const result = await persistTask(user.id, (applying ? { id: current.id, ...raw } : { id: current.id, ...statePatch }) as Partial<Task> & { id: string });
         if (result === "failed") throw new Error("Task could not be saved on this device");
         finish(result);
         return;
@@ -529,7 +540,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       // This is reachable only while the authentication state is temporarily
       // unavailable. Keep the edit locally instead of attempting a write with
       // no owner; the normal authenticated path above will persist it.
-      const queued = await enqueueOp({ table: "tasks", op: "update", payload: patch, match: { id: current.id } });
+      const queued = await enqueueOp({ table: "tasks", op: "update", payload: applying ? withoutApplyDeleteMarkers(raw) : patch, match: { id: current.id } });
       if (!queued) throw new Error("Task could not be queued on this device");
       finish("queued");
     } catch (e) {
@@ -681,13 +692,55 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const postpone = (days: number) => {
-    const workDate = t.work_date === undefined ? t.due_date : t.work_date;
-    const base = workDate ? parseTaskDueDate(workDate) || new Date() : new Date();
-    const next = addDays(base, days);
-    const allDay = !workDate || /^\d{4}-\d{2}-\d{2}$/.test(workDate) || (base.getHours() === 23 && base.getMinutes() === 59);
-    save(workDatePatch(t, allDay ? getLocalDateString(next) : next.toISOString()));
+    const patch = postponeSchedule(t, days);
+    if (patch) save(patch);
     setScheduleOpen(false);
     toast(T(`تسک به ${days} روز دیگر موکول شد`, `Task postponed by ${days} day(s)`));
+  };
+
+  const setNext = async (id: string | null) => {
+    if (!canEdit || !user) return;
+    let known: Array<{ id: string; is_next?: boolean | null }> = [{ id: t.id, is_next: t.is_next ?? null }];
+    try {
+      const { data, error } = await firebaseStore.from("tasks").select("id,is_next");
+      if (!error && Array.isArray(data)) {
+        known = data as typeof known;
+        if (!known.some((row) => row.id === t.id)) known.push({ id: t.id, is_next: t.is_next ?? null });
+      }
+    } catch { /* the current task is enough to clear or set this flag */ }
+    const patches = nextTaskPatch(known, id);
+    for (const patch of patches) {
+      if (patch.id === t.id) await save({ is_next: patch.is_next });
+      else await persistTask(user.id, patch);
+    }
+    if (patches.some((patch) => patch.id !== t.id)) window.dispatchEvent(new Event("tasks-changed"));
+  };
+
+  const confirmSmallStep = async (title: string) => {
+    if (!canEdit || !title) return;
+    if (!user) {
+      await save({ small_step: title });
+      return;
+    }
+    const child: Task = {
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `t_${Date.now()}`,
+      user_id: user.id,
+      title,
+      parent_id: t.id,
+      priority: "none",
+      completed: false,
+      status: "todo",
+      position: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const status = await persistTask(user.id, child);
+    if (status === "failed") {
+      await save({ small_step: title });
+      return;
+    }
+    window.dispatchEvent(new Event("tasks-changed"));
+    onChanged();
   };
 
   const toggleCompletion = async () => {
@@ -718,6 +771,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       completed: nextCompleted,
       status: nextCompleted ? "done" : "todo",
       completed_at: nextCompleted ? new Date().toISOString() : null,
+      ...(nextCompleted ? clearNextOnClose(t) : {}),
     });
   };
 
@@ -817,17 +871,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   };
 
   const priorityMeta = PRIORITY_META[t.priority];
-  const dueLabel = formatDue(t.due_date);
+  const dueLabel = formatDue(taskWorkDate(t));
   const recLabel = t.recurrence_rule ? describeRule(t.recurrence_rule, isEn) : null;
   const scheduleLabel = (() => {
     const lang = isEn ? "en" : "fa";
-    const due = formatDueLabel(t.work_date === undefined ? t.due_date : t.work_date, t.reminder_at, lang);
+    const due = formatDueLabel(taskWorkDate(t), t.reminder_at, lang);
     if (due) return recLabel ? `${due} · ${recLabel}` : due;
-    if (t.bucket_kind && t.bucket_anchor) {
-      return bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, lang);
-    }
-    if (t.recurrence_rule) return recLabel;
-    if (t.start_at || t.end_at) return T("بازهٔ زمانی", "Time block");
+    if (recLabel) return recLabel;
     return null;
   })();
   const handleSubtaskProgress = useCallback((completed: number, total: number) => {
@@ -944,36 +994,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
   // ── Quick-info chips row (only what's set) ──────────────────────────
   const quickChips = (
     <div className="flex flex-wrap gap-1 px-1 pb-1">
-      {t.bucket_kind && isSubDayBucket(t.bucket_kind) && t.bucket_anchor && (() => {
-        const isSub = isSubDayBucket(t.bucket_kind);
-        return (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Chip
-                    icon={isSub ? Clock : CalendarDays}
-                    onClear={() => save({ bucket_kind: null, bucket_calendar: null, bucket_anchor: null } as any)}
-                    disabled={!canEdit}
-                    color={
-                      isSub
-                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                        : "bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/30"
-                    }
-                  >
-                    {kindLabel(t.bucket_kind, isEn ? "en" : "fa")} · {bucketLabel(t.bucket_kind, (t.bucket_calendar as any) || "gregorian", t.bucket_anchor, isEn ? "en" : "fa")}
-                  </Chip>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                {isSub
-                  ? T("این تسک در بازهٔ درون‌روزی (زیر یک روز) قرار دارد", "This task is in a sub-day time bucket")
-                  : T("این تسک در بازهٔ زمانی بالای یک روز قرار دارد", "This task is in a multi-day time bucket")}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      })()}
       {t.parent_id && (
         <Chip
           icon={ListTree}
@@ -1142,7 +1162,6 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       setPanel={setMetaPanel}
       isScheduled={isScheduled}
       scheduleLabel={scheduleLabel}
-      hasTimeBlock={hasTimeBlock}
       taskTagIds={taskTagIds}
       tags={tags}
       toggleTag={toggleTag}
@@ -1282,7 +1301,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 role="button"
                 tabIndex={0}
                 className="group cursor-pointer rounded-md px-2 py-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
-                onClick={() => setEditingNote(n)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if ((event.target as HTMLElement).closest("a,button")) return;
+                  setEditingNote(n);
+                }}
                 onKeyDown={(e) => { if (e.key === "Enter") setEditingNote(n); }}
                 data-testid={`task-note-${n.id}`}
               >
@@ -1315,7 +1339,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                     )}
                   </div>
                 </div>
-                {n.content && (
+                {typeof n.content === "string" && n.content && (
                   <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
                     <NoteMarkdown>{n.content}</NoteMarkdown>
                   </div>
@@ -1542,6 +1566,39 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     <div className="task-detail-sections flex flex-col min-h-[40vh] space-y-2 pb-20">
       {hero}
       {topControls}
+      <div className="space-y-1 px-1">
+        <div className="flex items-center gap-1">
+          <div className="min-w-0 flex-1">
+            <TaskDeadlineRow task={t} canEdit={canEdit} save={(patch) => { void save(patch); }} T={T} isEn={isEn} />
+          </div>
+          <TaskNextButton pressed={t.is_next === true} canEdit={canEdit} T={T} onToggle={() => { void setNext(t.is_next === true ? null : t.id); }} />
+        </div>
+        <TaskWaitingRow
+          task={t}
+          canEdit={canEdit}
+          T={T}
+          onSave={(input) => {
+            const result = waitingPatch(t, input);
+            if (!result.ok) {
+              toast.error(T("پیش‌نیاز نمی‌تواند خود تسک باشد", "A task cannot be its own prerequisite"));
+              return;
+            }
+            void save(result.patch);
+          }}
+          onClear={() => { void save({ status: "todo", waiting_reason: null, prerequisite_id: null }); }}
+        />
+        <TaskConfirmedDrafts
+          task={t}
+          canEdit={canEdit}
+          T={T}
+          onSmallStep={(title) => { void confirmSmallStep(title); }}
+          onIfThen={(value) => { void save({ if_then: value || null }); }}
+          onDoneWhen={(value) => { void save({ done_when: value || null }); }}
+        />
+      </div>
+      <div className="px-1">
+        <TaskScheduleLegacyRow task={t} canEdit={canEdit} save={(patch) => { void save(patch as Partial<Task>); }} T={T} />
+      </div>
       {quickChips}
       {studyTaskActionSection}
       {mindOutcomeReviewSection}
@@ -1692,7 +1749,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </div>
       ) : mode === "drawer" && isMobile ? (
-        <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible>
+        <Drawer open={true} onOpenChange={(v) => { if (!v && !editingNote) requestClose(); }} snapPoints={[0.5, 1]} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible={!editingNote}>
           <DrawerContent data-no-swipe-nav className={`h-screen max-h-screen flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{t.title || T("تسک", "Task")}</DrawerTitle>
@@ -1724,8 +1781,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </DrawerContent>
         </Drawer>
       ) : (
-        <Dialog open={true} onOpenChange={(v) => !v && requestClose()}>
-          <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-0 gap-0 flex flex-col [&>button:last-child]:hidden">
+        <Dialog open={true} onOpenChange={(v) => { if (!v && !editingNote) requestClose(); }}>
+          <DialogContent
+            className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-0 gap-0 flex flex-col [&>button:last-child]:hidden"
+            onFocusOutside={(event) => { if (editingNote) event.preventDefault(); }}
+            onInteractOutside={(event) => { if (editingNote) event.preventDefault(); }}
+            onPointerDownOutside={(event) => { if (editingNote) event.preventDefault(); }}
+          >
             <DialogHeader className="sr-only">
               <DialogTitle>{t.title || T("تسک", "Task")}</DialogTitle>
             </DialogHeader>

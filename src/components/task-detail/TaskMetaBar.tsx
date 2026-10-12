@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Folder as FolderIcon, Tag as TagIcon, Ban, Plus, Check, Pin, Clock, CalendarRange, Target, Flag, X, Inbox } from "lucide-react";
 import { PriorityFlag } from "@/components/PriorityFlag";
-import { TaskPlanningBody, useTaskPlanningLabel } from "@/components/TaskPlanningPicker";
+import { useTaskPlanningLabel } from "@/components/TaskPlanningPicker";
 import { PRIORITY_META, PRIORITY_ORDER, type Priority } from "@/lib/priority";
 import { TIME_HORIZONS, type GoalKanban } from "@/lib/kanbanGoals";
 import type { Task } from "@/lib/taskTypes";
@@ -25,7 +25,6 @@ export interface TaskMetaBarProps {
   setPanel: (panel: TaskMetaPanel | null) => void;
   isScheduled: boolean;
   scheduleLabel: string | null;
-  hasTimeBlock: boolean;
   taskTagIds: string[];
   tags: Array<{ id: string; name: string; color?: string }>;
   toggleTag: (tagId: string) => void;
@@ -232,12 +231,11 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     </div>
   );
 
-  // Picking a day, deadline, part-of-day, a date-based plan step or a repeat
-  // rule completes the intent, so the inline panel closes right after it —
-  // exactly like picking a tag. Reminder / block / estimate edits keep it open.
-  const schedulePanelSave = (patch: Partial<Task>) => {
+  // Close after a date or repeat choice. Reminder editing stays open.
+  const schedulePanelSave = (patch: Partial<Task>, meta?: { keepOpen?: boolean }) => {
     void save(patch);
-    if (["work_date", "due_date", "bucket_kind", "recurrence_rule"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
+    if (meta?.keepOpen) return;
+    if (["work_date", "recurrence_rule"].some((key) => Object.prototype.hasOwnProperty.call(patch, key))) {
       setPanel(null);
     }
   };
@@ -247,8 +245,7 @@ export function TaskMetaBar(props: TaskMetaBarProps) {
     : panel === "goal" ? goalPanel
     : panel === "priority" ? priorityPanel
     : panel === "tags" ? tagsPanel
-    : panel === "plan" ? <TaskPlanningBody key={t.id} task={t} onPatch={(patch) => void save(patch)} onDone={() => setPanel(null)} />
-    : panel === "schedule" ? <TaskScheduleBody t={t} canEdit={canEdit} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} />
+    : panel === "plan" || panel === "schedule" ? <TaskScheduleBody key={`${panel}-${t.id}`} t={t} canEdit={canEdit} save={schedulePanelSave} postpone={postponeAndClose} T={T} isEn={isEn} />
     : null;
 
   return (

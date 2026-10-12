@@ -8,8 +8,8 @@ export const GEMINI_SYSTEM_PROMPTS: Record<string, string> = {
 - title (short, in the user's language)
 - description (optional)
 - priority: none/low/medium/high
-- due_date: ISO 8601 string if date/time phrase is mentioned
-Return a valid JSON object with keys: title, description, priority, due_date.`,
+- work_date: ISO 8601 string if date/time phrase is mentioned
+Return a valid JSON object with keys: title, description, priority, work_date.`,
   breakdown: `You break down a high-level task into 4-8 concrete actionable subtasks. Match the language of the input. Return a list of subtask titles.`,
   generate_note: `You generate a well-structured Markdown note about the given topic. Use headings, lists, and emphasis. Match the language of the input.`,
   summarize_note: `You summarize the given Markdown note into key bullet points in Markdown. Match the language of the input.`,
@@ -18,7 +18,7 @@ Return a valid JSON object with keys: title, description, priority, due_date.`,
   chat: `You are ARSHNAZ AI, a helpful, thoughtful productivity and wellness assistant. Answer clearly and empathetically. Match the user's language (Persian / English).`,
   inline_edit: `You transform a piece of text according to the requested action. Output ONLY the transformed text, no preamble, no explanation, no quotes. Preserve formatting (Markdown). Match the input language.`,
   task_subtasks: `You generate concrete subtasks for a given task. Output a numbered list of concrete steps. Match the language of the input.`,
-  task_metadata_suggest: `You analyze a task and suggest the best priority (none/low/medium/high) and an ISO 8601 due_date if appropriate. Return JSON with priority and reason.`,
+  task_metadata_suggest: `You analyze a task and suggest the best priority (none/low/medium/high) and an ISO 8601 work_date if appropriate. Return JSON with priority and reason.`,
   task_chat: `You are an assistant helping the user with a specific task. Be concise, actionable, and encouraging. Match the user's language.`,
   folder_chat: `You help the user plan and break down a project. Suggest actionable tasks. Match the user's language.`,
   distortion_detect: `You are a CBT clinician. Analyze the user's automatic thought and identify which cognitive distortions are present (e.g. overgeneralization, all_or_nothing, mental_filter, jumping_to_conclusions, magnification, emotional_reasoning, shoulds, labeling, personalization). Return JSON with distortions: [{ key, explanation }] and alternative_thought.`,

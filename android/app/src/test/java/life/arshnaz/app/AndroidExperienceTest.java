@@ -24,8 +24,8 @@ public class AndroidExperienceTest {
     }
     JSONArray tasks() throws Exception {
         return new JSONArray().put(new JSONObject().put("id","today-task").put("title","Today test")
-            .put("due_date",LocalDate.now().toString()).put("reminder_at",Instant.now().plusSeconds(3600).toString()))
-            .put(new JSONObject().put("id","tomorrow-task").put("title","Tomorrow test").put("due_date",LocalDate.now().plusDays(1).toString()));
+            .put("work_date",LocalDate.now().toString()).put("reminder_at",Instant.now().plusSeconds(3600).toString()))
+            .put(new JSONObject().put("id","tomorrow-task").put("title","Tomorrow test").put("work_date",LocalDate.now().plusDays(1).toString()));
     }
     void login() throws Exception {AgendaData.prefs(c).edit().putBoolean("sessionReady",true).putString("dataUserId","userA").putString("agendaTasks",tasks().toString()).commit();}
     @Test public void allRemoteLayoutsInflate() {
@@ -60,7 +60,7 @@ public class AndroidExperienceTest {
     }
     @Test public void widgetCompletionCannotMarkAnActiveLeitnerReviewDone() throws Exception {
         JSONObject review = new JSONObject().put("id", "review-task").put("title", "Review cards")
-            .put("due_date", LocalDate.now().toString()).put("completed", false).put("status", "todo")
+            .put("work_date", LocalDate.now().toString()).put("completed", false).put("status", "todo")
             .put("source_type", "leitner").put("source_id", "doc-1");
         AgendaData.prefs(c).edit().putBoolean("sessionReady", true)
             .putString("agendaTasks", new JSONArray().put(review).toString()).commit();
@@ -178,7 +178,7 @@ public class AndroidExperienceTest {
         login();
         JSONArray rows=tasks();
         rows.put(new JSONObject().put("id","child-task").put("title","A small step")
-            .put("parent_id","today-task").put("due_date",""));
+            .put("parent_id","today-task").put("work_date",""));
         AgendaData.prefs(c).edit().putString("agendaTasks",rows.toString()).commit();
         AgendaListService.Factory widget=new AgendaListService.Factory(c,1);
         widget.onCreate();
@@ -257,7 +257,7 @@ public class AndroidExperienceTest {
         login();
         JSONArray rows = tasks();
         rows.put(new JSONObject().put("id", "child-task").put("title", "A small step")
-            .put("parent_id", "today-task").put("due_date", ""));
+            .put("parent_id", "today-task").put("work_date", ""));
         AgendaData.prefs(c).edit().putString("agendaTasks", rows.toString()).commit();
         AgendaListService.Factory widget = new AgendaListService.Factory(c, 1);
         widget.onCreate();

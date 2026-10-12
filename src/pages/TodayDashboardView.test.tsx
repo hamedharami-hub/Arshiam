@@ -6,6 +6,19 @@ import type { Task } from "@/lib/taskTypes";
 const mockSetAllTasks = vi.fn();
 let mockTasks: Task[] = [];
 
+vi.mock("@/lib/firebase", () => ({
+  db: {},
+  auth: { currentUser: { uid: "user-123" } },
+  collection: vi.fn(),
+  doc: vi.fn(),
+  getDoc: vi.fn(),
+  getDocs: vi.fn(),
+  setDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  deleteDoc: vi.fn(),
+  deleteField: vi.fn(),
+}));
+
 vi.mock("@/hooks/useAuth", () => ({
   useAuth: () => ({ user: { id: "user-123" } }),
 }));
@@ -35,6 +48,30 @@ vi.mock("@/components/HeaderTitlePortal", () => ({
       {subtitle && <span data-testid="header-subtitle">{subtitle}</span>}
     </div>
   ),
+}));
+
+vi.mock("@/lib/firebaseStore", () => ({
+  firebaseStore: {
+    from: () => ({
+      select: () => ({ eq: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }) }),
+      update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      delete: () => ({ in: () => Promise.resolve({ error: null }) }),
+    }),
+  },
+}));
+
+vi.mock("@/lib/streak", () => ({
+  computeStreak: vi.fn().mockResolvedValue({ streak: 0, activeToday: false, weekCompleted: 0, last7: [0, 0, 0, 0, 0, 0, 0] }),
+}));
+
+
+vi.mock("@/features/tasks/taskService", () => ({
+  deleteTaskCascade: vi.fn(),
+  getCachedTasks: vi.fn(() => []),
+}));
+
+vi.mock("@/lib/firestoreDataService", () => ({
+  persistTask: vi.fn(),
 }));
 
 vi.mock("@/components/QuickAddTask", () => ({
@@ -76,7 +113,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "urgent",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -87,7 +124,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "none",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -98,7 +135,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: true,
         status: "done",
         priority: "low",
-        due_date: todayIso,
+        work_date: todayIso,
         completed_at: new Date().toISOString(),
         folder_id: null,
         parent_id: null,
@@ -110,7 +147,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "high",
-        due_date: yesterdayIso,
+        work_date: yesterdayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -150,13 +187,13 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
     expect(screen.getByText("Done Morning Walk")).toBeInTheDocument();
 
     // 5. Overdue section is present
-    expect(screen.getByText("Overdue")).toBeInTheDocument();
+    expect(screen.getByText("Missed work day")).toBeInTheDocument();
     expect(screen.getByText("Overdue Report")).toBeInTheDocument();
   });
 
   it("opens Leitner review instead of completing it from a widget deep link", async () => {
     mockTasks = [{
-      id: "review-task", title: "Review study cards", due_date: new Date().toISOString(),
+      id: "review-task", title: "Review study cards", work_date: new Date().toISOString(),
       completed: false, status: "todo", source_type: "leitner", source_id: "doc-7",
     } as Task];
     render(
@@ -180,7 +217,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "high",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -228,7 +265,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "none",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -271,7 +308,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "high",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -330,7 +367,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "none",
-        due_date: null,
+        work_date: null,
         folder_id: null,
         parent_id: null,
       },
@@ -341,7 +378,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "high",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: "parent-project",
       },
@@ -370,7 +407,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "urgent",
-        due_date: todayIso,
+        work_date: todayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -381,7 +418,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "urgent",
-        due_date: todayIso,
+        work_date: todayIso,
         source_type: "leitner",
         source_id: "doc-7",
         folder_id: null,
@@ -394,7 +431,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "medium",
-        due_date: yesterdayIso,
+        work_date: yesterdayIso,
         folder_id: null,
         parent_id: null,
       },
@@ -405,7 +442,7 @@ describe("TodayDashboardView visual and structural requirements", { timeout: 150
         completed: false,
         status: "todo",
         priority: "medium",
-        due_date: yesterdayIso,
+        work_date: yesterdayIso,
         source_type: "knowledge_doc",
         source_id: "doc-8",
         folder_id: null,
@@ -433,8 +470,8 @@ it("puts pinned tasks first without the former top-three section", () => {
   localStorage.clear();
   const due = new Date().toISOString();
   mockTasks = [
-    { id: "urgent", title: "Urgent but not pinned", due_date: due, priority: "urgent", completed: false, parent_id: null },
-    { id: "pinned", title: "Pinned by me", due_date: due, priority: "low", pinned: true, completed: false, parent_id: null },
+    { id: "urgent", title: "Urgent but not pinned", work_date: due, priority: "urgent", completed: false, parent_id: null },
+    { id: "pinned", title: "Pinned by me", work_date: due, priority: "low", pinned: true, completed: false, parent_id: null },
   ] as Task[];
   render(<MemoryRouter><TodayDashboardView /></MemoryRouter>);
   const list = screen.getByTestId("today-active-tasks");

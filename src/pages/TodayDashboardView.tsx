@@ -1,12 +1,12 @@
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import { useTaskListSort } from "@/lib/taskListSort";
-import { planOf } from "@/lib/planCascade";
-import { isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
+import { isScheduledToday, readTaskSchedule } from "@/lib/taskSchedule";
+import { isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 import { filterAndSortTasks, DEFAULT_FILTERS } from "@/lib/smartListService";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { endOfDay, startOfDay } from "date-fns";
+
 import {
   ChevronDown, ChevronRight, CheckSquare, Columns2,
 } from "lucide-react";
@@ -19,12 +19,13 @@ import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { PRIORITY_META } from "@/lib/priority";
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import type { Task, TaskStatus, ConfirmState } from "@/lib/taskTypes";
+import { clearNextOnClose } from "@/lib/dayFlow";
 import { persistTask } from "@/lib/firestoreDataService";
 import { awardTaskWatering } from "@/lib/garden";
 import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { deleteTaskCascade } from "@/features/tasks/taskService";
-import { taskDueTimestamp, getLocalDateString, taskWorkDate } from "@/lib/taskDate";
+import { getLocalDateString } from "@/lib/taskDate";
 import { buildTaskChildrenMap, collectTaskDescendantIds, getTaskProgress, isStandaloneTaskForScope } from "@/features/tasks/taskTree";
 import { setShowCompletedTasks, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
@@ -169,15 +170,6 @@ export default function TodayDashboardView() {
     };
   }, [currentDayKey, load]);
 
-  const startOfToday = useMemo(() => {
-    void currentDayKey;
-    return startOfDay(new Date()).getTime();
-  }, [currentDayKey]);
-  const endOfToday = useMemo(() => {
-    void currentDayKey;
-    return endOfDay(new Date()).getTime();
-  }, [currentDayKey]);
-
   const taskMap = useMemo(() => new Map(allTasks.map((t) => [t.id, t])), [allTasks]);
   const childrenMap = useMemo(() => buildTaskChildrenMap(allTasks), [allTasks]);
   const getProgress = useCallback((id: string) => getTaskProgress(id, childrenMap), [childrenMap]);
@@ -187,15 +179,10 @@ export default function TodayDashboardView() {
   // Root tasks, or subtasks whose parents are not due today, are displayed at top-level.
   // Tasks planned for today in Planning (time-bucket) count as today's tasks too.
   const isDueToday = useCallback((t: Task) => {
-    if (isTaskOverdue(t, getTimeSettings())) return false;
-    const plan = planOf(t, getTimeSettings());
-    if (plan?.horizon === "day" && plan.start === todayISO()) return true;
-    return [taskWorkDate(t), t.work_date === undefined ? null : t.due_date].some(date => {
-      if (!date) return false;
-      const timestamp = taskDueTimestamp(date);
-      return timestamp >= startOfToday && timestamp <= endOfToday;
-    });
-  }, [startOfToday, endOfToday]);
+    void currentDayKey;
+    if (isTaskMissedWorkDay(t, getTimeSettings())) return false;
+    return isScheduledToday(readTaskSchedule(t), todayISO());
+  }, [currentDayKey]);
 
   // Today's tasks (due between startOfToday and endOfToday)
   const todayTasks = useMemo(() => {
@@ -244,8 +231,8 @@ export default function TodayDashboardView() {
       });
   }, [todayPersonalTasks]);
 
-  const isDueOverdue = useCallback((t: Task) => isTaskOverdue(t, getTimeSettings()), []);
-  const isMissed = useCallback((t: Task) => !isTaskOverdue(t, getTimeSettings()) && isTaskMissedWorkDay(t, getTimeSettings()), []);
+  const isDueOverdue = useCallback((t: Task) => isTaskMissedWorkDay(t, getTimeSettings()), []);
+  const isMissed = useCallback((t: Task) => !isTaskMissedWorkDay(t, getTimeSettings()) && isTaskMissedWorkDay(t, getTimeSettings()), []);
 
   const overdueTasks = useMemo(() => filterAndSortTasks(
     allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && !getStudyTaskNavigation(task).isStudyTask),
@@ -256,11 +243,6 @@ export default function TodayDashboardView() {
     allTasks.filter((task) => isStandaloneTaskForScope(task, isDueOverdue, taskMap) && getStudyTaskNavigation(task).isStudyTask),
     { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
   ), [allTasks, isDueOverdue, taskMap, todaySort]);
-
-  const missedTasks = useMemo(() => filterAndSortTasks(
-    allTasks.filter(task => isStandaloneTaskForScope(task, isMissed, taskMap)),
-    { ...DEFAULT_FILTERS, ...todaySort, show_completed: true }, {}, [],
-  ), [allTasks, isMissed, taskMap, todaySort]);
 
   const totalCount = todayTasks.length;
   const completedCount = completedTodayTasks.length + completedTodayStudyTasks.length;
@@ -344,7 +326,7 @@ export default function TodayDashboardView() {
     }
     const nextStatus: TaskStatus = nextCompleted ? "done" : "todo";
     const nextCompletedAt = nextCompleted ? new Date().toISOString() : null;
-    const patch = { completed: nextCompleted, status: nextStatus, completed_at: nextCompletedAt };
+    const patch = { completed: nextCompleted, status: nextStatus, completed_at: nextCompletedAt, ...(nextCompleted ? clearNextOnClose(task) : {}) };
 
     setAllTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...patch } : t)));
     try {
@@ -474,7 +456,7 @@ export default function TodayDashboardView() {
     />
   );
 
-  const isEmpty = totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0 && missedTasks.length === 0;
+  const isEmpty = totalCount === 0 && overdueTasks.length === 0 && overdueStudyTasks.length === 0;
 
   return (
     <div
@@ -634,7 +616,7 @@ export default function TodayDashboardView() {
                 {/* تسک‌های به‌تعویق‌افتاده، حتماً بعد و پایین تسک‌های امروز */}
                 {overdueTasks.length > 0 && (
                   <section data-testid="overdue-tasks" className="space-y-1 pt-3">
-                    <TaskGroupHeader label={T("عقب‌افتاده", "Overdue")} count={overdueTasks.length} tone="overdue" testid="task-group-overdue" />
+                    <TaskGroupHeader label={T("روز انجام گذشته", "Missed work day")} count={overdueTasks.length} tone="overdue" testid="task-group-overdue" />
                     <div className="space-y-1">
                       {overdueTasks.map((t) => renderTaskItem(t))}
                     </div>
@@ -642,19 +624,14 @@ export default function TodayDashboardView() {
                 )}
 
                 {overdueStudyTasks.length > 0 && (
-                  <section data-testid="overdue-study" aria-label={T("مرورهای عقب‌افتاده", "Overdue study")} className="space-y-1 pt-3">
-                    <TaskGroupHeader label={T("مرورهای عقب‌افتاده", "Overdue study")} count={overdueStudyTasks.length} tone="accent" />
+                  <section data-testid="overdue-study" aria-label={T("مرورهای انجام‌نشده", "Missed study")} className="space-y-1 pt-3">
+                    <TaskGroupHeader label={T("مرورهای انجام‌نشده", "Missed study")} count={overdueStudyTasks.length} tone="accent" />
                     <div className="space-y-1">
                       {overdueStudyTasks.map((task) => renderTaskItem(task))}
                     </div>
                   </section>
                 )}
-                {missedTasks.length > 0 && (
-                  <section data-testid="missed-work-tasks" className="space-y-1 pt-3">
-                    <TaskGroupHeader label={T("از برنامه عقب‌مانده", "Missed work day")} count={missedTasks.length} tone="accent" />
-                    <div className="space-y-1">{missedTasks.map(task => renderTaskItem(task))}</div>
-                  </section>
-                )}
+
 
                 {/* حالت خالی */}
                 {isEmpty && (

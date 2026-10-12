@@ -177,7 +177,7 @@
             }
           },
           {
-            "name": "due_date",
+            "name": "work_date",
             "in": "query",
             "schema": {
               "type": "string"
@@ -293,7 +293,7 @@
                   "completed": {
                     "type": "boolean"
                   },
-                  "due_date": {
+                  "work_date": {
                     "type": "string",
                     "nullable": true
                   },
@@ -303,18 +303,6 @@
                   },
                   "pinned": {
                     "type": "boolean"
-                  },
-                  "start_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "end_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "estimated_minutes": {
-                    "type": "number",
-                    "nullable": true
                   },
                   "recurrence": {
                     "type": "string"
@@ -456,7 +444,7 @@
                   "completed": {
                     "type": "boolean"
                   },
-                  "due_date": {
+                  "work_date": {
                     "type": "string",
                     "nullable": true
                   },
@@ -466,18 +454,6 @@
                   },
                   "pinned": {
                     "type": "boolean"
-                  },
-                  "start_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "end_at": {
-                    "type": "string",
-                    "nullable": true
-                  },
-                  "estimated_minutes": {
-                    "type": "number",
-                    "nullable": true
                   },
                   "recurrence": {
                     "type": "string"
@@ -1304,9 +1280,6 @@
           "404": {
             "$ref": "#/components/responses/Status404"
           },
-          "409": {
-            "$ref": "#/components/responses/Status409"
-          },
           "429": {
             "$ref": "#/components/responses/Status429"
           },
@@ -1358,9 +1331,6 @@
           "404": {
             "$ref": "#/components/responses/Status404"
           },
-          "409": {
-            "$ref": "#/components/responses/Status409"
-          },
           "429": {
             "$ref": "#/components/responses/Status429"
           },
@@ -1392,40 +1362,19 @@
                     "type": "string",
                     "nullable": true
                   },
-                  "start_at": {
+                  "start": {
                     "type": "string",
                     "format": "date-time"
                   },
-                  "end_at": {
+                  "end": {
                     "type": "string",
-                    "format": "date-time"
-                  },
-                  "priority": {
-                    "type": "string"
-                  },
-                  "folder_id": {
-                    "type": "string",
+                    "format": "date-time",
                     "nullable": true
-                  },
-                  "check_conflict": {
-                    "type": "boolean",
-                    "default": true
-                  },
-                  "force": {
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "completed": {
-                    "type": "boolean"
-                  },
-                  "status": {
-                    "type": "string"
                   }
                 },
                 "required": [
                   "title",
-                  "start_at",
-                  "end_at"
+                  "start"
                 ],
                 "additionalProperties": false
               }
@@ -1459,9 +1408,6 @@
           "404": {
             "$ref": "#/components/responses/Status404"
           },
-          "409": {
-            "$ref": "#/components/responses/Status409"
-          },
           "429": {
             "$ref": "#/components/responses/Status429"
           },
@@ -1494,27 +1440,14 @@
                     "type": "string",
                     "nullable": true
                   },
-                  "start_at": {
+                  "start": {
                     "type": "string",
                     "format": "date-time"
                   },
-                  "end_at": {
+                  "end": {
                     "type": "string",
-                    "format": "date-time"
-                  },
-                  "check_conflict": {
-                    "type": "boolean",
-                    "default": true
-                  },
-                  "force": {
-                    "type": "boolean",
-                    "default": false
-                  },
-                  "completed": {
-                    "type": "boolean"
-                  },
-                  "status": {
-                    "type": "string"
+                    "format": "date-time",
+                    "nullable": true
                   }
                 },
                 "additionalProperties": false

@@ -1,9 +1,10 @@
+import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useState } from "react";
 import { endOfDay } from "date-fns";
 import { getCachedTasks } from "@/features/tasks/taskService";
 import type { Task } from "@/lib/taskTypes";
 import { taskDueTimestamp } from "@/lib/taskDate";
-import { getTaskPlanning, isTaskOverdue } from "@/lib/taskPlanning";
+import { getTaskPlanning, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
 
 // Counts come from the local task cache only — no extra Firestore reads.
@@ -17,10 +18,10 @@ export function computeSidebarCounts(tasks: Task[], now = new Date()): Record<st
     if (!t || t.completed || t.parent_id) continue;
     if (!t.folder_id) bump("/app/inbox");
     else bump(`folder:${t.folder_id}`);
-    const dueDate = t.due_date || t.due_at;
+    const dueDate = taskWorkDate(t);
     const ts = dueDate ? taskDueTimestamp(dueDate) : Number.POSITIVE_INFINITY;
     const plan = getTaskPlanning(t, settings);
-    if ((Number.isFinite(ts) && ts <= end) || isTaskOverdue(t, settings, now) || (plan?.horizon === "day" && plan.start <= today)) bump("/app/today");
+    if ((Number.isFinite(ts) && ts <= end) || isTaskMissedWorkDay(t, settings, now) || (plan?.horizon === "day" && plan.start <= today)) bump("/app/today");
   }
   return counts;
 }

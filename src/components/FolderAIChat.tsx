@@ -21,7 +21,7 @@ type Output = "kanban" | "list" | null;
 type ProposedTask = {
   title: string;
   priority?: "none" | "low" | "medium" | "high";
-  due_date?: string;
+  work_date?: string;
   kanban_column?: "todo" | "doing" | "done";
   description?: string;
 };
@@ -138,7 +138,7 @@ export default function FolderAIChat({
         title: t.title,
         description: t.description || null,
         priority: (t.priority || "none") as any,
-        due_date: t.due_date || null,
+        work_date: t.work_date || null,
         kanban_column_id: output === "kanban" ? columnMap[t.kanban_column || "todo"] : null,
         position: i,
       }));
@@ -228,7 +228,7 @@ export default function FolderAIChat({
                             <div className="font-medium">{t.title}</div>
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {t.priority && t.priority !== "none" && <Badge variant="outline" className="text-[9px] py-0 h-4">{t.priority}</Badge>}
-                              {t.due_date && <Badge variant="outline" className="text-[9px] py-0 h-4">{parseTaskDueDate(t.due_date)?.toLocaleDateString("fa-IR") || t.due_date}</Badge>}
+                              {t.work_date && <Badge variant="outline" className="text-[9px] py-0 h-4">{parseTaskDueDate(t.work_date)?.toLocaleDateString("fa-IR") || t.work_date}</Badge>}
                               {output === "kanban" && t.kanban_column && <Badge variant="outline" className="text-[9px] py-0 h-4">{t.kanban_column}</Badge>}
                             </div>
                           </div>

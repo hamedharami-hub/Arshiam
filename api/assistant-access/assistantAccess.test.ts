@@ -31,5 +31,7 @@ describe("assistant access isolation", () => {
     for (const name of ["assistant_grants", "assistant_audit", "assistant_trash"]) {
       expect(rules).toMatch(new RegExp(`match /${name}/\\{docId=\\*\\*\\} \\{\\s*allow read, write: if false;`));
     }
+    expect(rules).toMatch(/match \/agent_events\/\{docId=\*\*\} \{\s*allow read: if isOwner\(userId\);\s*allow write: if false;/);
+    expect(rules).toMatch(/'agent_events'/);
   });
 });

@@ -51,6 +51,18 @@ export function htmlToMarkdown(html: string): string {
   return turndown.turndown(html);
 }
 
+/** Older notes were stored as editor HTML. Running those through the markdown parser can stall or throw. */
+export function editorHtmlFromStored(stored: string): string {
+  if (!stored) return "";
+  const trimmed = stored.trim();
+  if (trimmed.startsWith("<") && /<\/[a-z][a-z0-9]*>/i.test(trimmed)) return trimmed;
+  try {
+    return markdownToHtml(stored);
+  } catch {
+    return "";
+  }
+}
+
 export function markdownToHtml(md: string): string {
   if (!md) return "";
   let html = marked.parse(md, { async: false }) as string;

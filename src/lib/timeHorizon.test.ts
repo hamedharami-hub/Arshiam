@@ -77,29 +77,47 @@ describe("overdue + postpone", () => {
   });
   it("exact tasks become overdue on the following day, not after today’s due time", () => {
     const due = new Date(2026, 5, 10, 11, 0).toISOString();
-    expect(isOverdue({ completed: false, horizon: "day", period_start: "2026-06-10", period_end: "2026-06-10", is_exact: true, due_at: due }, G_SAT, now)).toBe(false);
-    expect(isOverdue({ completed: false, horizon: "day", period_start: "2026-06-10", period_end: "2026-06-10", is_exact: true, due_at: due }, G_SAT, new Date(2026, 5, 11, 0, 1))).toBe(true);
+    expect(isOverdue({ completed: false, horizon: "day", period_start: "2026-06-10", period_end: "2026-06-10", work_date: due }, G_SAT, now)).toBe(false);
+    expect(isOverdue({ completed: false, horizon: "day", period_start: "2026-06-10", period_end: "2026-06-10", work_date: due }, G_SAT, new Date(2026, 5, 11, 0, 1))).toBe(true);
   });
   it("postpone moves to the next period of the same horizon and counts", () => {
     const cur = periodFor("month", now, G_SAT);
-    const r = postponeFields({ horizon: "month", period_start: cur.start, period_end: cur.end, is_exact: false, postpone_count: 2 }, G_SAT, now)!;
+    const r = postponeFields({ horizon: "month", period_start: cur.start, period_end: cur.end, postpone_count: 2 }, G_SAT, now)!;
     expect(r).toMatchObject({ horizon: "month", period_start: "2026-07-01", period_end: "2026-07-31", postpone_count: 3 });
   });
   it("a long-overdue task postpones into the current period, never still overdue", () => {
     const old = periodFor("week", d("2026-04-01"), G_SAT);
-    const r = postponeFields({ horizon: "week", period_start: old.start, period_end: old.end, is_exact: false }, G_SAT, now)!;
+    const r = postponeFields({ horizon: "week", period_start: old.start, period_end: old.end }, G_SAT, now)!;
     expect(r).toMatchObject({ period_start: "2026-06-06", period_end: "2026-06-12", postpone_count: 1 });
   });
-  it("timePatch mirrors legacy fields so older screens keep working", () => {
+  it("timePatch writes planning fields without the removed scheduling mirrors", () => {
     const p = timePatch({ horizon: "week", period_start: "2026-06-06", period_end: "2026-06-12", due_at: null, is_exact: false, postpone_count: 0 }, G_SAT);
-    expect(p).toMatchObject({ bucket_kind: "week", bucket_anchor: "2026-06-06", due_date: null });
+    expect(p).toMatchObject({ planning_horizon: "week", planning_start: "2026-06-06", bucket_kind: null });
+    expect(p).not.toHaveProperty("due_date");
     expect(getTaskTime(p, G_SAT)).toMatchObject({ horizon: "week", period_start: "2026-06-06" });
   });
-  it("reads legacy bucket and due_date tasks", () => {
+  it("reads legacy bucket and work_date tasks", () => {
     expect(getTaskTime({ bucket_kind: "month", bucket_anchor: "2026-06-01", bucket_calendar: "gregorian" }, G_SAT)).toMatchObject({ horizon: "month", period_end: "2026-06-30" });
-    expect(getTaskTime({ due_date: "2026-06-12" }, G_SAT)).toMatchObject({ horizon: "day", period_start: "2026-06-12", is_exact: false });
-    expect(getTaskTime({ due_date: new Date(2026, 5, 12, 15, 30).toISOString() }, G_SAT)).toMatchObject({ is_exact: true });
+    expect(getTaskTime({ work_date: "2026-06-12" }, G_SAT)).toMatchObject({ horizon: "day", period_start: "2026-06-12", is_exact: false });
+    expect(getTaskTime({ work_date: new Date(2026, 5, 12, 15, 30).toISOString() }, G_SAT)).toMatchObject({ is_exact: true });
     expect(getTaskTime({}, G_SAT)).toBeNull();
+  });
+  it("treats a clock work_date as exact at midnight and 23:59, and still prefers it over a planning period", () => {
+    const midnight = new Date(2026, 5, 12, 0, 0, 0, 0);
+    const endMarker = new Date(2026, 5, 12, 23, 59, 0, 0);
+    expect(getTaskTime({ work_date: midnight.toISOString() }, G_SAT)).toMatchObject({
+      horizon: "day", period_start: "2026-06-12", is_exact: true, due_at: midnight.toISOString(),
+    });
+    expect(getTaskTime({ work_date: endMarker.toISOString() }, G_SAT)).toMatchObject({
+      is_exact: true, due_at: endMarker.toISOString(),
+    });
+    expect(getTaskTime({ work_date: "2026-06-12T00:00:00" }, G_SAT)).toMatchObject({ horizon: "day", is_exact: true });
+    expect(getTaskTime({
+      work_date: midnight.toISOString(),
+      planning_horizon: "week",
+      planning_start: "2026-06-06",
+      planning_end: "2026-06-12",
+    }, G_SAT)).toMatchObject({ horizon: "day", is_exact: true, period_start: "2026-06-12" });
   });
   it("legacy edits made by older screens win over stale v2 fields", () => {
     const t = { horizon: "week" as const, period_start: "2026-06-06", period_end: "2026-06-12", is_exact: false, bucket_kind: "month" as const, bucket_anchor: "2026-07-01", bucket_calendar: "gregorian" as const };
@@ -129,7 +147,7 @@ describe("daylight saving (Australia/Sydney)", () => {
   });
   it("postponing an exact task over the DST change keeps its wall-clock time", () => {
     const due = new Date(2026, 9, 3, 9, 0);
-    const r = postponeFields({ horizon: "day", period_start: "2026-10-03", period_end: "2026-10-03", is_exact: true, due_at: due.toISOString() }, G_SAT, new Date(2026, 9, 3, 8, 0))!;
+    const r = postponeFields({ horizon: "day", period_start: "2026-10-03", period_end: "2026-10-03", work_date: due.toISOString() }, G_SAT, new Date(2026, 9, 3, 8, 0))!;
     const nd = new Date(r.due_at!);
     expect(nd.getHours()).toBe(9);
     expect(toLocalISO(nd)).toBe("2026-10-04");

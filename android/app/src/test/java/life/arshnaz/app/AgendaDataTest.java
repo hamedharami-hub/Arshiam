@@ -6,7 +6,7 @@ import static org.junit.Assert.*;
 public class AgendaDataTest {
     final LocalDate today=LocalDate.of(2026,9,10);
     final ZoneId zone=ZoneId.of("Australia/Sydney");
-    JSONObject task(String id,String date) throws Exception {return new JSONObject().put("id",id).put("due_date",date).put("title",id);}
+    JSONObject task(String id,String date) throws Exception {return new JSONObject().put("id",id).put("work_date",date).put("title",id);}
     @Test public void separatesTodayTomorrowWeekAndOverdue() throws Exception {
         JSONArray rows=new JSONArray().put(task("a","2026-09-10")).put(task("b","2026-09-11")).put(task("c","2026-09-09")).put(task("d","2026-09-17"));
         assertEquals("a",AgendaData.select(rows,"today",false,false,today,zone).get(0).getString("id"));

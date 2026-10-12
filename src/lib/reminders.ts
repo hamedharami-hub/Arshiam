@@ -372,7 +372,7 @@ export async function ensureDailyTasks(userId: string, s: UserSettings) {
       user_id: userId,
       title: i.title,
       description: i.description,
-      due_date: dueIso,
+      work_date: dueIso,
       priority: "medium" as const,
       recurrence: "daily" as const,
     }));

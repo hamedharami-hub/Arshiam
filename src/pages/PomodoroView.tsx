@@ -16,7 +16,7 @@ import { parseTaskDueDate } from "@/lib/taskDate";
 
 type SessionRow = { duration_minutes: number; task_id: string | null; ended_at: string | null; tasks?: { title: string } | null };
 type WeekRow = { duration_minutes: number; started_at: string };
-type TaskOption = { id: string; title: string; due_date: string | null };
+type TaskOption = { id: string; title: string; work_date: string | null };
 
 export default function PomodoroView() {
   const { user } = useAuth();
@@ -47,10 +47,10 @@ export default function PomodoroView() {
       .order("started_at", { ascending: true })
       .then(({ data }) => setWeekSessions((data as WeekRow[] | null) || []));
     firebaseStore.from("tasks")
-      .select("id,title,due_date")
+      .select("id,title,work_date")
       .eq("user_id", user.id)
       .eq("completed", false)
-      .order("due_date", { ascending: true })
+      .order("work_date", { ascending: true })
       .limit(50)
       .then(({ data }) => setTasks((data as TaskOption[] | null) || []));
   }, [user, refreshTick]);
@@ -82,7 +82,7 @@ export default function PomodoroView() {
   }
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
-  const selectedTaskDueDate = selectedTask?.due_date ? parseTaskDueDate(selectedTask.due_date) : null;
+  const selectedTaskDueDate = selectedTask?.work_date ? parseTaskDueDate(selectedTask.work_date) : null;
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-md mx-auto space-y-4 page-enter">
@@ -108,8 +108,8 @@ export default function PomodoroView() {
           {selectedTask && (
             <p className="text-[10px] text-muted-foreground">
               {selectedTaskDueDate
-                ? `${T("سررسید:", "Due:")} ${system === "jalali" ? formatDate(selectedTaskDueDate, "d MMM", "jalali") : format(selectedTaskDueDate, "d MMM")}`
-                : T("بدون سررسید", "No due date")}
+                ? `${T("روز انجام:", "Work date:")} ${system === "jalali" ? formatDate(selectedTaskDueDate, "d MMM", "jalali") : format(selectedTaskDueDate, "d MMM")}`
+                : T("بدون روز انجام", "No work date")}
             </p>
           )}
         </div>

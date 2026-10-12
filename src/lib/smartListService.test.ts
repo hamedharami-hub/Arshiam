@@ -142,9 +142,9 @@ describe("smartListService", () => {
     const today = getLocalDateString(new Date());
     const past = "2020-01-01";
     const tasks = [
-      mockTask("t-overdue", { due_date: past, completed: false }),
-      mockTask("t-today", { due_date: today }),
-      mockTask("t-nodate", { due_date: null }),
+      mockTask("t-overdue", { work_date: past, completed: false }),
+      mockTask("t-today", { work_date: today }),
+      mockTask("t-nodate", { work_date: null }),
       mockTask("t-week-bucket", { horizon: "week" }),
     ];
 
@@ -166,9 +166,9 @@ describe("smartListService", () => {
 
   it("applies two-level sorting (primary then secondary)", () => {
     const tasks = [
-      mockTask("t1", { priority: "high", due_date: "2026-10-05" }),
-      mockTask("t2", { priority: "high", due_date: "2026-10-01" }),
-      mockTask("t3", { priority: "urgent", due_date: "2026-10-10" }),
+      mockTask("t1", { priority: "high", work_date: "2026-10-05" }),
+      mockTask("t2", { priority: "high", work_date: "2026-10-01" }),
+      mockTask("t3", { priority: "urgent", work_date: "2026-10-10" }),
     ];
 
     // Primary: priority asc (urgent first, then high), Secondary: due asc (earlier due first)

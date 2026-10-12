@@ -240,7 +240,7 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
         title: "Review Financial Report",
         description: "Verify Q3 numbers",
         priority: "p1",
-        due_date: "2026-10-01",
+        work_date: "2026-10-01",
       },
     });
     await handleAgentRequest(createReq, createRes);
@@ -399,54 +399,27 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     expect(diaryList[0].title).toBe("A calm evening");
   });
 
-  it("5. Schedule & Calendar Events with Time Conflict Detection", async () => {
-    // Create Calendar Event 1
-    const { req: e1Req, res: e1Res } = createMockReqRes({
-      method: "POST",
-      url: "/api/v1/agent/calendar/events",
-      token,
-      body: {
-        title: "Team Standup",
-        start_at: "2026-10-05T09:00:00Z",
-        end_at: "2026-10-05T09:30:00Z",
-      },
-    });
-    await handleAgentRequest(e1Req, e1Res);
-    expect(e1Res.statusCode).toBe(201);
+  it("5. Schedule & Calendar use precise work dates without time blocks", async () => {
+    for (const [title, start] of [["Standup", "2026-10-05T09:00:00Z"], ["Call", "2026-10-05T09:15:00Z"]]) {
+      const { req, res } = createMockReqRes({ method: "POST", url: "/api/v1/agent/calendar/events", token, body: { title, start } });
+      await handleAgentRequest(req, res);
+      expect(res.statusCode).toBe(201);
+      const event = JSON.parse(res.body).data;
+      expect(event.start).toBe(start);
+      expect(event).not.toHaveProperty("work_date");
+      expect(event).not.toHaveProperty("start_at");
+      expect(event).not.toHaveProperty("end_at");
+      expect(event).not.toHaveProperty("due_date");
+      expect(event).not.toHaveProperty("status");
+      expect(event).not.toHaveProperty("completed");
+      expect(event).not.toHaveProperty("priority");
+      expect(event).not.toHaveProperty("folder_id");
+      expect(event).not.toHaveProperty("deadline_date");
+    }
 
-    // Attempt overlapping Event without force -> Should return 409 Conflict
-    const { req: conflictReq, res: conflictRes } = createMockReqRes({
-      method: "POST",
-      url: "/api/v1/agent/calendar/events",
-      token,
-      body: {
-        title: "Conflicting Client Call",
-        start_at: "2026-10-05T09:15:00Z",
-        end_at: "2026-10-05T09:45:00Z",
-      },
-    });
-    await handleAgentRequest(conflictReq, conflictRes);
-    expect(conflictRes.statusCode).toBe(409);
-    const conflictBody = JSON.parse(conflictRes.body);
-    expect(conflictBody.error.code).toBe("TIME_CONFLICT");
-    expect(conflictBody.error.details.conflicting_events).toHaveLength(1);
+    expect(testStore.tasks.size).toBe(0);
+    expect(Array.from(testStore.events.values()).every((event) => event.start && !("work_date" in event))).toBe(true);
 
-    // With force: true -> Allowed
-    const { req: forceReq, res: forceRes } = createMockReqRes({
-      method: "POST",
-      url: "/api/v1/agent/calendar/events",
-      token,
-      body: {
-        title: "Conflicting Client Call",
-        start_at: "2026-10-05T09:15:00Z",
-        end_at: "2026-10-05T09:45:00Z",
-        force: true,
-      },
-    });
-    await handleAgentRequest(forceReq, forceRes);
-    expect(forceRes.statusCode).toBe(201);
-
-    // Read day schedule for 2026-10-05
     const { req: dayReq, res: dayRes } = createMockReqRes({
       url: "/api/v1/agent/schedule/day?date=2026-10-05",
       token,
@@ -454,8 +427,18 @@ describe("AI Agent API Endpoints (/api/v1/agent/*)", () => {
     });
     await handleAgentRequest(dayReq, dayRes);
     expect(dayRes.statusCode).toBe(200);
-    const daySchedule = JSON.parse(dayRes.body);
-    expect(daySchedule.data.length).toBeGreaterThanOrEqual(2);
+    expect(JSON.parse(dayRes.body).data).toHaveLength(0);
+
+    const { req: listReq, res: listRes } = createMockReqRes({
+      url: "/api/v1/agent/calendar/events?start=2026-10-05T00:00:00Z&end=2026-10-05T23:59:59Z",
+      token,
+      query: { start: "2026-10-05T00:00:00Z", end: "2026-10-05T23:59:59Z" },
+    });
+    await handleAgentRequest(listReq, listRes);
+    expect(listRes.statusCode).toBe(200);
+    const listed = JSON.parse(listRes.body).data;
+    expect(listed).toHaveLength(2);
+    expect(listed.map((event: { title: string }) => event.title).sort()).toEqual(["Call", "Standup"]);
   });
 
   it("6. Idempotency Key prevents duplicate creation", async () => {

@@ -46,7 +46,8 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { fetchTasks, saveTask, deleteTask } from "@/features/tasks/taskService";
 import type { Task } from "@/lib/taskTypes";
-import { workDatePatch } from "@/lib/taskDate";
+import { clockFromWorkDate, commitSchedule, dayOrClock } from "@/lib/taskScheduleChoices";
+import { readTaskSchedule } from "@/lib/taskSchedule";
 import { refreshAndroidWidgets, getWidgetDiagnostics } from "@/lib/androidWidget";
 import { isAndroid } from "@/lib/nativeExperience";
 import { haptic } from "@/lib/haptics";
@@ -93,10 +94,10 @@ export default function WidgetsView() {
   ], [isEn]);
 
   const sampleTasks = useMemo<Task[]>(() => [
-    { id: "s1", user_id: "sample", title: isEn ? "Design UI and review widgets" : "طراحی رابط کاربری و بررسی ویجت‌ها", completed: false, status: "todo", priority: "high", due_date: todayISO(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: "s2", user_id: "sample", title: isEn ? "3D breathing & peace of mind check-in" : "تنفس ۳بعدی و چک‌این آرامش ذهن", completed: false, status: "todo", priority: "medium", due_date: todayISO(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: "s3", user_id: "sample", title: isEn ? "Review weekly goals & progress summary" : "مرور اهداف هفتگی و خلاصه پیشرفت", completed: true, status: "done", priority: "low", due_date: todayISO(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-    { id: "s4", user_id: "sample", title: isEn ? "Call team & coordinate new release" : "تماس با تیم و هماهنگی نسخه جدید", completed: false, status: "todo", priority: "urgent", due_date: toLocalISO(addDaysLocal(new Date(), 1)), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s1", user_id: "sample", title: isEn ? "Design UI and review widgets" : "طراحی رابط کاربری و بررسی ویجت‌ها", completed: false, status: "todo", priority: "high", work_date: todayISO(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s2", user_id: "sample", title: isEn ? "3D breathing & peace of mind check-in" : "تنفس ۳بعدی و چک‌این آرامش ذهن", completed: false, status: "todo", priority: "medium", work_date: todayISO(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s3", user_id: "sample", title: isEn ? "Review weekly goals & progress summary" : "مرور اهداف هفتگی و خلاصه پیشرفت", completed: true, status: "done", priority: "low", work_date: todayISO(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    { id: "s4", user_id: "sample", title: isEn ? "Call team & coordinate new release" : "تماس با تیم و هماهنگی نسخه جدید", completed: false, status: "todo", priority: "urgent", work_date: toLocalISO(addDaysLocal(new Date(), 1)), created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
   ], [isEn]);
 
   const [activeWidget, setActiveWidget] = useState<string>(initialTab);
@@ -182,8 +183,8 @@ export default function WidgetsView() {
       if ((!showCompletedTasks || !settings.showCompleted) && (t.completed || t.status === "done")) return false;
       if (settings.highPriorityOnly && t.priority !== "high" && t.priority !== "urgent") return false;
 
-      if (agendaScope === "today") return dueDay(t.work_date === undefined ? t.due_date : t.work_date) === todayStr;
-      if (agendaScope === "tomorrow") return dueDay(t.work_date === undefined ? t.due_date : t.work_date) === tomorrowStr;
+      if (agendaScope === "today") return dueDay(t.work_date) === todayStr;
+      if (agendaScope === "tomorrow") return dueDay(t.work_date) === tomorrowStr;
       if (agendaScope === "high") return t.priority === "high" || t.priority === "urgent";
       return true; // next7 or all
     });
@@ -218,9 +219,14 @@ export default function WidgetsView() {
   const handlePostponeTask = async (task: Task) => {
     haptic("light");
     const tomorrowStr = toLocalISO(addDaysLocal(new Date(), 1));
+    const schedule = readTaskSchedule(task);
+    const clock = schedule.mode === "clock" ? clockFromWorkDate(schedule.workDate, schedule.timezone) : null;
+    const input = dayOrClock(tomorrowStr, clock);
+    const written = input ? commitSchedule(input) : null;
+    if (!written) return;
     const updated = {
       ...task,
-      ...workDatePatch(task, tomorrowStr),
+      ...written,
       updated_at: new Date().toISOString(),
     };
     setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
@@ -557,7 +563,7 @@ export default function WidgetsView() {
                                 </p>
                                 <span className="text-[10px] text-muted-foreground">
                                   {t.priority === "high" || t.priority === "urgent" ? (isEn ? "● High Priority · " : "● اولویت بالا · ") : ""}
-                                  {(t.work_date === undefined ? t.due_date : t.work_date)?.slice(5) || T("بدون تاریخ", "No date")}
+                                  {(t.work_date)?.slice(5) || T("بدون تاریخ", "No date")}
                                 </span>
                               </div>
 

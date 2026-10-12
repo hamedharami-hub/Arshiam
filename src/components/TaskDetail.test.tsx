@@ -27,12 +27,14 @@ describe("TaskDetail initial render", () => {
     const task = {
       id: "task-1", user_id: "owner-1", title: "Plan tomorrow",
       description: "A clear next step", completed: false, status: "todo",
-      priority: "none", folder_id: null, parent_id: null, due_date: null,
+      priority: "none", folder_id: null, parent_id: null, work_date: null,
     } as Task;
     const html = renderToString(
       <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
     );
     expect(html).toContain("Plan tomorrow");
+    expect(html).toContain("Deadline");
+    expect(html).toContain("task-deadline-row");
     expect(html).not.toContain("Task progress");
     expect(html).not.toContain("Description");
   });
@@ -41,7 +43,7 @@ describe("TaskDetail initial render", () => {
     const task = {
       id: "review-task-1", user_id: "owner-1", title: "Review pharmacology",
       description: null, completed: false, status: "todo", priority: "none",
-      folder_id: null, parent_id: null, due_date: null,
+      folder_id: null, parent_id: null, work_date: null,
       source_type: "leitner", source_id: "doc-7",
     } as Task;
 

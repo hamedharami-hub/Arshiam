@@ -118,7 +118,7 @@ public final class WidgetTaskActionWorker extends Worker {
         if (title == null || title.trim().isEmpty()) throw new IllegalArgumentException("Title required");
         JSONObject fields = editFields(title, getInputData().getString("priority"), getInputData().getString("dueDate"), preserveDueDate);
         request("PATCH", endpoint(project, database, uid, id, true,
-            preserveDueDate ? new String[]{"title", "priority", "updated_at"} : new String[]{"title", "priority", "due_date", "updated_at"}),
+            preserveDueDate ? new String[]{"title", "priority", "updated_at"} : new String[]{"title", "priority", "work_date", "updated_at"}),
             new JSONObject().put("fields", fields).toString(), token);
     }
     private void delete(String project, String database, String uid, String id, String token) throws Exception {
@@ -128,7 +128,7 @@ public final class WidgetTaskActionWorker extends Worker {
     private JSONObject common(String title, String priority, String due) throws Exception {
         JSONObject fields = new JSONObject().put("title", string(title));
         fields.put("priority", string(validPriority(priority)));
-        fields.put("due_date", dueValue(due));
+        fields.put("work_date", dueValue(due));
         return fields;
     }
     static JSONObject completionFields(boolean completed) throws Exception {
@@ -138,7 +138,7 @@ public final class WidgetTaskActionWorker extends Worker {
     static JSONObject editFields(String title, String priority, String dueDate, boolean preserveDueDate) throws Exception {
         JSONObject fields = new JSONObject().put("title", string(title.trim()))
             .put("priority", string(validPriority(priority)));
-        if (!preserveDueDate) fields.put("due_date", dueValue(dueDate));
+        if (!preserveDueDate) fields.put("work_date", dueValue(dueDate));
         return fields.put("updated_at", timestamp());
     }
     private static String validPriority(String priority) { return "low".equals(priority) || "medium".equals(priority) || "high".equals(priority) || "urgent".equals(priority) ? priority : "none"; }

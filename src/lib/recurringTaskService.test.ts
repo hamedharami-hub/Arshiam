@@ -136,17 +136,17 @@ describe("recurringTaskService", () => {
     it("converts the old 23:59 all-day marker and rolls yesterday into today", async () => {
       const now = new Date(2026, 9, 3, 12);
       const oldMarker = new Date(2026, 9, 2, 23, 59).toISOString();
-      const task: Task = { id: "all-day-repeat", user_id: "user-1", title: "Read", completed: false, status: "todo", priority: "none", recurrence: "daily", due_date: oldMarker };
+      const task: Task = { id: "all-day-repeat", user_id: "user-1", title: "Read", completed: false, status: "todo", priority: "none", recurrence: "daily", work_date: oldMarker };
       const result = await advanceRecurringTask("user-1", task, { now });
       expect(result.success).toBe(true);
       expect(result.patch?.work_date).toBe("2026-10-03");
-      expect(result.patch?.due_date).toBeNull();
+      expect(result.patch).not.toHaveProperty("due_date");
     });
 
     it("advances a daily planning bucket with the next task occurrence", async () => {
       const task: Task = {
         id: "planned-repeat", user_id: "user-1", title: "Practice", completed: false,
-        status: "todo", priority: "none", recurrence: "daily", due_date: "2026-10-02",
+        status: "todo", priority: "none", recurrence: "daily", work_date: "2026-10-02",
         planning_horizon: "day", planning_start: "2026-10-02", planning_end: "2026-10-02",
         horizon: "day", period_start: "2026-10-02", period_end: "2026-10-02",
         bucket_kind: "day", bucket_anchor: "2026-10-02",
@@ -158,19 +158,30 @@ describe("recurringTaskService", () => {
       });
     });
 
-    it("moves the entire time block and resets the reminder for the next occurrence", async () => {
+    it("clears deadline_date when a recurring task advances and still advances work_date", async () => {
+      const task: Task = {
+        id: "deadline-repeat", user_id: "user-1", title: "File", completed: false,
+        status: "todo", priority: "none", recurrence: "daily", work_date: "2026-10-02",
+        deadline_date: "2026-10-09",
+      };
+      const result = await advanceRecurringTask("user-1", task, { now: new Date(2026, 9, 2, 12) });
+      expect(result.success).toBe(true);
+      expect(result.patch?.work_date).toBe("2026-10-03");
+      expect(result.patch?.deadline_date).toBeNull();
+      expect(result.patch).not.toHaveProperty("due_date");
+    });
+
+    it("moves the precise work time and resets the reminder for the next occurrence", async () => {
       const reminder = "2026-10-02T08:45:00.000Z";
       const task: Task = {
         id: "timed-repeat", user_id: "user-1", title: "Meeting", completed: false,
-        status: "todo", priority: "none", recurrence: "daily", due_date: "2026-10-02T09:00:00.000Z",
-        start_at: "2026-10-02T09:00:00.000Z", end_at: "2026-10-02T10:00:00.000Z",
+        status: "todo", priority: "none", recurrence: "daily", work_date: "2026-10-02T09:00:00.000Z",
         reminder_at: reminder,
         reminder_plan: { version: 1, enabled: true, trigger_at: reminder, mode: "once", repeat_interval_minutes: 15,
           repeat_count: 3, snooze_options: [10, 15], importance: "normal", status: "acknowledged", fire_count: 1 },
       };
       const result = await advanceRecurringTask("user-1", task, { now: new Date("2026-10-02T11:00:00.000Z") });
-      expect(result.patch?.start_at).toBe("2026-10-03T09:00:00.000Z");
-      expect(result.patch?.end_at).toBe("2026-10-03T10:00:00.000Z");
+      expect(result.patch?.work_date).toBe("2026-10-03T09:00:00.000Z");
       expect(result.patch?.reminder_at).toBe("2026-10-03T08:45:00.000Z");
       expect(result.patch?.reminder_plan).toMatchObject({ trigger_at: "2026-10-03T08:45:00.000Z", status: "pending", fire_count: 0 });
     });
@@ -185,7 +196,7 @@ describe("recurringTaskService", () => {
         completed: true,
         status: "done",
         recurrence: "daily",
-        due_date: "2026-09-30",
+        work_date: "2026-09-30",
         description: "- [x] Prepare notes\n- [x] Check blocker",
       };
 
@@ -197,7 +208,7 @@ describe("recurringTaskService", () => {
         completed: true,
         status: "done",
         parent_id: "parent-rec-1",
-        due_date: "2026-09-30",
+        work_date: "2026-09-30",
       };
 
       const subtask2: Task = {
@@ -230,7 +241,7 @@ describe("recurringTaskService", () => {
           id: "sub-1",
           completed: false,
           status: "todo",
-          due_date: "2026-10-01",
+          work_date: "2026-10-01",
         }),
         { quietCompanion: true },
       );
@@ -268,7 +279,7 @@ describe("recurringTaskService", () => {
         status: "done",
         priority: "none",
         recurrence: "weekly",
-        due_date: "2026-09-30",
+        work_date: "2026-09-30",
       };
 
       // A subtask that is itself recurring must not be hijacked by the parent's advance.
@@ -281,7 +292,7 @@ describe("recurringTaskService", () => {
         priority: "none",
         parent_id: "parent-rec-2",
         recurrence: "daily",
-        due_date: "2026-09-30",
+        work_date: "2026-09-30",
       };
 
       mockGetCachedTasks.mockResolvedValue([parentTask, recurringSub]);
@@ -310,7 +321,7 @@ describe("recurringTaskService", () => {
         completed: false,
         status: "todo",
         recurrence: "daily",
-        due_date: "2026-09-30",
+        work_date: "2026-09-30",
       };
 
       const mockUpdate = vi.fn().mockReturnValue({

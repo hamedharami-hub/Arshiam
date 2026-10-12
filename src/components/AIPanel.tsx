@@ -45,9 +45,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
         title: r.data.title,
         description: r.data.description || null,
         priority: r.data.priority || "none",
-        due_date: r.data.due_date || null,
-        start_at: r.data.start_at || null,
-        end_at: r.data.end_at || null,
+        work_date: r.data.work_date || null,
       });
       if (error) throw error;
       toast.success("تسک ساخته شد ✨");
@@ -103,7 +101,7 @@ export function AIPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (
     setLoading(true);
     try {
       // Build minimal context
-      const { data: tasks } = await firebaseStore.from("tasks").select("title,priority,due_date,completed").limit(20);
+      const { data: tasks } = await firebaseStore.from("tasks").select("title,priority,work_date,completed").limit(20);
       const ctx = `Recent tasks: ${JSON.stringify(tasks || [])}`;
       const r = await callAI("chat", [...chat, newMsg], ctx, undefined, aiLang);
       if (r.provider && r.model) setLastResultMeta({ provider: r.provider, model: r.model });

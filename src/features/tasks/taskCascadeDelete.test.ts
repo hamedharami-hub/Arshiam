@@ -11,15 +11,12 @@ const makeTask = (id: string, parent_id: string | null = null): Task => ({
   status: "todo",
   description: null,
   priority: "none",
-  due_date: null,
+  work_date: null,
   folder_id: null,
   reminder_at: null,
   recurrence: "none",
   recurrence_rule: null,
   pinned: false,
-  start_at: null,
-  end_at: null,
-  estimated_minutes: null,
   position: 0,
 });
 

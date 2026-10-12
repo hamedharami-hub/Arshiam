@@ -51,7 +51,7 @@ interface Task {
   title: string;
   description?: string | null;
   priority?: string | null;
-  due_date?: string | null;
+  work_date?: string | null;
   folder_id?: string | null;
 }
 

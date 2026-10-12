@@ -86,7 +86,7 @@ type Task = {
   user_id?: string;
   title: string;
   priority: Priority;
-  due_date?: string | null;
+  work_date?: string | null;
   status: Status;
   completed: boolean;
   completed_at?: string | null;
@@ -111,9 +111,9 @@ function sortFolderTasks(tasks: Task[], sortOrder: FolderPrefs["sortOrder"]) {
     if (sortOrder === "priority") {
       return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
     }
-    if (sortOrder === "due_date") {
-      const aDue = a.due_date ? taskDueTimestamp(a.due_date) : Infinity;
-      const bDue = b.due_date ? taskDueTimestamp(b.due_date) : Infinity;
+    if (sortOrder === "work_date") {
+      const aDue = a.work_date ? taskDueTimestamp(a.work_date) : Infinity;
+      const bDue = b.work_date ? taskDueTimestamp(b.work_date) : Infinity;
       return aDue - bDue;
     }
     return a.title.localeCompare(b.title, "fa");

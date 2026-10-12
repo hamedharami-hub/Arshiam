@@ -2,15 +2,15 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import TasksView from "./TasksView";
-import { isTaskOverdue } from "@/lib/taskPlanning";
+import { isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import type { Task } from "@/lib/taskTypes";
 
 const allTasks: Partial<Task>[] = [
-  { id: "task-overdue", title: "Overdue folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-1", due_date: "2020-01-01" },
-  { id: "task-upcoming", title: "Upcoming folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-1", due_date: "2099-01-01" },
-  { id: "task-done", title: "Done folder task", completed: true, status: "done", priority: "none", parent_id: null, folder_id: "folder-1", due_date: "2020-01-01" },
-  { id: "task-other", title: "Other folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-2", due_date: "2020-01-01" },
+  { id: "task-overdue", title: "Overdue folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-1", work_date: "2020-01-01" },
+  { id: "task-upcoming", title: "Upcoming folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-1", work_date: "2099-01-01" },
+  { id: "task-done", title: "Done folder task", completed: true, status: "done", priority: "none", parent_id: null, folder_id: "folder-1", work_date: "2020-01-01" },
+  { id: "task-other", title: "Other folder task", completed: false, status: "todo", priority: "none", parent_id: null, folder_id: "folder-2", work_date: "2020-01-01" },
 ];
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: null }) }));
@@ -34,8 +34,8 @@ function renderFolder() {
 
 describe("folder scope overdue behaviour", () => {
   it("marks the past-due fixture as overdue", () => {
-    expect(isTaskOverdue(allTasks[0], getTimeSettings())).toBe(true);
-    expect(isTaskOverdue(allTasks[1], getTimeSettings())).toBe(false);
+    expect(isTaskMissedWorkDay(allTasks[0], getTimeSettings())).toBe(true);
+    expect(isTaskMissedWorkDay(allTasks[1], getTimeSettings())).toBe(false);
   });
 
   it("renders overdue folder tasks in the main list (never hides them)", () => {

@@ -21,14 +21,14 @@ export default function CognitiveLoadCard() {
       const todayDate = getLocalDateString(new Date());
 
       const [tasks, checkin] = await Promise.all([
-        firebaseStore.from("tasks").select("id,title,description,priority,folder_id,quadrant,due_date,completed")
+        firebaseStore.from("tasks").select("id,title,description,priority,folder_id,quadrant,work_date,completed")
           .eq("user_id", user.id).eq("completed", false),
         firebaseStore.from("daily_checkins").select("sleep_hours,sleep_quality,stress").eq("user_id", user.id).eq("checkin_date", todayDate).maybeSingle(),
       ]);
 
       const todayTasks = (tasks.data || []).filter((t) => {
-        if (!t.due_date) return true;
-        const dt = parseTaskDueDate(t.due_date);
+        if (!t.work_date) return true;
+        const dt = parseTaskDueDate(t.work_date);
         if (!dt) return false;
         return dt >= todayStart && dt <= todayEnd;
       });

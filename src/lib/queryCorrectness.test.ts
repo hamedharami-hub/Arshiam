@@ -67,12 +67,11 @@ describe("Query correctness and local date handling", () => {
     const rangeEnd = new Date(2026, 8, 22, 23, 59, 59, 999);
 
     const rawTasks = [
-      { id: "t_due_in", title: "Due in range", due_date: "2026-09-21", start_at: null },
-      { id: "t_start_in", title: "Start in range", due_date: null, start_at: "2026-09-20" },
-      { id: "t_both_in", title: "Both in range", due_date: "2026-09-22", start_at: "2026-09-21" },
-      { id: "t_outside_past", title: "Past task", due_date: "2026-09-10", start_at: "2026-09-09" },
-      { id: "t_outside_future", title: "Future task", due_date: "2026-10-05", start_at: "2026-10-01" },
-      { id: "t_no_date", title: "No date task", due_date: null, start_at: null },
+      { id: "t_due_in", title: "Due in range", work_date: "2026-09-21" },
+      { id: "t_both_in", title: "Both in range", work_date: "2026-09-22" },
+      { id: "t_outside_past", title: "Past task", work_date: "2026-09-10" },
+      { id: "t_outside_future", title: "Future task", work_date: "2026-10-05" },
+      { id: "t_no_date", title: "No date task", work_date: null },
     ];
 
     function filterAndDeduplicate(tasks: typeof rawTasks, start: Date, end: Date) {
@@ -84,15 +83,9 @@ describe("Query correctness and local date handling", () => {
       for (const t of tasks) {
         if (!t.id || seenIds.has(t.id)) continue;
         let inRange = false;
-        if (t.due_date) {
-          const d = parseTaskDueDate(t.due_date);
+        if (t.work_date) {
+          const d = parseTaskDueDate(t.work_date);
           if (d && d.getTime() >= startTime && d.getTime() <= endTime) {
-            inRange = true;
-          }
-        }
-        if (!inRange && t.start_at) {
-          const s = parseTaskDueDate(t.start_at);
-          if (s && s.getTime() >= startTime && s.getTime() <= endTime) {
             inRange = true;
           }
         }
@@ -104,12 +97,11 @@ describe("Query correctness and local date handling", () => {
       return matching;
     }
 
-    it("includes tasks where either due_date or start_at is within range (union)", () => {
+    it("includes tasks where work_date is within range", () => {
       const results = filterAndDeduplicate(rawTasks, rangeStart, rangeEnd);
       const ids = results.map((t) => t.id);
 
       expect(ids).toContain("t_due_in");
-      expect(ids).toContain("t_start_in");
       expect(ids).toContain("t_both_in");
 
       // Strictly excludes tasks outside range or with no date
@@ -118,7 +110,7 @@ describe("Query correctness and local date handling", () => {
       expect(ids).not.toContain("t_no_date");
     });
 
-    it("deduplicates tasks that match both due_date and start_at", () => {
+    it("deduplicates tasks that match both work_date and start_at", () => {
       const results = filterAndDeduplicate(rawTasks, rangeStart, rangeEnd);
       const bothInCount = results.filter((t) => t.id === "t_both_in").length;
       expect(bothInCount).toBe(1);
@@ -127,7 +119,7 @@ describe("Query correctness and local date handling", () => {
     it("handles simulated duplicates in data array safely", () => {
       const duplicateData = [
         ...rawTasks,
-        { id: "t_due_in", title: "Duplicate entry", due_date: "2026-09-21", start_at: null },
+        { id: "t_due_in", title: "Duplicate entry", work_date: "2026-09-21", },
       ];
       const results = filterAndDeduplicate(duplicateData, rangeStart, rangeEnd);
       expect(results.filter((t) => t.id === "t_due_in")).toHaveLength(1);

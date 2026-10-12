@@ -26,7 +26,7 @@ import { toast } from "sonner";
 interface ReminderCenterItem {
   taskId: string;
   title: string;
-  due_date: string | null;
+  work_date: string | null;
   mode: string;
   nextTriggerIso: string | null;
   snoozeUntilIso: string | null;
@@ -125,7 +125,7 @@ export function ReminderCenter({
       result.push({
         taskId: t.id,
         title: t.title,
-        due_date: t.due_date,
+        work_date: t.work_date,
         mode: plan.mode,
         nextTriggerIso: triggerTime > 0 ? new Date(triggerTime).toISOString() : plan.trigger_at,
         snoozeUntilIso: isSnoozed ? new Date(snoozeTime).toISOString() : null,

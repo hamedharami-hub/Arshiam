@@ -1,4 +1,5 @@
-import { planningPatch } from "@/lib/taskPlanning";
+import { TaskScheduleBody } from "@/components/task-detail/TaskSchedulingSheet";
+import { postponeSchedule, scheduleWriteForPeriod, type ScheduleSaveMeta } from "@/lib/taskScheduleChoices";
 import type { Period } from "@/lib/timeHorizon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,7 +27,6 @@ import { parseTaskDueDate } from "@/lib/taskDate";
 
 type Defaults = {
   folder_id?: string | null;
-  due_date?: string | null;
   work_date?: string | null;
   recurrence_rule?: RecurrenceRule | null;
   parent_id?: string | null;
@@ -77,9 +77,11 @@ export function QuickAddTask({
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const [due, setDue] = useState<string | null | undefined>(defaults.work_date ?? defaults.due_date ?? undefined);
-  const [deadline, setDeadline] = useState<string | null>(defaults.work_date === undefined ? defaults.due_date ?? null : null);
+  const [due, setDue] = useState<string | null | undefined>(defaults.work_date ?? undefined);
+  const [scheduleDraft, setScheduleDraft] = useState<Partial<Task>>({});
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(defaults.recurrence_rule ?? null);
+  const [reminderAt, setReminderAt] = useState<string | null>(null);
+  const [reminderPlan, setReminderPlan] = useState<Task["reminder_plan"]>(null);
   const [priority, setPriority] = useState<Priority | null>(null);
   const [folderId, setFolderId] = useState<string | null>(defaults.folder_id ?? null);
   const defaultTagKey = JSON.stringify([...new Set([...(defaults.tag_id ? [defaults.tag_id] : []), ...(defaults.tag_ids || [])])]);
@@ -101,9 +103,8 @@ export function QuickAddTask({
 
   // Sync state when defaults change dynamically (e.g. switching folders or dates)
   useEffect(() => {
-    setDue(defaults.work_date ?? defaults.due_date ?? undefined);
-    setDeadline(defaults.work_date === undefined ? defaults.due_date ?? null : null);
-  }, [defaults.work_date, defaults.due_date]);
+    setDue(defaults.work_date ?? undefined);
+  }, [defaults.work_date]);
 
   useEffect(() => {
     setRecurrence(defaults.recurrence_rule ?? null);
@@ -197,6 +198,8 @@ export function QuickAddTask({
       title: finalTitle,
       folder_id: finalFolderId,
       work_date: finalDue,
+      reminder_at: reminderAt,
+      reminder_plan: reminderPlan,
       recurrence_rule: recurrence,
       recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none" as const,
       parent_id: defaults.parent_id ?? null,
@@ -205,10 +208,10 @@ export function QuickAddTask({
       status: defaults.status ?? "todo" as const,
       completed_at: defaults.status === "done" ? new Date().toISOString() : null,
       kanban_column_id: defaults.kanban_column_id ?? null,
-      ...(defaults.planning ? planningPatch(defaults.planning, getTimeSettings()) : {}),
+      ...(defaults.planning ? scheduleWriteForPeriod(defaults.planning, getTimeSettings()) ?? {} : {}),
+      ...scheduleDraft,
       ...(defaults.time ? timePatch(finalDue?.includes("T") && parseTaskDueDate(finalDue)
         ? fieldsForExact(parseTaskDueDate(finalDue)!, "day", getTimeSettings()) : defaults.time, getTimeSettings()) : {}),
-      due_date: deadline,
       created_at: new Date().toISOString(),
       position: 0,
     };
@@ -232,9 +235,9 @@ export function QuickAddTask({
           toast.info(T("پیوست‌ها در حالت آفلاین ذخیره نمی‌شوند", "Attachments are not saved while offline"));
         }
         setTitle("");
-        setDue(defaults.work_date ?? defaults.due_date ?? undefined);
-        setDeadline(defaults.work_date === undefined ? defaults.due_date ?? null : null);
+        setDue(defaults.work_date ?? undefined);
         setRecurrence(defaults.recurrence_rule ?? null);
+        setReminderAt(null); setReminderPlan(null);
         setPriority(null);
         setFolderId(defaults.folder_id ?? null);
         setTagIds(JSON.parse(defaultTagKey));
@@ -286,9 +289,9 @@ export function QuickAddTask({
       }
 
     setTitle("");
-    setDue(defaults.work_date ?? defaults.due_date ?? undefined);
-    setDeadline(defaults.work_date === undefined ? defaults.due_date ?? null : null);
+    setDue(defaults.work_date ?? undefined);
     setRecurrence(defaults.recurrence_rule ?? null);
+    setReminderAt(null); setReminderPlan(null);
     setPriority(null);
     setFolderId(defaults.folder_id ?? null);
     setTagIds(JSON.parse(defaultTagKey));
@@ -350,7 +353,7 @@ export function QuickAddTask({
 
   const applyTemplate = (tpl: Partial<Task>) => {
     if (tpl.title) setTitle(tpl.title);
-    if (tpl.due_date) setDue(tpl.due_date);
+    if (tpl.work_date) setDue(tpl.work_date);
     setRecurrence(tpl.recurrence_rule ?? null);
     if (tpl.priority) setPriority(tpl.priority);
     if (tpl.folder_id) setFolderId(tpl.folder_id);
@@ -402,8 +405,9 @@ export function QuickAddTask({
     const qp = new URLSearchParams();
     if (title.trim()) qp.set("title", finalTitle);
     if (finalDue) qp.set("work_date", finalDue);
-    if (deadline) qp.set("due_date", deadline);
     if (recurrence) qp.set("recurrence_rule", JSON.stringify(recurrence));
+    if (reminderAt) qp.set("reminder_at", reminderAt);
+    if (reminderPlan) qp.set("reminder_plan", JSON.stringify(reminderPlan));
     if (finalFolderId) qp.set("folder_id", finalFolderId);
     if (defaults.kanban_column_id) qp.set("kanban_goal_id", defaults.kanban_column_id);
     if (defaults.status) qp.set("status", defaults.status);
@@ -637,18 +641,27 @@ export function QuickAddTask({
                 </SheetTrigger>
                 <SheetContent side="bottom" className="max-h-[88dvh] space-y-3 overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl">
                   <SheetTitle>{T("زمان‌بندی تسک", "Schedule task")}</SheetTitle>
-                  <p className="text-sm font-semibold">{T("روز انجام · نمایش در امروز", "Work day · shown in Today")}</p>
-                  <DueDatePicker
-                    value={due ?? null}
-                    onChange={setDue}
-                    recurrenceValue={recurrence}
-                    onRecurrenceChange={setRecurrence}
-                    compact
+                  <TaskScheduleBody
+                    t={{ id: "quick-add", title: finalTitle, completed: false, status: "todo", priority: finalPriority, work_date: due ?? null, ...(defaults.planning ? scheduleWriteForPeriod(defaults.planning, getTimeSettings()) ?? {} : {}), ...scheduleDraft, recurrence_rule: recurrence, reminder_at: reminderAt, reminder_plan: reminderPlan }}
+                    canEdit isEn={isEn} T={T}
+                    save={(patch, meta?: ScheduleSaveMeta) => {
+                      if ("work_date" in patch || "planning_horizon" in patch || "schedule_v" in patch) {
+                        setScheduleDraft((prev) => ({ ...prev, ...patch }));
+                        if ("work_date" in patch) setDue(patch.work_date);
+                      }
+                      if ("recurrence_rule" in patch) setRecurrence(patch.recurrence_rule || null);
+                      if ("reminder_at" in patch) setReminderAt(patch.reminder_at || null);
+                      if ("reminder_plan" in patch) setReminderPlan(patch.reminder_plan || null);
+                      if (!meta?.keepOpen && ("work_date" in patch || "recurrence_rule" in patch)) setDateOpen(false);
+                    }}
+                    postpone={(days) => {
+                      const patch = postponeSchedule({ work_date: due ?? null, ...scheduleDraft }, days);
+                      if (!patch) return;
+                      setScheduleDraft((prev) => ({ ...prev, ...patch }));
+                      setDue(patch.work_date);
+                      setDateOpen(false);
+                    }}
                   />
-                  <div className="border-t pt-3">
-                    <p className="mb-2 text-sm font-semibold">{T("مهلت نهایی · مستقل از روز انجام", "Deadline · separate from work day")}</p>
-                    <DueDatePicker value={deadline} onChange={setDeadline} compact label="" />
-                  </div>
                 </SheetContent>
               </Sheet>
 

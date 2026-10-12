@@ -4,7 +4,7 @@ export interface FolderPrefs {
   view: "list" | "kanban-stream" | "kanban-columns" | "buckets";
   bgColor: string | null;
   bgImage: string | null;
-  sortOrder: "manual" | "priority" | "due_date" | "alphabetical";
+  sortOrder: "manual" | "priority" | "work_date" | "alphabetical";
   /** How goals are ordered/filtered in the goals & kanban views */
   goalMode: "hierarchy" | "time" | "priority";
   /** Show goal groups inside the plain task list view */
@@ -35,7 +35,7 @@ export function getFolderPrefs(folderId: string, userId?: string): FolderPrefs {
         : DEFAULT_FOLDER_PREFS.view;
     const sortOrder =
       parsed.sortOrder === "priority" ||
-      parsed.sortOrder === "due_date" ||
+      parsed.sortOrder === "work_date" ||
       parsed.sortOrder === "alphabetical" ||
       parsed.sortOrder === "manual"
         ? parsed.sortOrder

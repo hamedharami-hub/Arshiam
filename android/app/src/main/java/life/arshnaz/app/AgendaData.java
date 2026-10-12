@@ -25,8 +25,8 @@ final class AgendaData {
             if (f == null) continue;
             String path = doc.optString("name");
             JSONObject t = new JSONObject().put("id", path.substring(path.lastIndexOf('/') + 1));
-            for (String key : new String[]{"title","due_date","priority","status","reminder_at","folder_id","parent_id","source_type","source_id"})
-                t.put(key, WidgetTasks.string(f, key));
+            for (String key : new String[]{"title","work_date","priority","status","reminder_at","folder_id","parent_id","source_type","source_id"})
+                t.put(key, key.equals("work_date") ? WidgetTasks.workDate(f) : WidgetTasks.string(f, key));
             JSONObject done = f.optJSONObject("completed");
             t.put("completed", done != null && done.optBoolean("booleanValue"));
             result.put(t);
@@ -113,7 +113,7 @@ final class AgendaData {
         Comparator<JSONObject> value;
         if ("priority".equals(sort)) value=Comparator.comparingInt(AgendaData::priorityRank).reversed();
         else if ("title".equals(sort)) value=Comparator.comparing(t->t.optString("title"),String.CASE_INSENSITIVE_ORDER);
-        else value=Comparator.comparing(t->t.optString("due_date").isEmpty()?"9999":t.optString("due_date"));
+        else value=Comparator.comparing(t->t.optString("work_date").isEmpty()?"9999":t.optString("work_date"));
         return value;
     }
     private static int priorityRank(JSONObject task) {
@@ -121,13 +121,13 @@ final class AgendaData {
         return "urgent".equals(value)?3:"high".equals(value)?2:"medium".equals(value)?1:0;
     }
     private static boolean matches(JSONObject t,String scope,LocalDate today,ZoneId zone) {
-            LocalDate d=date(t.optString("due_date"),zone);
+            LocalDate d=date(t.optString("work_date"),zone);
             boolean include;
             switch (scope) {
                 case "tomorrow": include = today.plusDays(1).equals(d); break;
                 case "next7": include = d != null && !d.isBefore(today) && d.isBefore(today.plusDays(7)); break;
                 case "overdue": include = d != null && d.isBefore(today); break;
-                case "undated": include = t.optString("due_date").isEmpty(); break;
+                case "undated": include = t.optString("work_date").isEmpty(); break;
                 case "high": include = "high".equals(t.optString("priority")) || "urgent".equals(t.optString("priority")); break;
                 case "all": return true;
                 default: return today.equals(d);

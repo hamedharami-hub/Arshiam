@@ -1,6 +1,6 @@
 // Time-bucket categorization for tasks.
 // A bucket = (kind, calendar, anchor-date). It marks a task as belonging to a
-// fuzzy time window (sub-day: morning/noon/afternoon/night, or multi-day: today, this week, this month, this quarter, this year)
+// planning period (today, this week, this month, this quarter, this year)
 // without committing to a specific clock time.
 
 import {
@@ -28,18 +28,12 @@ import {
 } from "date-fns-jalali";
 import { getCalendarSystem, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 
-export type SubDayBucketKind = "morning" | "noon" | "afternoon" | "night";
 export type MultiDayBucketKind = "day" | "week" | "month" | "quarter" | "year";
-export type BucketKind = MultiDayBucketKind | SubDayBucketKind;
+export type BucketKind = MultiDayBucketKind;
 
-export const SUB_DAY_BUCKET_KINDS: SubDayBucketKind[] = ["morning", "noon", "afternoon", "night"];
 export const MULTI_DAY_BUCKET_KINDS: MultiDayBucketKind[] = ["day", "week", "month", "quarter", "year"];
 
 export const ALL_BUCKET_KINDS: BucketKind[] = [
-  "morning",
-  "noon",
-  "afternoon",
-  "night",
   "day",
   "week",
   "month",
@@ -48,20 +42,12 @@ export const ALL_BUCKET_KINDS: BucketKind[] = [
 ];
 
 export const BUCKET_LEVEL: Record<BucketKind, number> = {
-  morning: 1,
-  noon: 1,
-  afternoon: 1,
-  night: 1,
   day: 2,
   week: 3,
   month: 4,
   quarter: 5,
   year: 6,
 };
-
-export function isSubDayBucket(kind: BucketKind): kind is SubDayBucketKind {
-  return SUB_DAY_BUCKET_KINDS.includes(kind as SubDayBucketKind);
-}
 
 export function isMultiDayBucket(kind: BucketKind): kind is MultiDayBucketKind {
   return MULTI_DAY_BUCKET_KINDS.includes(kind as MultiDayBucketKind);
@@ -97,7 +83,7 @@ function isoDate(d: Date) {
 /** Anchor date for the current period of the given kind in the given calendar. */
 export function currentAnchor(kind: BucketKind, calendar: CalendarSystem = getCalendarSystem()): string {
   const now = new Date();
-  if (isSubDayBucket(kind) || kind === "day") return isoDate(now);
+  if (kind === "day") return isoDate(now);
 
   if (calendar === "jalali") {
     if (kind === "week") return isoDate(jStartOfWeek(now, { weekStartsOn: 6 }));
@@ -114,7 +100,7 @@ export function currentAnchor(kind: BucketKind, calendar: CalendarSystem = getCa
 /** End anchor (last day) of the bucket the anchor belongs to. */
 export function endOfBucket(kind: BucketKind, calendar: CalendarSystem, anchor: string): string {
   const d = new Date(anchor + "T00:00:00");
-  if (isSubDayBucket(kind) || kind === "day") return isoDate(d);
+  if (kind === "day") return isoDate(d);
 
   if (calendar === "jalali") {
     if (kind === "week") return isoDate(jEndOfWeek(d, { weekStartsOn: 6 }));
@@ -151,27 +137,6 @@ export function bucketLabel(
   const fa = lang === "fa";
   const today = isoDate(new Date());
   const tomorrow = isoDate(addDays(new Date(), 1));
-
-  // Sub-day buckets
-  if (isSubDayBucket(kind)) {
-    const subLabels: Record<SubDayBucketKind, { fa: string; en: string }> = {
-      morning: { fa: "صبح", en: "Morning" },
-      noon: { fa: "ظهر", en: "Noon" },
-      afternoon: { fa: "عصر", en: "Afternoon" },
-      night: { fa: "شب", en: "Night" },
-    };
-    const sl = subLabels[kind];
-    if (anchor === today) {
-      return fa ? `${sl.fa} امروز` : `${sl.en} Today`;
-    }
-    if (anchor === tomorrow) {
-      return fa ? `${sl.fa} فردا` : `${sl.en} Tomorrow`;
-    }
-    const dateFormatted = calendar === "jalali"
-      ? toPersianDigits(jFormat(d, "d MMMM"))
-      : gFormat(d, "d MMM");
-    return fa ? `${sl.fa} (${dateFormatted})` : `${sl.en} (${dateFormatted})`;
-  }
 
   // Day bucket
   if (kind === "day") {
@@ -220,10 +185,6 @@ export function bucketLabel(
 export function kindLabel(kind: BucketKind, lang: "fa" | "en" = "fa"): string {
   if (lang === "en") {
     return {
-      morning: "Morning",
-      noon: "Noon",
-      afternoon: "Afternoon",
-      night: "Night",
       day: "Today",
       week: "This Week",
       month: "This Month",
@@ -232,10 +193,6 @@ export function kindLabel(kind: BucketKind, lang: "fa" | "en" = "fa"): string {
     }[kind];
   }
   return {
-    morning: "صبح",
-    noon: "ظهر",
-    afternoon: "عصر",
-    night: "شب",
     day: "امروز",
     week: "این هفته",
     month: "این ماه",
@@ -254,20 +211,20 @@ export interface BucketFilterOptions {
 
 export interface BucketMatchResult {
   matches: boolean;
-  matchReason: "exact_due_date" | "direct_bucket" | "nested_bucket" | "none";
+  matchReason: "exact_work_date" | "direct_bucket" | "nested_bucket" | "none";
   displayBadge?: string;
 }
 
 /**
  * Checks whether a task falls into a target time bucket scope.
  * Supports:
- * 1. Exact due_date falling into the time range
+ * 1. Exact work_date falling into the time range
  * 2. Direct bucket assignment
  * 3. Hierarchical inclusion of smaller buckets (e.g. sub-day inside day/week, week inside month, month inside quarter)
  */
 export function doesTaskMatchBucketScope(
   task: {
-    due_date?: string | null;
+    work_date?: string | null;
     bucket_kind?: BucketKind | null;
     bucket_calendar?: CalendarSystem | null;
     bucket_anchor?: string | null;
@@ -300,12 +257,12 @@ export function doesTaskMatchBucketScope(
   const scopeRange = bucketRange(options.scopeKind, cal, anchor);
 
   // A. Check exact due date
-  if (task.due_date) {
-    const taskDateStr = task.due_date.slice(0, 10);
+  if (task.work_date) {
+    const taskDateStr = task.work_date.slice(0, 10);
     if (taskDateStr >= scopeRange.start && taskDateStr <= scopeRange.end) {
       return {
         matches: true,
-        matchReason: "exact_due_date",
+        matchReason: "exact_work_date",
         displayBadge: undefined,
       };
     }
@@ -347,7 +304,7 @@ export function doesTaskMatchBucketScope(
 
 export interface BucketFilterSettings {
   hierarchical: boolean;
-  activeCategory: "multi_day" | "sub_day";
+  activeCategory: "multi_day";
   strictKinds: BucketKind[];
 }
 
@@ -360,7 +317,7 @@ export function getBucketFilterSettings(): BucketFilterSettings {
       const parsed = JSON.parse(raw);
       return {
         hierarchical: parsed.hierarchical ?? true,
-        activeCategory: parsed.activeCategory === "sub_day" ? "sub_day" : "multi_day",
+        activeCategory: "multi_day",
         strictKinds: Array.isArray(parsed.strictKinds)
           ? parsed.strictKinds.filter((k: any) => ALL_BUCKET_KINDS.includes(k))
           : [],

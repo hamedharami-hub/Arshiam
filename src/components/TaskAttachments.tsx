@@ -230,7 +230,7 @@ function TaskAttachmentsContent({ taskId, onCountChange }: { taskId: string; onC
     try {
       if (action === "tasks" || action === "scheduled_tasks") {
         const text = action === "scheduled_tasks"
-          ? "Extract actionable tasks from this image. Suggest a reasonable due_date (ISO 8601) for each based on visible cues. Return tasks via the tool."
+          ? "Extract actionable tasks from this image. Suggest a reasonable work_date (ISO 8601) for each based on visible cues. Return tasks via the tool."
           : "Extract actionable tasks from this image. Return tasks via the tool.";
         const result = await saveImageTaskBatch({
           userId: user.id, taskId, imageId: pendingImage.id, action,

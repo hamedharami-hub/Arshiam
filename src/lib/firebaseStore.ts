@@ -1,3 +1,5 @@
+import { isExplicitScheduleApply, normalizeTaskSchedule, supportedTaskPatch } from "@/lib/taskScheduleMigration";
+import { taskScheduleWrite, withApplyDeleteMarkers } from "./taskScheduleWrite";
 import {
   auth,
   collection,
@@ -25,6 +27,7 @@ type Result<T = Row[]> = { data: T | null; error: Error | null; count?: number |
 type Filter = { field: string; operator: string; value: unknown };
 
 const currentUserId = () => auth.currentUser?.uid || null;
+const writtenTask = (row: Row) => isExplicitScheduleApply(row) ? withApplyDeleteMarkers(row) : taskScheduleWrite(row);
 const makeId = () => typeof crypto !== "undefined" && crypto.randomUUID
   ? crypto.randomUUID()
   : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -99,7 +102,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
     if (!userId) return { data: null, error: new Error("برای دسترسی به داده وارد شوید") };
 
     const live = await liveRows(userId, this.table).catch(() => null);
-    if (live) return this.shape(live.filter((row) => matches(row, this.filters)));
+    if (live) return this.shape((this.table === "tasks" ? live.map(normalizeTaskSchedule) : live).filter((row) => matches(row, this.filters)));
 
     // Fast path: direct document lookup when filtering by ID
     const idFilter = this.filters.find((f) => f.field === "id" && f.operator === "eq");
@@ -111,7 +114,8 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         if (!docSnap.exists()) {
           return { data: [], error: null, count: this.wantsCount ? 0 : null };
         }
-        const row = { id: docSnap.id, ...docSnap.data() } as Row;
+        const rawRow = { id: docSnap.id, ...docSnap.data() } as Row;
+        const row = this.table === "tasks" ? normalizeTaskSchedule(rawRow) : rawRow;
         if (!matches(row, this.filters)) {
           return { data: [], error: null, count: this.wantsCount ? 0 : null };
         }
@@ -180,13 +184,14 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
 
       if (!snapshot.metadata?.fromCache) trackRead(Math.max(1, snapshot.docs.length), this.table);
       const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Row[];
-      return this.shape(rows.filter((row) => matches(row, this.filters)));
+      return this.shape((this.table === "tasks" ? rows.map(normalizeTaskSchedule) : rows).filter((row) => matches(row, this.filters)));
     } catch (cause) {
       return { data: null, error: cause instanceof Error ? cause : new Error("خطا در خواندن داده") };
     }
   }
 
   private shape(input: Row[]): Result<Row[]> {
+    if (this.table === "tasks") input = input.map(normalizeTaskSchedule);
     let rows = input;
     if (this.sort) {
       rows = [...rows].sort((a, b) => {
@@ -262,7 +267,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         const row = {
           created_at: raw.created_at || now,
           updated_at: raw.updated_at || now,
-          ...raw,
+          ...(this.table === "tasks" ? supportedTaskPatch(raw) : raw),
           id,
           user_id: raw.user_id || userId,
         };
@@ -270,7 +275,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         if (this.table === "cycle_profiles" || this.table === "cycle_logs") {
           await writeCycleRecord(userId, this.table, row);
         } else {
-          await setDoc(doc(db, "users", userId, this.table, id), row, { merge: true });
+          await setDoc(doc(db, "users", userId, this.table, id), this.table === "tasks" ? writtenTask(row) : row, { merge: true });
         }
         trackWrite(1, this.table);
         saved.push(row);
@@ -282,6 +287,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
     }
   }
   update(patch: Row) {
+    if (this.table === "tasks") patch = supportedTaskPatch(patch);
     return new FirestoreMutation<Row[]>(this, async () => {
       const userId = currentUserId();
       if (!userId) return { data: null, error: new Error("برای ذخیره وارد شوید") };
@@ -291,7 +297,7 @@ class FirestoreQuery<TData = Row[]> implements PromiseLike<Result<TData>> {
         try {
           const docRef = doc(db, "users", userId, this.table, idFilter.value);
           const updatedRow = { ...patch, id: idFilter.value, user_id: userId, updated_at: patch.updated_at || new Date().toISOString() };
-          await updateDoc(docRef, updatedRow);
+          await updateDoc(docRef, this.table === "tasks" ? writtenTask(updatedRow) : updatedRow);
           trackWrite(1, this.table);
           if (typeof window !== "undefined") window.dispatchEvent(new Event("firebase-store-changed"));
           return { data: [updatedRow], error: null };

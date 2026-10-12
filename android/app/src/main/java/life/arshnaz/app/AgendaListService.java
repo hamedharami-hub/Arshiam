@@ -70,7 +70,7 @@ public class AgendaListService extends RemoteViewsService {
             }
             boolean isFa=!"en".equalsIgnoreCase(java.util.Locale.getDefault().getLanguage());
             boolean priority="high".equals(t.optString("priority"))||"urgent".equals(t.optString("priority"));
-            String due=AgendaData.dueLabel(t.optString("due_date"));
+            String due=AgendaData.dueLabel(t.optString("work_date"));
             String metaText;
             if (hasChildren) {
                 String subCount=isFa?(count+" زیرمجموعه"):(count+" subtasks");

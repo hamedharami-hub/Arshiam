@@ -1,3 +1,4 @@
+import { normalizeTaskSchedule } from "@/lib/taskScheduleMigration";
 import { collection, getDocs, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { liveRows } from "@/lib/firestoreLive";
@@ -49,7 +50,7 @@ function persistTaskCache(userId: string, tasks: Task[]): Promise<void> {
 
 function sortTasks(tasks: Task[]): Task[] {
   if (!Array.isArray(tasks)) return [];
-  return [...tasks].filter(Boolean).sort((a, b) => {
+  return [...tasks].filter(Boolean).map(normalizeTaskSchedule).sort((a, b) => {
     if (!a || !b) return 0;
     if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
     const positionA = (a as Task & { position?: number }).position ?? 0;

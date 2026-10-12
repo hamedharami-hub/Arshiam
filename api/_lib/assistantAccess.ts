@@ -37,6 +37,7 @@ export const testStore = {
   tasks: new Map<string, any>(),
   folders: new Map<string, any>(),
   notes: new Map<string, any>(),
+  events: new Map<string, any>(),
   audit: [] as any[],
   reset() {
     this.grants.clear();
@@ -44,6 +45,7 @@ export const testStore = {
     this.tasks.clear();
     this.folders.clear();
     this.notes.clear();
+    this.events.clear();
     this.audit = [];
   },
 };

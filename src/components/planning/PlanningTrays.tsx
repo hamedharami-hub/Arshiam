@@ -2,7 +2,7 @@ import { useState } from "react";
 import { History, Inbox, Plus } from "lucide-react";
 import type { Task } from "@/lib/taskTypes";
 import { periodLabel, type TimeSettings } from "@/lib/timeHorizon";
-import { getTaskPlanning, isTaskOverdue } from "@/lib/taskPlanning";
+import { getTaskPlanning, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { toPersianDigits } from "@/lib/jalali";
 
 const num = (n: number, fa: boolean) => (fa ? toPersianDigits(n) : String(n));
@@ -54,7 +54,7 @@ export function CarryOverCard({ tasks, settings, fa, onMoveHere, onComplete, onD
       <ul className="space-y-2">
         {tasks.map((t) => {
           const p = getTaskPlanning(t, settings);
-          const overdue = isTaskOverdue(t, settings);
+          const overdue = isTaskMissedWorkDay(t, settings);
           return (
             <li key={t.id} className="rounded-lg bg-background/70 p-2" data-testid={`planning-carryover-item-${t.id}`}>
               <div className="flex items-center gap-2">

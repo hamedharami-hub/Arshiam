@@ -324,7 +324,7 @@ export interface LifeBlueprint {
   goals: PlannedGoal[];
   habits: PlannedHabit[];
   tasks: PlannedTask[];
-  recommendedWorkflow: "kanban" | "list" | "time-blocking";
+  recommendedWorkflow: "kanban" | "list";
 }
 
 export interface SystemAuditResult {
@@ -867,7 +867,7 @@ export function generateDeterministicBlueprint(answers: UserAnswers): LifeBluepr
     goals,
     habits,
     tasks,
-    recommendedWorkflow: role === "freelancer" || role === "creator" ? "kanban" : role === "student" ? "time-blocking" : "list",
+    recommendedWorkflow: role === "freelancer" || role === "creator" ? "kanban" : "list",
   };
 }
 
@@ -929,7 +929,7 @@ ${JSON.stringify(baseBlueprint, null, 2)}
 
 export async function auditExistingSystem(userId: string): Promise<SystemAuditResult> {
   const [tasksRes, foldersRes, habitsRes] = await Promise.all([
-    firebaseStore.from("tasks").select("id,title,completed,folder_id,due_date,created_at").eq("user_id", userId),
+    firebaseStore.from("tasks").select("id,title,completed,folder_id,work_date,created_at").eq("user_id", userId),
     firebaseStore.from("folders").select("id,name,color").eq("user_id", userId),
     firebaseStore.from("habits").select("id,name,frequency").eq("user_id", userId),
   ]);
@@ -1184,7 +1184,7 @@ export async function deployLifeBlueprint(
       description: t.description || "",
       folder_id: realFolderId,
       priority: t.priority || "medium",
-      due_date: due.toISOString(),
+      work_date: due.toISOString(),
     });
     if (!error) tasksCount++;
   }

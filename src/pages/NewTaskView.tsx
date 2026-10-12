@@ -1,4 +1,4 @@
-import { planningPatch } from "@/lib/taskPlanning";
+import { scheduleWriteForPeriod } from "@/lib/taskScheduleChoices";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -74,8 +74,7 @@ export default function NewTaskView() {
     const tagId = params.get("tag_id");
     const folderId = params.get("folder_id");
     const kanbanColumnId = params.get("kanban_goal_id") || params.get("goal_id") || params.get("kanban_column_id");
-    const dueDate = params.get("work_date") ?? params.get("due_date");
-    const deadline = params.has("work_date") ? params.get("due_date") : null;
+    const dueDate = params.get("work_date");
     const recurrenceRule = parseRecurrenceRule(params.get("recurrence_rule"));
     const initialTitle = params.get("title") || "";
     const initialDescription = params.get("description") || "";
@@ -93,7 +92,7 @@ export default function NewTaskView() {
     const planningHorizon = params.get("planning_horizon");
     const planningStart = params.get("planning_start");
     const planningDefaults = planningHorizon && ["day", "week", "month", "quarter", "year"].includes(planningHorizon) && planningStart && /^\d{4}-\d{2}-\d{2}$/.test(planningStart)
-      ? planningPatch(periodFor(planningHorizon as Horizon, fromLocalISO(planningStart), getTimeSettings()), getTimeSettings()) : {};
+      ? scheduleWriteForPeriod(periodFor(planningHorizon as Horizon, fromLocalISO(planningStart), getTimeSettings()), getTimeSettings()) ?? {} : {};
     setDraft({
       id,
       user_id: user.id,
@@ -103,19 +102,16 @@ export default function NewTaskView() {
       kanban_column_id: kanbanColumnId || null,
       parent_id: parentId,
       work_date: dueDate,
-      due_date: deadline,
       ...timeDefaults,
       ...planningDefaults,
       priority: params.get("priority") && params.get("priority") in PRIORITY_META ? params.get("priority") as Priority : "none",
       completed: isCompleted,
       status: statusParam,
-      reminder_at: null,
+      reminder_at: params.get("reminder_at"),
       recurrence: recurrenceRule && recurrenceRule.freq !== "yearly" ? recurrenceRule.freq : "none",
       recurrence_rule: recurrenceRule,
+      reminder_plan: (() => { try { return JSON.parse(params.get("reminder_plan") || "null"); } catch { return null; } })(),
       pinned: false,
-      start_at: null,
-      end_at: null,
-      estimated_minutes: null,
     } as Task);
   }, [user, params]);
 

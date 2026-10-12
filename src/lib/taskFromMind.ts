@@ -34,7 +34,7 @@ export async function createTaskFromMind(opts: CreateTaskFromMindOptions): Promi
     title: opts.title.slice(0, 200),
     description: opts.description?.slice(0, 2000) || null,
     priority: opts.priority || "medium",
-    due_date: due,
+    work_date: due,
     completed: false,
     status: "todo",
     folder_id: null,
@@ -43,9 +43,6 @@ export async function createTaskFromMind(opts: CreateTaskFromMindOptions): Promi
     recurrence_rule: null,
     parent_id: null,
     pinned: false,
-    start_at: null,
-    end_at: null,
-    estimated_minutes: null,
     source_type: opts.source_type || null,
     source_id: opts.source_id || null,
   };

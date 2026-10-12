@@ -15,6 +15,7 @@ import {
   limit,
   onSnapshot,
   serverTimestamp,
+  deleteField,
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
@@ -89,6 +90,7 @@ export {
   updateProfile,
   fbSignOut,
   onAuthStateChanged,
+  deleteField,
 };
 
 export type { FirebaseUser };

@@ -47,11 +47,13 @@ export function TaskNoteEditorDialog({
   const isEn = Boolean(i18n.language?.startsWith("en"));
   const T = (fa: string, en: string) => (isEn ? en : fa);
 
-  const [title, setTitle] = useState(() => note?.title || "");
-  const [content, setContent] = useState(() => note?.content || "");
+  const storedTitle = typeof note?.title === "string" ? note.title : "";
+  const storedBody = typeof note?.content === "string" ? note.content : "";
+  const [title, setTitle] = useState(storedTitle);
+  const [content, setContent] = useState(storedBody);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const highlights = content.split("\n").flatMap((line) => {
+  const highlights = content.slice(0, 8000).split("\n").flatMap((line) => {
     const found: string[] = [];
     if (/^#{1,6}\s+/.test(line)) found.push(line.replace(/^#{1,6}\s+/, "").trim());
     for (const match of line.matchAll(/\*\*(.+?)\*\*|==(.+?)==|(^|\s)⭐\s*(.+)/g)) {
@@ -62,12 +64,11 @@ export function TaskNoteEditorDialog({
   });
 
   useEffect(() => {
-    if (note) {
-      const nextTitle = note.title || "";
-      const nextContent = note.content || "";
-      setTitle((prev) => (prev !== nextTitle ? nextTitle : prev));
-      setContent((prev) => (prev !== nextContent ? nextContent : prev));
-    }
+    if (!note) return;
+    const nextTitle = typeof note.title === "string" ? note.title : "";
+    const nextContent = typeof note.content === "string" ? note.content : "";
+    setTitle((prev) => (prev !== nextTitle ? nextTitle : prev));
+    setContent((prev) => (prev !== nextContent ? nextContent : prev));
   }, [note, open]);
 
   if (!note) return null;
@@ -134,7 +135,7 @@ export function TaskNoteEditorDialog({
           </label>
         </div>
         <p className="mb-2 text-[11px] text-muted-foreground">{T("متن را انتخاب کن تا ابزار AI ظاهر شود؛ از نوار ویرایش برای عکس و فایل استفاده کن.", "Select text for AI actions; use the editor toolbar for images and files.")}</p>
-        <NoteEditorTabs noteId={`task-note-${note.id}`} markdown={content} onChange={(md) => setContent(md)} readOnly={!canEdit || saving} />
+        <NoteEditorTabs noteId={`task-note-${note.id}`} markdown={content} onChange={(md) => setContent((prev) => (prev === md ? prev : md))} readOnly={!canEdit || saving} />
         {highlights.length > 0 && <details className="mt-3 rounded-xl border bg-muted/20 p-2.5 text-xs">
           <summary className="cursor-pointer font-medium">{T("نکات برجسته و تیترها", "Highlights and headings")} ({highlights.length})</summary>
           <ul className="mt-2 space-y-1 ps-3 border-s"><>{highlights.map((item, index) => <li key={`${item}-${index}`} className="break-words">{item}</li>)}</></ul>
@@ -192,6 +193,11 @@ export function TaskNoteEditorDialog({
           <DialogContent
             dir={isEn ? "ltr" : "rtl"}
             className="w-full max-w-3xl max-h-[90vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            onFocusOutside={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
+            onPointerDownOutside={(event) => event.preventDefault()}
           >
             <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-border/50">
               <div className="flex items-center gap-2">
@@ -212,6 +218,11 @@ export function TaskNoteEditorDialog({
             side="bottom"
             dir={isEn ? "ltr" : "rtl"}
             className="rounded-t-2xl max-h-[85vh] flex flex-col p-4 pb-6 overflow-hidden"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            onFocusOutside={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
+            onPointerDownOutside={(event) => event.preventDefault()}
           >
             <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-border/50">
               <div className="flex items-center gap-2">

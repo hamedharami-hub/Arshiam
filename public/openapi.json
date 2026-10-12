@@ -33,7 +33,9 @@
         "summary": "Get authenticated user profile",
         "description": "Returns details of the currently authenticated user identified by the Bearer token or OAuth credentials.",
         "operationId": "getCurrentUser",
-        "tags": ["User"],
+        "tags": [
+          "User"
+        ],
         "responses": {
           "200": {
             "description": "User profile retrieved successfully",
@@ -63,7 +65,9 @@
         "summary": "List tasks for authenticated user",
         "description": "Retrieves tasks belonging strictly to the authenticated user with optional filtering by status, priority, or search term.",
         "operationId": "listTasks",
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "parameters": [
           {
             "name": "completed",
@@ -81,7 +85,16 @@
             "description": "Filter by priority level",
             "schema": {
               "type": "string",
-              "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"]
+              "enum": [
+                "p1",
+                "p2",
+                "p3",
+                "p4",
+                "high",
+                "medium",
+                "low",
+                "none"
+              ]
             }
           },
           {
@@ -91,7 +104,12 @@
             "description": "Filter by task status",
             "schema": {
               "type": "string",
-              "enum": ["todo", "in_progress", "done", "wont_do"]
+              "enum": [
+                "todo",
+                "in_progress",
+                "done",
+                "wont_do"
+              ]
             }
           },
           {
@@ -152,7 +170,9 @@
         "summary": "Create a new task",
         "description": "Creates a new task assigned to the authenticated user. The user_id is automatically associated with current_user.",
         "operationId": "createTask",
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -202,7 +222,9 @@
         "summary": "Get today's tasks",
         "description": "Fetches all tasks due today for the authenticated user, as well as overdue incomplete tasks. Essential for AI daily schedule summaries.",
         "operationId": "getTodayTasks",
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "responses": {
           "200": {
             "description": "Today's tasks retrieved successfully",
@@ -232,7 +254,9 @@
         "summary": "Get task by ID",
         "description": "Retrieves a single task by its unique ID. Only returns if the task belongs to the authenticated user.",
         "operationId": "getTaskById",
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -281,7 +305,9 @@
         "summary": "Update task",
         "description": "Updates specific fields of an existing task owned by the authenticated user (e.g. mark completed, change priority or due date).",
         "operationId": "updateTask",
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -350,7 +376,9 @@
         "summary": "Delete task",
         "description": "Permanently deletes a task belonging to the authenticated user.",
         "operationId": "deleteTask",
-        "tags": ["Tasks"],
+        "tags": [
+          "Tasks"
+        ],
         "parameters": [
           {
             "name": "id",
@@ -398,223 +426,520 @@
       "/api/v1/agent/me": {
         "get": {
           "summary": "Get authenticated agent status and scopes",
-          "tags": ["AI Agent"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Agent token verified and details returned" },
-            "401": { "description": "Invalid, expired, or revoked token" }
+            "200": {
+              "description": "Agent token verified and details returned"
+            },
+            "401": {
+              "description": "Invalid, expired, or revoked token"
+            }
           }
         }
       },
       "/api/v1/agent/audit-log": {
         "get": {
           "summary": "Get recent audit activity for this agent",
-          "tags": ["AI Agent"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Audit log list returned" }
+            "200": {
+              "description": "Audit log list returned"
+            }
           }
         }
       },
       "/api/v1/agent/tasks": {
         "get": {
           "summary": "List and filter user tasks",
-          "tags": ["AI Agent Tasks"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Tasks"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "parameters": [
-            { "name": "status", "in": "query", "schema": { "type": "string" } },
-            { "name": "priority", "in": "query", "schema": { "type": "string" } },
-            { "name": "completed", "in": "query", "schema": { "type": "boolean" } },
-            { "name": "folder_id", "in": "query", "schema": { "type": "string" } },
-            { "name": "search", "in": "query", "schema": { "type": "string" } },
-            { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
-            { "name": "page_size", "in": "query", "schema": { "type": "integer", "default": 50 } }
+            {
+              "name": "status",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "priority",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "completed",
+              "in": "query",
+              "schema": {
+                "type": "boolean"
+              }
+            },
+            {
+              "name": "folder_id",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "search",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "page",
+              "in": "query",
+              "schema": {
+                "type": "integer",
+                "default": 1
+              }
+            },
+            {
+              "name": "page_size",
+              "in": "query",
+              "schema": {
+                "type": "integer",
+                "default": 50
+              }
+            }
           ],
           "responses": {
-            "200": { "description": "Tasks list with pagination" }
+            "200": {
+              "description": "Tasks list with pagination"
+            }
           }
         },
         "post": {
           "summary": "Create a new task",
-          "tags": ["AI Agent Tasks"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Tasks"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "201": { "description": "Task created successfully" }
+            "201": {
+              "description": "Task created successfully"
+            }
           }
         }
       },
       "/api/v1/agent/tasks/{taskId}": {
         "get": {
           "summary": "Get full details of a task",
-          "tags": ["AI Agent Tasks"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Tasks"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Task details" },
-            "404": { "description": "Task not found" }
+            "200": {
+              "description": "Task details"
+            },
+            "404": {
+              "description": "Task not found"
+            }
           }
         },
         "patch": {
           "summary": "Update task fields",
-          "tags": ["AI Agent Tasks"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Tasks"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Task updated" }
+            "200": {
+              "description": "Task updated"
+            }
           }
         }
       },
       "/api/v1/agent/tasks/{taskId}/complete": {
         "post": {
           "summary": "Mark task as completed",
-          "tags": ["AI Agent Tasks"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Tasks"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Task marked done" }
+            "200": {
+              "description": "Task marked done"
+            }
           }
         }
       },
       "/api/v1/agent/tasks/{taskId}/reopen": {
         "post": {
           "summary": "Reopen a completed task",
-          "tags": ["AI Agent Tasks"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Tasks"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Task marked todo" }
+            "200": {
+              "description": "Task marked todo"
+            }
           }
         }
       },
       "/api/v1/agent/folders": {
         "get": {
           "summary": "List all folders with task counts",
-          "tags": ["AI Agent Folders"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Folders"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Folders list" }
+            "200": {
+              "description": "Folders list"
+            }
           }
         },
         "post": {
           "summary": "Create a new folder",
-          "tags": ["AI Agent Folders"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Folders"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "201": { "description": "Folder created" }
+            "201": {
+              "description": "Folder created"
+            }
           }
         }
       },
       "/api/v1/agent/folders/{folderId}": {
         "get": {
           "summary": "Get folder details and its tasks",
-          "tags": ["AI Agent Folders"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Folders"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Folder details with tasks" }
+            "200": {
+              "description": "Folder details with tasks"
+            }
           }
         },
         "patch": {
           "summary": "Update folder name, color, parent or position",
-          "tags": ["AI Agent Folders"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Folders"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Folder updated" }
+            "200": {
+              "description": "Folder updated"
+            }
           }
         }
       },
       "/api/v1/agent/memories": {
         "get": {
           "summary": "List memories and notes",
-          "tags": ["AI Agent Memories"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Memories"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "parameters": [
-            { "name": "kind", "in": "query", "schema": { "type": "string", "enum": ["all", "diary", "note"] } },
-            { "name": "date", "in": "query", "schema": { "type": "string" } },
-            { "name": "search", "in": "query", "schema": { "type": "string" } }
+            {
+              "name": "kind",
+              "in": "query",
+              "schema": {
+                "type": "string",
+                "enum": [
+                  "all",
+                  "diary",
+                  "note"
+                ]
+              }
+            },
+            {
+              "name": "date",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "search",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            }
           ],
           "responses": {
-            "200": { "description": "Memories list" }
+            "200": {
+              "description": "Memories list"
+            }
           }
         },
         "post": {
           "summary": "Create a note or diary entry",
-          "tags": ["AI Agent Memories"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Memories"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "201": { "description": "Memory created" }
+            "201": {
+              "description": "Memory created"
+            }
           }
         }
       },
       "/api/v1/agent/memories/{memoryId}": {
         "get": {
           "summary": "Get a specific note or memory",
-          "tags": ["AI Agent Memories"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Memories"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Memory retrieved" }
+            "200": {
+              "description": "Memory retrieved"
+            }
           }
         },
         "patch": {
           "summary": "Update a note or diary entry",
-          "tags": ["AI Agent Memories"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Memories"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Memory updated" }
+            "200": {
+              "description": "Memory updated"
+            }
           }
         }
       },
       "/api/v1/agent/schedule/day": {
         "get": {
           "summary": "Get daily schedule and events",
-          "tags": ["AI Agent Schedule"],
-          "security": [{ "personalAgentToken": [] }],
-          "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string" } }],
-          "responses": { "200": { "description": "Day schedule returned" } }
+          "tags": [
+            "AI Agent Schedule"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "date",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Day schedule returned"
+            }
+          }
         }
       },
       "/api/v1/agent/schedule/week": {
         "get": {
           "summary": "Get weekly schedule and events",
-          "tags": ["AI Agent Schedule"],
-          "security": [{ "personalAgentToken": [] }],
-          "parameters": [{ "name": "date", "in": "query", "schema": { "type": "string" } }],
-          "responses": { "200": { "description": "Week schedule returned" } }
+          "tags": [
+            "AI Agent Schedule"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "date",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Week schedule returned"
+            }
+          }
         }
       },
       "/api/v1/agent/schedule/month": {
         "get": {
           "summary": "Get monthly schedule and events",
-          "tags": ["AI Agent Schedule"],
-          "security": [{ "personalAgentToken": [] }],
-          "parameters": [{ "name": "month", "in": "query", "schema": { "type": "string" } }],
-          "responses": { "200": { "description": "Month schedule returned" } }
+          "tags": [
+            "AI Agent Schedule"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "month",
+              "in": "query",
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Month schedule returned"
+            }
+          }
         }
       },
       "/api/v1/agent/calendar/events": {
         "get": {
           "summary": "Get events within a custom ISO 8601 date range",
-          "tags": ["AI Agent Calendar"],
-          "security": [{ "personalAgentToken": [] }],
-          "parameters": [
-            { "name": "start", "in": "query", "required": true, "schema": { "type": "string" } },
-            { "name": "end", "in": "query", "required": true, "schema": { "type": "string" } }
+          "tags": [
+            "AI Agent Calendar"
           ],
-          "responses": { "200": { "description": "Events in window" } }
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "start",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            },
+            {
+              "name": "end",
+              "in": "query",
+              "required": true,
+              "schema": {
+                "type": "string"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Events in window"
+            }
+          }
         },
         "post": {
           "summary": "Create a scheduled event with time-conflict detection",
-          "tags": ["AI Agent Calendar"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Calendar"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "201": { "description": "Event scheduled" },
-            "409": { "description": "Time conflict detected with existing event" }
+            "201": {
+              "description": "Event scheduled"
+            },
+            "409": {
+              "description": "Time conflict detected with existing event"
+            }
           }
         }
       },
       "/api/v1/agent/calendar/events/{eventId}": {
         "patch": {
           "summary": "Update event time or details with conflict check",
-          "tags": ["AI Agent Calendar"],
-          "security": [{ "personalAgentToken": [] }],
+          "tags": [
+            "AI Agent Calendar"
+          ],
+          "security": [
+            {
+              "personalAgentToken": []
+            }
+          ],
           "responses": {
-            "200": { "description": "Event updated" },
-            "409": { "description": "Time conflict detected" }
+            "200": {
+              "description": "Event updated"
+            },
+            "409": {
+              "description": "Time conflict detected"
+            }
           }
         }
       }
@@ -653,29 +978,47 @@
     "schemas": {
       "UserProfile": {
         "type": "object",
-        "required": ["userId"],
+        "required": [
+          "userId"
+        ],
         "properties": {
           "userId": {
             "type": "string",
             "description": "The unique Firebase / Google account identifier"
           },
           "email": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "User email address"
           },
           "displayName": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "User display name"
           },
           "photoURL": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "User avatar image URL"
           }
         }
       },
       "Task": {
         "type": "object",
-        "required": ["id", "user_id", "title", "completed", "priority", "status"],
+        "required": [
+          "id",
+          "user_id",
+          "title",
+          "completed",
+          "priority",
+          "status"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -690,7 +1033,10 @@
             "description": "Task title"
           },
           "description": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Task description or notes"
           },
           "completed": {
@@ -699,37 +1045,45 @@
           },
           "priority": {
             "type": "string",
-            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"],
+            "enum": [
+              "p1",
+              "p2",
+              "p3",
+              "p4",
+              "high",
+              "medium",
+              "low",
+              "none"
+            ],
             "description": "Task priority level"
           },
           "status": {
             "type": "string",
-            "enum": ["todo", "in_progress", "done", "wont_do"],
+            "enum": [
+              "todo",
+              "in_progress",
+              "done",
+              "wont_do"
+            ],
             "description": "Current status of the task"
           },
-          "due_date": {
-            "type": ["string", "null"],
-            "description": "Due date in YYYY-MM-DD or ISO 8601 format"
+          "work_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Scheduled start time (ISO 8601)"
           },
           "folder_id": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Folder identifier if assigned to a folder"
           },
           "pinned": {
             "type": "boolean",
             "description": "Whether task is pinned at top"
-          },
-          "start_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled start time (ISO 8601)"
-          },
-          "end_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled end time (ISO 8601)"
-          },
-          "estimated_minutes": {
-            "type": ["integer", "null"],
-            "description": "Estimated duration in minutes"
           },
           "created_at": {
             "type": "string",
@@ -743,50 +1097,63 @@
       },
       "CreateTaskInput": {
         "type": "object",
-        "required": ["title"],
+        "required": [
+          "title"
+        ],
         "properties": {
           "title": {
             "type": "string",
             "description": "Title of the new task"
           },
           "description": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Optional detailed notes or description"
           },
           "priority": {
             "type": "string",
-            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"],
+            "enum": [
+              "p1",
+              "p2",
+              "p3",
+              "p4",
+              "high",
+              "medium",
+              "low",
+              "none"
+            ],
             "default": "p4",
             "description": "Task priority"
           },
-          "due_date": {
-            "type": ["string", "null"],
-            "description": "Due date in YYYY-MM-DD or ISO 8601 format"
+          "work_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Scheduled start time (ISO 8601)"
           },
           "status": {
             "type": "string",
-            "enum": ["todo", "in_progress", "done", "wont_do"],
+            "enum": [
+              "todo",
+              "in_progress",
+              "done",
+              "wont_do"
+            ],
             "default": "todo"
           },
           "folder_id": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Optional folder ID"
           },
           "pinned": {
             "type": "boolean",
             "default": false
-          },
-          "start_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled start time (ISO 8601)"
-          },
-          "end_at": {
-            "type": ["string", "null"],
-            "description": "Scheduled end time (ISO 8601)"
-          },
-          "estimated_minutes": {
-            "type": ["integer", "null"],
-            "description": "Estimated duration in minutes"
           }
         }
       },
@@ -798,7 +1165,10 @@
             "description": "Updated title"
           },
           "description": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Updated description"
           },
           "completed": {
@@ -807,37 +1177,50 @@
           },
           "priority": {
             "type": "string",
-            "enum": ["p1", "p2", "p3", "p4", "high", "medium", "low", "none"]
+            "enum": [
+              "p1",
+              "p2",
+              "p3",
+              "p4",
+              "high",
+              "medium",
+              "low",
+              "none"
+            ]
           },
           "status": {
             "type": "string",
-            "enum": ["todo", "in_progress", "done", "wont_do"]
+            "enum": [
+              "todo",
+              "in_progress",
+              "done",
+              "wont_do"
+            ]
           },
-          "due_date": {
-            "type": ["string", "null"],
-            "description": "Updated due date in YYYY-MM-DD or ISO 8601 format"
+          "work_date": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "folder_id": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Updated folder ID"
           },
           "pinned": {
             "type": "boolean"
-          },
-          "start_at": {
-            "type": ["string", "null"]
-          },
-          "end_at": {
-            "type": ["string", "null"]
-          },
-          "estimated_minutes": {
-            "type": ["integer", "null"]
           }
         }
       },
       "UserProfileResponse": {
         "type": "object",
-        "required": ["success", "data"],
+        "required": [
+          "success",
+          "data"
+        ],
         "properties": {
           "success": {
             "type": "boolean",
@@ -850,7 +1233,10 @@
       },
       "TaskItemResponse": {
         "type": "object",
-        "required": ["success", "data"],
+        "required": [
+          "success",
+          "data"
+        ],
         "properties": {
           "success": {
             "type": "boolean",
@@ -863,7 +1249,10 @@
       },
       "TaskListResponse": {
         "type": "object",
-        "required": ["success", "data"],
+        "required": [
+          "success",
+          "data"
+        ],
         "properties": {
           "success": {
             "type": "boolean",
@@ -871,7 +1260,10 @@
           },
           "data": {
             "type": "object",
-            "required": ["tasks", "total"],
+            "required": [
+              "tasks",
+              "total"
+            ],
             "properties": {
               "tasks": {
                 "type": "array",
@@ -888,7 +1280,10 @@
       },
       "TodayTaskListResponse": {
         "type": "object",
-        "required": ["success", "data"],
+        "required": [
+          "success",
+          "data"
+        ],
         "properties": {
           "success": {
             "type": "boolean",
@@ -896,7 +1291,11 @@
           },
           "data": {
             "type": "object",
-            "required": ["today", "overdue", "summary"],
+            "required": [
+              "today",
+              "overdue",
+              "summary"
+            ],
             "properties": {
               "today": {
                 "type": "array",
@@ -913,9 +1312,15 @@
               "summary": {
                 "type": "object",
                 "properties": {
-                  "totalToday": { "type": "integer" },
-                  "totalOverdue": { "type": "integer" },
-                  "completedCount": { "type": "integer" }
+                  "totalToday": {
+                    "type": "integer"
+                  },
+                  "totalOverdue": {
+                    "type": "integer"
+                  },
+                  "completedCount": {
+                    "type": "integer"
+                  }
                 }
               }
             }
@@ -924,7 +1329,10 @@
       },
       "DeleteTaskResponse": {
         "type": "object",
-        "required": ["success", "message"],
+        "required": [
+          "success",
+          "message"
+        ],
         "properties": {
           "success": {
             "type": "boolean",
@@ -938,7 +1346,10 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["success", "error"],
+        "required": [
+          "success",
+          "error"
+        ],
         "properties": {
           "success": {
             "type": "boolean",
@@ -946,7 +1357,10 @@
           },
           "error": {
             "type": "object",
-            "required": ["code", "message"],
+            "required": [
+              "code",
+              "message"
+            ],
             "properties": {
               "code": {
                 "type": "string",

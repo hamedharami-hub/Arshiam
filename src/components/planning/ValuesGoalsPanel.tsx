@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Compass, Plus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { subscribeMindGoals, type MindGoalItem } from "@/lib/firestoreDataService";
 import { VALUE_DOMAINS } from "@/lib/valueDomains";
 import type { Task } from "@/lib/taskTypes";
+import { occursInPeriod, readTaskSchedule } from "@/lib/taskSchedule";
+import { currentPeriod, getTimeSettings } from "@/lib/timeHorizon";
 
 export const domainOf = (key?: string | null) => VALUE_DOMAINS.find((d) => d.key === key);
 
@@ -18,9 +20,17 @@ export function useMindGoals(): MindGoalItem[] {
   return goals;
 }
 
+const taskIsOpen = (task: Task) => !task.completed && task.status !== "done" && task.status !== "wont_do";
+
 export function ValuesGoalsPanel({ goals, tasks, fa, onAdd }: { goals: MindGoalItem[]; tasks: Task[]; fa: boolean; onAdd: (g: MindGoalItem) => void }) {
-  const linked = useMemo(() => new Set(tasks.filter((t) => t.source_type === "values_goal").map((t) => t.source_id)), [tasks]);
+  const year = currentPeriod("year", getTimeSettings());
   const sorted = [...goals].sort((a, b) => Number(b.horizon === "year") - Number(a.horizon === "year"));
+  const plannedFor = (goal: MindGoalItem) => tasks.some((task) => {
+    if (task.source_type !== "values_goal" || task.source_id !== goal.id || !taskIsOpen(task)) return false;
+    const schedule = readTaskSchedule(task);
+    if (goal.horizon === "year") return occursInPeriod(schedule, year, "year");
+    return schedule.mode !== "none";
+  });
   return (
     <section className="surface-card p-3" data-testid="planning-values-panel">
       <header className="mb-2 flex items-center gap-2">
@@ -36,7 +46,7 @@ export function ValuesGoalsPanel({ goals, tasks, fa, onAdd }: { goals: MindGoalI
         <ul className="space-y-1.5">
           {sorted.map((g) => {
             const d = domainOf(g.domain);
-            const done = linked.has(g.id);
+            const done = plannedFor(g);
             return (
               <li key={g.id} className="flex items-center gap-2 rounded-lg bg-background/60 px-2 py-1.5" data-testid={`planning-value-goal-${g.id}`}>
                 <span className="text-base leading-none" aria-hidden>{d?.icon || "•"}</span>

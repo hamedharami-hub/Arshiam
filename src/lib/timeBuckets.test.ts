@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   ALL_BUCKET_KINDS,
-  SUB_DAY_BUCKET_KINDS,
   MULTI_DAY_BUCKET_KINDS,
-  isSubDayBucket,
   isMultiDayBucket,
   currentAnchor,
   bucketRange,
@@ -19,27 +17,16 @@ describe("timeBuckets", () => {
     localStorage.clear();
   });
 
-  it("distinguishes sub-day and multi-day bucket kinds", () => {
-    expect(isSubDayBucket("morning")).toBe(true);
-    expect(isSubDayBucket("noon")).toBe(true);
-    expect(isSubDayBucket("afternoon")).toBe(true);
-    expect(isSubDayBucket("night")).toBe(true);
-    expect(isSubDayBucket("week")).toBe(false);
-
-    expect(isMultiDayBucket("day")).toBe(true);
-    expect(isMultiDayBucket("week")).toBe(true);
-    expect(isMultiDayBucket("month")).toBe(true);
-    expect(isMultiDayBucket("quarter")).toBe(true);
-    expect(isMultiDayBucket("year")).toBe(true);
-    expect(isMultiDayBucket("morning")).toBe(false);
+  it("offers only day and larger planning periods", () => {
+    expect(ALL_BUCKET_KINDS).toEqual(["day", "week", "month", "quarter", "year"]);
+    expect(MULTI_DAY_BUCKET_KINDS).toEqual(ALL_BUCKET_KINDS);
   });
-
   it("calculates current anchors and ranges properly", () => {
     const today = currentAnchor("day", "gregorian");
     expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 
-    const morningAnchor = currentAnchor("morning", "gregorian");
-    expect(morningAnchor).toBe(today);
+    const dayAnchor = currentAnchor("day", "gregorian");
+    expect(dayAnchor).toBe(today);
 
     const weekAnchor = currentAnchor("week", "gregorian");
     const weekRange = bucketRange("week", "gregorian", weekAnchor);
@@ -48,8 +35,8 @@ describe("timeBuckets", () => {
   });
 
   it("generates correct kind labels in Persian and English", () => {
-    expect(kindLabel("morning", "fa")).toBe("صبح");
-    expect(kindLabel("morning", "en")).toBe("Morning");
+    expect(kindLabel("day", "fa")).toBe("امروز");
+    expect(kindLabel("day", "en")).toBe("Today");
     expect(kindLabel("week", "fa")).toBe("این هفته");
     expect(kindLabel("week", "en")).toBe("This Week");
     expect(kindLabel("month", "fa")).toBe("این ماه");
@@ -60,11 +47,11 @@ describe("timeBuckets", () => {
   it("matches tasks with exact due dates inside the bucket period", () => {
     const weekAnchor = currentAnchor("week", "gregorian");
     const res = doesTaskMatchBucketScope(
-      { due_date: `${weekAnchor}T14:30:00Z` },
+      { work_date: `${weekAnchor}T14:30:00Z` },
       { scopeKind: "week", calendar: "gregorian", anchor: weekAnchor }
     );
     expect(res.matches).toBe(true);
-    expect(res.matchReason).toBe("exact_due_date");
+    expect(res.matchReason).toBe("exact_work_date");
   });
 
   it("matches tasks with direct bucket assignment", () => {
@@ -82,12 +69,12 @@ describe("timeBuckets", () => {
     const today = currentAnchor("day", "gregorian");
     const monthAnchor = currentAnchor("month", "gregorian");
 
-    // 1. Morning task belongs inside Week and Month
-    const morningTask = {
-      bucket_kind: "morning" as const,
+    // 1. Day task belongs inside Week and Month
+    const dayTask = {
+      bucket_kind: "day" as const,
       bucket_anchor: today,
     };
-    const resWeek = doesTaskMatchBucketScope(morningTask, {
+    const resWeek = doesTaskMatchBucketScope(dayTask, {
       scopeKind: "week",
       calendar: "gregorian",
     });
@@ -135,13 +122,13 @@ describe("timeBuckets", () => {
 
   it("respects strict filter mode (hierarchical: false) to show only exact matching buckets", () => {
     const today = currentAnchor("day", "gregorian");
-    const morningTask = {
-      bucket_kind: "morning" as const,
+    const dayTask = {
+      bucket_kind: "day" as const,
       bucket_anchor: today,
     };
 
-    // When hierarchical is false, week scope should NOT include morningTask
-    const res = doesTaskMatchBucketScope(morningTask, {
+    // When hierarchical is false, week scope should NOT include dayTask
+    const res = doesTaskMatchBucketScope(dayTask, {
       scopeKind: "week",
       calendar: "gregorian",
       hierarchical: false,
@@ -156,13 +143,13 @@ describe("timeBuckets", () => {
 
     saveBucketFilterSettings({
       hierarchical: false,
-      activeCategory: "sub_day",
-      strictKinds: ["morning", "night"],
+      activeCategory: "multi_day",
+      strictKinds: ["day", "week"],
     });
 
     const updated = getBucketFilterSettings();
     expect(updated.hierarchical).toBe(false);
-    expect(updated.activeCategory).toBe("sub_day");
-    expect(updated.strictKinds).toEqual(["morning", "night"]);
+    expect(updated.activeCategory).toBe("multi_day");
+    expect(updated.strictKinds).toEqual(["day", "week"]);
   });
 });

@@ -178,7 +178,6 @@ export default function QuickCaptureDialog() {
           title: finalTitle,
           description: null,
           work_date: finalDue,
-          due_date: null,
           recurrence_rule: recurrence,
           recurrence: recurrence && recurrence.freq !== "yearly" ? recurrence.freq : "none" as const,
           priority: finalPriority,

@@ -3,10 +3,12 @@ import { formatDate, toPersianDigits, WEEKDAY_SHORT_FA, type CalendarSystem } fr
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { getTimeSettings, periodFor, fromLocalISO, toLocalISO, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
 import { parseTaskDueDate } from "@/lib/taskDate";
+import { isLiteralDeadlineDay } from "@/lib/taskSchedule";
+import { DeadlineMark } from "./DeadlineMark";
 import { computePhase, type CycleProfile, type CycleLog, PHASE_META } from "@/lib/cycle";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; work_date: string | null; priority: string; deadline_date?: string | null };
 
 const PRIORITY_COLOR: Record<string, string> = {
   high: "hsl(var(--destructive))",
@@ -47,10 +49,13 @@ export default function MonthGrid({
       </div>
       <div className="grid grid-cols-7 gap-1">
         {days.map((d) => {
+          const dayKey = toLocalISO(d);
           const dayTasks = tasks.filter((t) => {
-            const due = t.due_date ? parseTaskDueDate(t.due_date) : null;
+            const due = t.work_date ? parseTaskDueDate(t.work_date) : null;
             return !!due && isSameDay(due, d);
           });
+          const drawn = new Set(dayTasks.map((t) => t.id));
+          const deadlineOnly = tasks.filter((t) => isLiteralDeadlineDay(t.deadline_date, dayKey) && !drawn.has(t.id));
           const dayHolidays = isHoliday(d, holidays);
           const isFriday = d.getDay() === 5;
           const isOff = dayHolidays.length > 0 || (system === "jalali" && isFriday);
@@ -88,16 +93,17 @@ export default function MonthGrid({
                     {h.local_name || h.name}{h.approximate ? (system === "jalali" ? " (تقریبی)" : " (approx.)") : ""}
                   </div>
                 ))}
-                {dayTasks.length > 0 && (
+                {(dayTasks.length > 0 || deadlineOnly.length > 0) && (
                   <div className="flex flex-col gap-0.5 mt-auto">
-                    {dayTasks.slice(0, 2).map((t) => (
+                    {[...dayTasks.map((t) => ({ t, deadline: isLiteralDeadlineDay(t.deadline_date, dayKey) })), ...deadlineOnly.map((t) => ({ t, deadline: true }))].slice(0, 2).map(({ t, deadline }) => (
                       <div key={t.id} className="flex items-center gap-1 text-[10px] leading-tight">
                         <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
                         <span className="truncate text-foreground/80">{t.title}</span>
+                        {deadline && <DeadlineMark />}
                       </div>
                     ))}
-                    {dayTasks.length > 2 && (
-                      <span className="text-[10px] text-muted-foreground px-2">+{toPersianDigits(dayTasks.length - 2)}</span>
+                    {dayTasks.length + deadlineOnly.length > 2 && (
+                      <span className="text-[10px] text-muted-foreground px-2">+{toPersianDigits(dayTasks.length + deadlineOnly.length - 2)}</span>
                     )}
                   </div>
                 )}

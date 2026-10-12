@@ -10,8 +10,8 @@ vi.mock("@/hooks/useAuth", () => ({
 
 vi.mock("@/features/tasks/taskService", () => ({
   fetchTasks: vi.fn().mockResolvedValue([
-    { id: "t1", title: "تسک آزمایشی اول", completed: false, status: "todo", priority: "high", due_date: new Date().toISOString().split("T")[0] },
-    { id: "t2", title: "تسک آزمایشی دوم", completed: true, status: "done", priority: "low", due_date: new Date().toISOString().split("T")[0] },
+    { id: "t1", title: "تسک آزمایشی اول", completed: false, status: "todo", priority: "high", work_date: new Date().toISOString().split("T")[0] },
+    { id: "t2", title: "تسک آزمایشی دوم", completed: true, status: "done", priority: "low", work_date: new Date().toISOString().split("T")[0] },
   ]),
   saveTask: vi.fn().mockResolvedValue({}),
 }));

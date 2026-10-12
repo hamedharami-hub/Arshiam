@@ -7,6 +7,7 @@ import {
 import { subscribeToTasks } from "@/features/tasks/taskService";
 import { persistTaskTagChange } from "@/lib/taskTagService";
 import type { Task } from "@/lib/taskTypes";
+import { clearNextOnClose } from "@/lib/dayFlow";
 import type { Priority } from "@/lib/priority";
 import { timePatch, type TimeFields, type TimeSettings } from "@/lib/timeHorizon";
 
@@ -59,7 +60,7 @@ export function useHorizonData(userId: string | undefined, settings: TimeSetting
 
   const toggleDone = useCallback((t: Task) => {
     const done = !t.completed;
-    return updateTask(t.id, { completed: done, status: done ? "done" : "todo", completed_at: done ? new Date().toISOString() : null });
+    return updateTask(t.id, { completed: done, status: done ? "done" : "todo", completed_at: done ? new Date().toISOString() : null, ...(done ? clearNextOnClose(t) : {}) });
   }, [updateTask]);
 
   const folderByName = useMemo(() => new Map(folders.map((f) => [f.name.trim().toLowerCase(), f])), [folders]);

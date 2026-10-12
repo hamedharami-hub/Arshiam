@@ -40,13 +40,14 @@ describe("personal agent OpenAPI contract", () => {
 
   it("dispatches every advertised operation using a real scoped test grant", async () => {
     const { secret } = await createGrant("schema-user", "Schema agent", [...ASSISTANT_SCOPES], new Date(Date.now() + 86400000).toISOString());
-    testStore.tasks.set("record", { id: "record", user_id: "schema-user", title: "Task", completed: false, start_at: "2026-01-01T09:00:00Z", end_at: "2026-01-01T10:00:00Z" });
+    testStore.tasks.set("record", { id: "record", user_id: "schema-user", title: "Task", completed: false, work_date: "2026-01-01T09:00:00Z" });
     testStore.folders.set("record", { id: "record", user_id: "schema-user", name: "Folder" });
     testStore.notes.set("record", { id: "record", user_id: "schema-user", title: "Note", content: "Body" });
+    testStore.events.set("record", { id: "record", user_id: "schema-user", title: "Meeting", description: null, start: "2026-01-15T09:00:00Z", end: null, created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z" });
     for (const [path, methods] of Object.entries(schema.paths)) {
       for (const [method, operation] of Object.entries(methods)) {
         const body = path.includes("calendar/events") && method === "patch" ? { title: "Updated meeting" } : path.includes("calendar/events")
-          ? { title: "Meeting", start_at: "2026-02-01T09:00:00Z", end_at: "2026-02-01T10:00:00Z" }
+          ? { title: "Meeting", start: "2026-02-01T09:00:00Z" }
           : path.includes("folders") ? { name: "Folder" }
           : path.includes("memories") ? { title: "Note", content: "Text" }
           : { title: "Task" };

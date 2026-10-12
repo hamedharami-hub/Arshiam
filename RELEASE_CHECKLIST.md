@@ -16,7 +16,7 @@ This checklist defines the mandatory quality and reliability gates for every ARS
 ## 2. Task CRUD & Core Workflows
 - [ ] **Creation**: Test task creation from QuickAddTask, QuickCapture (`lov:open-quick-capture`), and new task route.
 - [ ] **Inspector & Detail**: Open task in desktop split-view inspector and mobile drawer; verify `TaskDetail` renders metadata (folder, schedule, priority, tags) without layout jitter.
-- [ ] **Scheduling & Recurrence**: Set due date, timeblock, recurrence rules (`RecurrenceEditor`), and fuzzy buckets; verify accurate Jalali and Gregorian date handling.
+- [ ] **Scheduling & Recurrence**: Set work date, exact time, recurrence rules (`RecurrenceEditor`), reminders, and planning periods; verify accurate Jalali and Gregorian date handling.
 - [ ] **Subtasks & Hierarchy**: Add parent-child task relationships; verify tree calculations (`getTaskProgress`, `buildTaskChildrenMap`) update dynamically.
 - [ ] **Completion & Grace Period**: Complete a task; verify strikethrough grace period (`GRACE_MS`), water drop award, and undo availability.
 - [ ] **Deletion & Undo**: Delete task; verify confirmation dialog, `pushDeleted` cache, and snackbar undo option.

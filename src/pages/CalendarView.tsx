@@ -13,7 +13,8 @@ import { getHolidaysForRange, getOccasionSets, setOccasionSets, HOLIDAYS_EVENT, 
 import { HolidayList } from "@/components/calendar/HolidayList";
 import { getTimeSettings, periodFor, fromLocalISO } from "@/lib/timeHorizon";
 import { addMonths as jAddMonths } from "date-fns-jalali";
-import { parseTaskDueDate } from "@/lib/taskDate";
+import { getLocalDateString, parseTaskDueDate } from "@/lib/taskDate";
+import { calendarDayMarks } from "@/lib/taskSchedule";
 import { filterTasksForVisibility, useShowCompletedTasks, setShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { useBilingual } from "@/hooks/useBilingual";
 import MonthGrid from "@/components/calendar/MonthGrid";
@@ -79,8 +80,7 @@ export default function CalendarView() {
     else if (view === "day") { start = new Date(date); start.setHours(0,0,0,0); end = new Date(date); end.setHours(23,59,59,999); }
     else { start = startOfMonth(date); end = endOfMonth(date); }
 
-    const startTime = start.getTime();
-    const endTime = end.getTime();
+    const range = { start: getLocalDateString(start), end: getLocalDateString(end) };
 
     firebaseStore.from("tasks").select("*")
       .then(({ data }) => {
@@ -88,24 +88,19 @@ export default function CalendarView() {
         const seenIds = new Set<string>();
         for (const t of (data || []) as any[]) {
           if (!t.id || seenIds.has(t.id)) continue;
-          let inRange = false;
-          const calendarDate = t.work_date === undefined ? t.due_date : t.work_date;
-          if (calendarDate) {
-            const d = parseTaskDueDate(calendarDate);
-            if (d && d.getTime() >= startTime && d.getTime() <= endTime) {
-              inRange = true;
-            }
+          const marks = calendarDayMarks(t, range);
+          // Keep the operational day, and also a task whose deadline falls in range.
+          // A deadline is not copied onto work_date or onto every day of a horizon.
+          if (marks.length === 0) continue;
+          seenIds.add(t.id);
+          const workMark = marks.find((mark) => mark.work);
+          if (!workMark) {
+            matching.push(t);
+            continue;
           }
-          if (!inRange && t.start_at) {
-            const s = parseTaskDueDate(t.start_at);
-            if (s && s.getTime() >= startTime && s.getTime() <= endTime) {
-              inRange = true;
-            }
-          }
-          if (inRange) {
-            seenIds.add(t.id);
-            matching.push({ ...t, due_date: calendarDate });
-          }
+          const parsed = parseTaskDueDate(t.work_date);
+          const parsedDay = parsed ? getLocalDateString(parsed) : null;
+          matching.push({ ...t, work_date: parsedDay === workMark.day ? t.work_date : workMark.day });
         }
         setTasks(matching);
       });

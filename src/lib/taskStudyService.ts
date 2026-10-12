@@ -27,7 +27,6 @@ export interface CreateStudyTaskOptions {
   title?: string;
   description?: string;
   dueDate?: string | null;
-  estimatedMinutes?: number | null;
   priority?: Priority;
   reminderAt?: string | null;
   reminderPlan?: ReminderPlan | null;
@@ -92,7 +91,7 @@ export async function rescheduleLeitnerStudyTaskAfterSession(
 
     const status = await persistTask(userId, {
       id: taskId,
-      due_date: nextReviewAt,
+      work_date: nextReviewAt,
       completed: false,
       status: "todo",
       completed_at: null,
@@ -147,7 +146,7 @@ export async function createStudyTask(
       title: defaultTitle.slice(0, 200),
       description: opts.description?.trim().slice(0, 2000) || null,
       priority: opts.priority || "medium",
-      due_date: opts.dueDate || null,
+      work_date: opts.dueDate || null,
       completed: false,
       status: "todo",
       folder_id: opts.folderId || null,
@@ -157,9 +156,6 @@ export async function createStudyTask(
       recurrence_rule: null,
       parent_id: null,
       pinned: false,
-      start_at: null,
-      end_at: null,
-      estimated_minutes: opts.estimatedMinutes ?? 30,
       source_type: opts.targetType,
       source_id: opts.targetId,
     };

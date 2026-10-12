@@ -1,3 +1,4 @@
+import { normalizeTaskSchedule, supportedTaskPatch } from "@/lib/taskScheduleMigration";
 import type { Task } from "@/lib/taskTypes";
 import type { QueuedOp } from "@/lib/offlineQueue";
 
@@ -8,7 +9,7 @@ export function applyTaskOperations(base: Task[], operations: QueuedOp[]): Task[
 
   for (const operation of operations) {
     if ((operation.op === "insert" || operation.op === "upsert") && operation.payload) {
-      const task = operation.payload as Task;
+      const task = normalizeTaskSchedule(operation.payload as Task);
       if (task.id) {
         if (operation.op === "upsert" && base.some((t) => t.id === task.id)) {
           updates.set(task.id, { ...(updates.get(task.id) || {}), ...task });
@@ -23,7 +24,7 @@ export function applyTaskOperations(base: Task[], operations: QueuedOp[]): Task[
       updates.delete(id);
     } else if (operation.op === "update" && operation.match?.id && operation.payload) {
       const id = operation.match.id as string;
-      updates.set(id, { ...(updates.get(id) || {}), ...(operation.payload as Partial<Task>) });
+      updates.set(id, { ...(updates.get(id) || {}), ...supportedTaskPatch(operation.payload as Partial<Task>) });
     }
   }
 
@@ -33,5 +34,5 @@ export function applyTaskOperations(base: Task[], operations: QueuedOp[]): Task[
   }
   return next.map((task) => updates.has(task.id)
     ? { ...task, ...updates.get(task.id) }
-    : task);
+    : task).map(normalizeTaskSchedule);
 }

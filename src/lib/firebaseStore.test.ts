@@ -7,6 +7,7 @@ let mockCurrentUser: { uid: string; email?: string } | null = { uid: "user_test_
 vi.mock("@/lib/firebase", () => {
   return {
     db: {},
+    deleteField: vi.fn(() => ({ _methodName: "deleteField" })),
     auth: {
       get currentUser() {
         return mockCurrentUser;

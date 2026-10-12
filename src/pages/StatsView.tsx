@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { format, startOfDay, subDays, isSameDay, isWithinInterval } from "date-fns";
 import { getCalendarSystem, formatDate, toPersianDigits, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
-import { isTaskOverdue } from "@/lib/taskPlanning";
+import { isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import type { Task } from "@/lib/taskTypes";
 import {
@@ -22,7 +22,7 @@ import {
 } from "recharts";
 import { CheckCircle2, Clock, Flame, AlertCircle, Target, TrendingUp } from "lucide-react";
 
-type TaskRow = Pick<Task, "id" | "title" | "completed" | "completed_at" | "due_date" | "priority"> & Partial<Task>;
+type TaskRow = Pick<Task, "id" | "title" | "completed" | "completed_at" | "work_date" | "priority"> & Partial<Task>;
 type PomRow = { duration_minutes: number; started_at: string };
 type HabitLogRow = { habit_id: string; log_date: string; habits: { name: string; target_per_week: number; frequency: "daily" | "weekly" } | null };
 
@@ -51,7 +51,7 @@ export default function StatsView() {
     const isoEnd = end.toISOString();
 
     firebaseStore.from("tasks")
-      .select("id,title,completed,completed_at,due_date,priority,status,due_at,horizon,period_start,period_end,is_exact,bucket_kind,bucket_anchor,bucket_calendar,planning_horizon,planning_start,planning_end")
+      .select("id,title,completed,completed_at,work_date,priority,status,horizon,period_start,period_end,bucket_kind,bucket_anchor,bucket_calendar,planning_horizon,planning_start,planning_end")
       .eq("user_id", user.id)
       .then(({ data }) => {
         const rows = (data as TaskRow[] | null) || [];
@@ -61,7 +61,7 @@ export default function StatsView() {
             const d = new Date(t.completed_at);
             return d >= start && d <= end;
           }
-          return isTaskOverdue(t, getTimeSettings());
+          return isTaskMissedWorkDay(t, getTimeSettings());
         });
         setTasks(filtered);
       });
@@ -91,7 +91,7 @@ export default function StatsView() {
   [tasks, periodStart, periodEnd]);
 
   const overdueTasks = useMemo(() =>
-    tasks.filter((t) => isTaskOverdue(t, getTimeSettings())),
+    tasks.filter((t) => isTaskMissedWorkDay(t, getTimeSettings())),
   [tasks, todayStart]);
 
   const focusMinutes = useMemo(() =>

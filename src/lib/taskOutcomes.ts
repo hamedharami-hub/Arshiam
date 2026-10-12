@@ -74,7 +74,7 @@ export async function executeTaskOutcome(
       priority: action.priority || "none",
       folder_id: action.folder_id ?? parentTask.folder_id,
       parent_id: parentTask.id,
-      due_date: due,
+      work_date: due,
       status: "todo",
       completed: false,
     };

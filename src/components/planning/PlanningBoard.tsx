@@ -15,6 +15,7 @@ import {
   carryOver, childLevel, childrenMap, defaultChildPeriod, isClosed, itemsInPeriod, levelsFor, parentLevel,
   planOf, planPatch, progressOf, unplanned, weekDays,
 } from "@/lib/planCascade";
+import { getWipWarningEnabled, waitingPatch, wipWarning } from "@/lib/dayFlow";
 import { LEVEL_NAME, LEVEL_PURPOSE, LEVEL_THEME, NOW_LABEL, frac } from "./planningTheme";
 import { PlanItemCard, ProgressLine } from "./PlanItemCard";
 import { PeriodPicker } from "./PeriodPicker";
@@ -112,6 +113,17 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   const plan = (t: Task, p: Period | null, parentId?: string | null) => { void onUpdate(t.id, planPatch(p, settings, parentId)); haptic("light"); };
   const moveNext = (t: Task) => { const p = planOf(t, settings) || period; plan(t, nextPeriod(p, settings)); toast.success(fa ? "به دورهٔ بعد رفت" : "Moved to next period"); };
   const complete = (t: Task) => { if (!isClosed(t)) void onToggle(t); };
+  const wait = (t: Task) => {
+    const result = waitingPatch(t, { reason: t.waiting_reason ?? null, prerequisite_id: t.prerequisite_id ?? null });
+    if (!result.ok) return;
+    void onUpdate(t.id, result.patch);
+  };
+  const addChild = (parent: Task, title: string) => {
+    const parentPeriod = planOf(parent, settings) || period;
+    const lower = childLevel(parentPeriod.horizon, settings);
+    void create(title, lower ? defaultChildPeriod(parentPeriod, lower, settings) : parentPeriod, parent, { parent_id: parent.id });
+  };
+  const wip = wipWarning(live.filter((t) => t.status === "in_progress" && !t.completed).length, { enabled: getWipWarningEnabled(), limit: 3 });
 
   const onTouchEnd = (e: React.TouchEvent) => {
     const start = touch.current; touch.current = null;
@@ -167,6 +179,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className={cn("space-y-3", pane !== "main" && "hidden lg:block")} onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={onTouchEnd} data-testid="planning-main">
+          {wip && <p className="text-xs text-muted-foreground" data-testid="planning-wip-warning">{fa ? "بیش از ۳ کار هم‌زمان در حال انجام است" : "More than 3 tasks are in progress at once"}</p>}
           {due && (
             <div className="flex items-center gap-3 rounded-xl border border-amber-500/30 bg-gradient-to-l from-amber-500/10 to-transparent p-3" data-testid="planning-review-banner">
               <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
@@ -199,7 +212,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           {lv === "week" && <WeekDays period={period} tasks={live} settings={settings} fa={fa} onPick={(d) => { setLevelState("day"); localStorage.setItem(LEVEL_KEY, "day"); setAnchor(d); }} />}
         </div>
         <PeriodReviewDialog key={reviewP ? `${reviewP.horizon}:${reviewP.start}` : "none"} period={reviewP} items={reviewItems} settings={settings} fa={fa} onClose={() => setReviewP(null)}
-          onMove={(t, p) => plan(t, p)} onDrop={(t) => plan(t, null, null)} onComplete={complete} onAdd={(title, p) => void create(title, p)} />
+          onMove={(t, p) => plan(t, p)} onDrop={(t) => plan(t, null, null)} onComplete={complete} onWait={wait} onAddChild={addChild} onAdd={(title, p) => void create(title, p)} />
         <aside className={cn("space-y-3", pane === "main" && "hidden lg:block")}>
           {up && parentPeriod && (
             <div className={cn(pane === "unplanned" && "hidden lg:block")}>

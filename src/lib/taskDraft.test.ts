@@ -4,9 +4,8 @@ import type { Task } from "@/lib/taskTypes";
 
 const savedTask: Task = {
   id: "task-1", title: "عنوان قبلی", description: "متن قبلی", priority: "none",
-  due_date: null, completed: false, status: "todo", folder_id: null, reminder_at: null,
+  work_date: null, completed: false, status: "todo", folder_id: null, reminder_at: null,
   recurrence: "none", recurrence_rule: null, parent_id: null, pinned: false,
-  start_at: null, end_at: null, estimated_minutes: null,
 };
 
 describe("taskPatch", () => {

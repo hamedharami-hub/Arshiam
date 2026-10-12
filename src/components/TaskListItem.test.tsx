@@ -13,7 +13,7 @@ describe("TaskListItem subtasks progress rendering", () => {
     priority: "none",
     folder_id: null,
     parent_id: null,
-    due_date: null,
+    work_date: null,
   };
 
   const subTask: Task = {
@@ -25,7 +25,7 @@ describe("TaskListItem subtasks progress rendering", () => {
     priority: "none",
     folder_id: null,
     parent_id: "parent-1",
-    due_date: null,
+    work_date: null,
   };
 
   it("renders parent task with subtasks safely even when progress prop is omitted", () => {

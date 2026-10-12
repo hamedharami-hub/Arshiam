@@ -1,7 +1,8 @@
 import { PlanningBoard } from "@/components/planning/PlanningBoard";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import { ListViewSwitch } from "@/components/ListViewSwitch";
-import { getTaskPlanning, isTaskOverdue, isTaskMissedWorkDay, planningScopeTasks } from "@/lib/taskPlanning";
+import { isScheduledToday, readTaskSchedule } from "@/lib/taskSchedule";
+import { getTaskPlanning, isTaskMissedWorkDay, planningScopeTasks } from "@/lib/taskPlanning";
 import { readTaskListSort, saveTaskListSort, TASK_LIST_SORT_EVENT } from "@/lib/taskListSort";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -45,7 +46,8 @@ import { toast } from "sonner";
 import { PRIORITY_META } from "@/lib/priority";
 import { FolderKanban } from "@/components/FolderKanban";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, taskWorkDate, workDatePatch } from "@/lib/taskDate";
+import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, taskWorkDate } from "@/lib/taskDate";
+import { commitSchedule } from "@/lib/taskScheduleChoices";
 import { pushUndo } from "@/lib/undoStack";
 import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet } from "@/lib/offlineQueue";
@@ -82,6 +84,7 @@ import { VirtualTaskList } from "@/components/VirtualTaskList";
 import { TaskDetail } from "@/components/TaskDetail";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
 import type { Task, ConfirmState, TaskOutcome, TaskStatus } from "@/lib/taskTypes";
+import { clearNextOnClose } from "@/lib/dayFlow";
 import { OutcomePicker } from "@/components/OutcomePicker";
 import { listTaskOutcomes, executeTaskOutcome } from "@/lib/taskOutcomes";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -103,7 +106,7 @@ import { TasksHeader, FOLDER_BG_COLORS, FOLDER_BG_IMAGES } from "./tasks/TasksHe
 import { TaskDueDateGroups, buildGroupedTasks, type TaskGroup } from "./tasks/TaskDueDateGroups";
 
 import { TaskListItem, outcomeMeta, groupedChildren } from "@/components/TaskListItem";
-import { currentAnchor, isSubDayBucket, doesTaskMatchBucketScope } from "@/lib/timeBuckets";
+import { currentAnchor, doesTaskMatchBucketScope } from "@/lib/timeBuckets";
 
 export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomorrow" | "next7" | "smart" | "folder" | "tag" }) {
   const { user } = useAuth();
@@ -352,7 +355,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const owner = target ? target.user_id === user?.id : true;
     const visualPatch: Partial<Task> = {};
     if (Object.prototype.hasOwnProperty.call(patch, "priority")) visualPatch.priority = patch.priority;
-    if (Object.prototype.hasOwnProperty.call(patch, "due_date")) visualPatch.due_date = patch.due_date;
+    if (Object.prototype.hasOwnProperty.call(patch, "work_date")) visualPatch.work_date = patch.work_date;
     if (Object.prototype.hasOwnProperty.call(patch, "work_date")) visualPatch.work_date = patch.work_date;
     if (owner && Object.keys(visualPatch).length) {
       setVisualPatches(prev => ({ ...prev, [id]: { ...prev[id], ...visualPatch } }));
@@ -483,22 +486,14 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       list = list.filter(t => !t.parent_id && !t.folder_id);
     } else if (scope === "today") {
       // Keep past daily plans visible as overdue without changing their saved plan date.
-      const e = endOfDay(new Date()).getTime();
       const todayAnchor = currentAnchor("day");
       const todayDate = getLocalDateString();
       const timeSettings = getTimeSettings();
       const isDueTodayOrOverdue = (t: Task) => {
-        if (isTaskOverdue(t, timeSettings) || isTaskMissedWorkDay(t, timeSettings)) return true;
-        const dueDate = taskWorkDate(t);
-        if (dueDate && taskDueTimestamp(dueDate) <= e) return true;
-        if (t.work_date !== undefined && t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
-        const plan = getTaskPlanning(t, timeSettings);
-        if (plan?.horizon === "day" && plan.start === todayDate) return true;
-        if (t.bucket_kind) {
-          if (isSubDayBucket(t.bucket_kind) || t.bucket_kind === "day") {
-            if (!t.bucket_anchor || t.bucket_anchor === todayAnchor) return true;
-          }
-        }
+        if (isTaskMissedWorkDay(t, timeSettings)) return true;
+        if (isScheduledToday(readTaskSchedule(t), todayDate)) return true;
+        // Legacy day buckets are not a week/month plan and are not a second schedule winner.
+        if (t.bucket_kind === "day" && (!t.bucket_anchor || t.bucket_anchor === todayAnchor)) return true;
         return false;
       };
       list = list.filter(t => isStandaloneTaskForScope(t, isDueTodayOrOverdue, taskMap));
@@ -512,10 +507,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
         if (dueDate) {
           const ts = taskDueTimestamp(dueDate);
           if (ts >= s && ts <= e) return true;
-        }
-        if (t.work_date !== undefined && t.due_date) {
-          const deadline = taskDueTimestamp(t.due_date);
-          if (deadline >= s && deadline <= e) return true;
         }
         const plan = getTaskPlanning(t, timeSettings);
         if (plan?.horizon === "day" && plan.start === tmrwDateStr) return true;
@@ -532,10 +523,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const todayDate = getLocalDateString();
       const timeSettings = getTimeSettings();
       const isDueNext7 = (t: Task) => {
-        if (isTaskOverdue(t, timeSettings) || isTaskMissedWorkDay(t, timeSettings)) return true;
+        if (isTaskMissedWorkDay(t, timeSettings)) return true;
         const dueDate = taskWorkDate(t);
         if (dueDate && taskDueTimestamp(dueDate) <= e) return true;
-        if (t.work_date !== undefined && t.due_date && taskDueTimestamp(t.due_date) <= e) return true;
         const plan = getTaskPlanning(t, timeSettings);
         if (plan?.horizon === "day" && plan.start <= lastDay) return true;
         // A fuzzy week plan overlapping the window counts as "next 7 days",
@@ -587,9 +577,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       if (folderPrefs.sortOrder === "priority") {
         return (PRIORITY_META[a.priority]?.rank ?? 3) - (PRIORITY_META[b.priority]?.rank ?? 3);
       }
-      if (folderPrefs.sortOrder === "due_date") {
-        const aDueValue = a.due_date || a.due_at;
-        const bDueValue = b.due_date || b.due_at;
+      if (folderPrefs.sortOrder === "work_date") {
+        const aDueValue = taskWorkDate(a);
+        const bDueValue = taskWorkDate(b);
         const aDue = aDueValue ? taskDueTimestamp(aDueValue) : Infinity;
         const bDue = bDueValue ? taskDueTimestamp(bDueValue) : Infinity;
         return aDue - bDue;
@@ -602,7 +592,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
   const groupedTasks = useMemo(() => buildGroupedTasks(topLevel, scope, isEn, T), [topLevel, scope, isEn, T]);
 
   const completeTaskCore = async (t: Task, outcome: TaskOutcome | null, isOwner: boolean) => {
-    const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString() };
+    const patch = { completed: true, status: "done" as const, completed_at: new Date().toISOString(), ...clearNextOnClose(t) };
     if (isOwner) setAllTasks(prev => prev.map(x => x.id === t.id ? { ...x, ...patch } as Task : x));
     if (!t.completed) {
       playCompletionFeedback();
@@ -772,7 +762,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const until = Date.now() + GRACE_MS;
     const ghosts: Record<string, Task & { _graceUntil: number }> = {};
     for (const s of snaps) {
-      ghosts[s.id] = { ...s, completed: true, status: "done" as TaskStatus, _graceUntil: until };
+      ghosts[s.id] = { ...s, ...clearNextOnClose(s), completed: true, status: "done" as TaskStatus, _graceUntil: until };
     }
     let tagLinks: Record<string, unknown>[] | null = null;
     if (typeof navigator === "undefined" || navigator.onLine) {
@@ -847,10 +837,11 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       const patch: Record<string, any> = { parent_id: null };
       const today = getLocalDateString();
       const tomorrowIso = getLocalDateString(addDays(new Date(), 1));
-      if (sc === "today") patch.work_date = today;
-      else if (sc === "tomorrow") patch.work_date = tomorrowIso;
-      else if (sc === "next7" && !taskWorkDate(activeTask)) patch.work_date = tomorrowIso;
-      if (patch.work_date) Object.assign(patch, workDatePatch(activeTask, patch.work_date));
+      const day = sc === "today" ? today : sc === "tomorrow" || (sc === "next7" && !taskWorkDate(activeTask)) ? tomorrowIso : null;
+      if (day) {
+        const written = commitSchedule({ mode: "day", date: day });
+        if (written) Object.assign(patch, written);
+      }
       else if (sc === "folder") patch.folder_id = params.id || null;
       return patch;
     };

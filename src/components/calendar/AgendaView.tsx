@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { parseTaskDueDate } from "@/lib/taskDate";
+import { fromLocalISO } from "@/lib/timeHorizon";
+import { DEADLINE_MARK_TEXT, isLiteralDeadlineDay } from "@/lib/taskSchedule";
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; work_date: string | null; priority: string; deadline_date?: string | null };
 
 export default function AgendaView({
   start, end, tasks, holidays, system,
@@ -18,8 +20,15 @@ export default function AgendaView({
   const navigate = useNavigate();
   const items = tasks
     .flatMap((t) => {
-      const _d = t.due_date ? parseTaskDueDate(t.due_date) : null;
-      return _d && _d >= start && _d <= end ? [{ ...t, _d }] : [];
+      const work = t.work_date ? parseTaskDueDate(t.work_date) : null;
+      const workIn = !!work && work >= start && work <= end;
+      const deadline = isLiteralDeadlineDay(t.deadline_date, t.deadline_date || "") ? fromLocalISO(t.deadline_date!) : null;
+      const deadlineIn = !!deadline && deadline >= start && deadline <= end;
+      const same = workIn && deadlineIn && !!work && !!deadline && isSameDay(work, deadline);
+      const rows: Array<Task & { _d: Date; _mark: string; _deadlineOnly?: boolean }> = [];
+      if (workIn && work) rows.push({ ...t, _d: work, _mark: same ? DEADLINE_MARK_TEXT : "" });
+      if (deadlineIn && deadline && !same) rows.push({ ...t, _d: deadline, _mark: DEADLINE_MARK_TEXT, _deadlineOnly: true });
+      return rows;
     })
     .sort((a, b) => compareAsc(a._d, b._d));
 
@@ -56,10 +65,13 @@ export default function AgendaView({
                   onClick={() => navigate(`/app/tasks/${t.id}`)}
                   className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-end hover:bg-accent/30 transition"
                 >
-                  <span className="text-xs text-muted-foreground tabular-nums w-12">
-                    {toPersianDigits(format(t._d, "HH:mm"))}
+                  <span className={t._deadlineOnly ? "shrink-0 text-xs" : "text-xs text-muted-foreground tabular-nums w-12"} data-testid={t._deadlineOnly ? "calendar-deadline-mark" : undefined}>
+                    {t._deadlineOnly ? DEADLINE_MARK_TEXT : toPersianDigits(format(t._d, "HH:mm"))}
                   </span>
-                  <span className="flex-1 truncate text-foreground/90">{t.title}</span>
+                  <span className="flex-1 truncate text-foreground/90">
+                    {t.title}
+                    {t._mark && !t._deadlineOnly ? <span data-testid="calendar-deadline-mark"> {t._mark}</span> : null}
+                  </span>
                 </button>
               ))}
             </div>

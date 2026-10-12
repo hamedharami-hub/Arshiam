@@ -1,3 +1,4 @@
+import { normalizeTaskSchedule } from "@/lib/taskScheduleMigration";
 import type { Task } from "@/lib/taskTypes";
 
 export const TASK_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -30,7 +31,7 @@ export type TaskCacheEnvelope = {
 };
 
 export function createTaskCacheEnvelope(tasks: Task[], cachedAt = Date.now()): TaskCacheEnvelope {
-  return { tasks, cachedAt };
+  return { tasks: tasks.map(normalizeTaskSchedule), cachedAt };
 }
 
 export function readTaskCacheEnvelope(
@@ -38,7 +39,7 @@ export function readTaskCacheEnvelope(
   now = Date.now(),
 ): { tasks: Task[]; cachedAt: number; fresh: boolean } | null {
   if (Array.isArray(value)) {
-    const tasks = value as Task[];
+    const tasks = (value as Task[]).map(normalizeTaskSchedule);
     // Legacy arrays have no timestamp; serve them immediately but refresh remotely.
     return { tasks, cachedAt: 0, fresh: false };
   }
@@ -46,7 +47,7 @@ export function readTaskCacheEnvelope(
   const candidate = value as Partial<TaskCacheEnvelope>;
   if (!Array.isArray(candidate.tasks) || typeof candidate.cachedAt !== "number") return null;
   return {
-    tasks: candidate.tasks,
+    tasks: candidate.tasks.map(normalizeTaskSchedule),
     cachedAt: candidate.cachedAt,
     fresh: now - candidate.cachedAt <= TASK_CACHE_TTL_MS,
   };
@@ -59,9 +60,9 @@ export function isTaskCacheFresh(cachedAt: number | undefined, now = Date.now())
 }
 
 export function extractTasksFromCache(value: unknown): Task[] {
-  if (Array.isArray(value)) return value.filter(Boolean) as Task[];
+  if (Array.isArray(value)) return (value.filter(Boolean) as Task[]).map(normalizeTaskSchedule);
   if (value && typeof value === "object" && Array.isArray((value as any).tasks)) {
-    return (value as any).tasks.filter(Boolean) as Task[];
+    return ((value as any).tasks.filter(Boolean) as Task[]).map(normalizeTaskSchedule);
   }
   return [];
 }

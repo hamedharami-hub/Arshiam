@@ -85,7 +85,6 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
   const [reminderAt, setReminderAt] = useState<string | null>(null);
   const [reminderPlan, setReminderPlan] = useState<ReminderPlan | null>(null);
   const [priority, setPriority] = useState<Priority>("medium");
-  const [estimatedMinutes, setEstimatedMinutes] = useState<number>(30);
   const [saving, setSaving] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState(targetId);
   const [selectedTargetType, setSelectedTargetType] = useState(targetType);
@@ -140,7 +139,6 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
       tmrw.setHours(10, 0, 0, 0);
       setDueDate(tmrw.toISOString());
       setPriority("medium");
-      setEstimatedMinutes(30);
     }
   }, [open, targetType, targetId, targetTitle, isEn]);
 
@@ -176,7 +174,6 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
         title: title.trim(),
         description: description.trim() || undefined,
         dueDate,
-        estimatedMinutes,
         priority,
         reminderAt,
         reminderPlan,
@@ -402,7 +399,7 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-foreground">
-                {T("زمان‌بندی سررسید", "Due Date & Time")}
+                {T("زمان‌بندی روز انجام", "Work date and time")}
               </span>
               <div className="flex items-center gap-1">
                 <button
@@ -440,32 +437,8 @@ const StudyTaskScheduleModalBase: React.FC<StudyTaskScheduleModalBaseProps> = ({
             />
           </div>
 
-          {/* Estimated Duration & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Estimated Duration */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                <span>{T("مدت تخمینی مطالعه", "Est. Duration")}</span>
-              </label>
-              <div className="flex items-center gap-1 flex-wrap">
-                {[15, 30, 45, 60, 90].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    onClick={() => setEstimatedMinutes(mins)}
-                    className={`px-2 py-1 rounded-xl text-[11px] font-medium transition cursor-pointer ${
-                      estimatedMinutes === mins
-                        ? "bg-primary text-primary-foreground shadow-xs font-bold"
-                        : "bg-muted text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {mins} {T("دقیقه", "min")}
-                  </button>
-                ))}
-              </div>
-            </div>
-
+          {/* Priority */}
+          <div className="grid grid-cols-1 gap-3">
             {/* Priority */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">

@@ -32,13 +32,13 @@ public class AppFunctionTaskDispatcherTest {
     private void login() throws Exception {
         JSONArray sampleTasks = new JSONArray()
             .put(new JSONObject().put("id", "task-today-1").put("title", "Buy groceries")
-                .put("due_date", LocalDate.now().toString()).put("priority", "high")
+                .put("work_date", LocalDate.now().toString()).put("priority", "high")
                 .put("completed", false).put("status", "todo"))
             .put(new JSONObject().put("id", "task-today-2").put("title", "Review pull request")
-                .put("due_date", LocalDate.now().toString()).put("priority", "urgent")
+                .put("work_date", LocalDate.now().toString()).put("priority", "urgent")
                 .put("completed", false).put("status", "todo"))
             .put(new JSONObject().put("id", "task-tomorrow").put("title", "Doctor appointment")
-                .put("due_date", LocalDate.now().plusDays(1).toString()).put("priority", "medium")
+                .put("work_date", LocalDate.now().plusDays(1).toString()).put("priority", "medium")
                 .put("completed", false).put("status", "todo"));
 
         AgendaData.prefs(context).edit()

@@ -111,7 +111,7 @@ describe("TaskDetail Notes integration", { timeout: 15000 }, () => {
     priority: "none",
     folder_id: null,
     parent_id: null,
-    due_date: null,
+    work_date: null,
   };
 
   beforeEach(() => {

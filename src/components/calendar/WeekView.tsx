@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, format } from "date-fns";
-import { getWeekStart, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
+import { getWeekStart, toLocalISO, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
 import { useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
@@ -8,8 +8,10 @@ import { useTapGestures } from "@/lib/useTapGestures";
 import { usePinchZoom } from "@/lib/usePinchZoom";
 import { ZoomIn } from "lucide-react";
 import { parseTaskDueDate } from "@/lib/taskDate";
+import { isLiteralDeadlineDay } from "@/lib/taskSchedule";
+import { DeadlineMark } from "./DeadlineMark";
 
-type Task = { id: string; title: string; due_date: string | null; priority: string };
+type Task = { id: string; title: string; work_date: string | null; priority: string; deadline_date?: string | null };
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_ROW = 36;
@@ -34,7 +36,8 @@ function Slot({
           onClick={(e) => { e.stopPropagation(); navigate(`/app/tasks/${t.id}`); }}
           className="bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer hover:bg-accent/60 transition"
         >
-          {t.title}
+          <span className="truncate">{t.title}</span>
+          {isLiteralDeadlineDay(t.deadline_date, toLocalISO(d)) && <> <DeadlineMark /></>}
         </div>
       ))}
     </div>
@@ -70,7 +73,7 @@ export default function WeekView({
 
   const quickCreate = (d: Date, h: number) => {
     const dt = new Date(d); dt.setHours(h, 0, 0, 0);
-    navigate(`/app/tasks/new?due_date=${encodeURIComponent(dt.toISOString())}`);
+    navigate(`/app/tasks/new?work_date=${encodeURIComponent(dt.toISOString())}`);
   };
 
   return (
@@ -91,6 +94,12 @@ export default function WeekView({
           {days.map((d) => {
             const kind = dominantKind(isHoliday(d, holidays));
             const off = kind !== null || (system === "jalali" && d.getDay() === 5);
+            const dayKey = toLocalISO(d);
+            const workIds = new Set(tasks.filter((t) => {
+              const due = t.work_date ? parseTaskDueDate(t.work_date) : null;
+              return !!due && isSameDay(due, d);
+            }).map((t) => t.id));
+            const deadlineOnly = tasks.filter((t) => isLiteralDeadlineDay(t.deadline_date, dayKey) && !workIds.has(t.id));
             return (
               <button
                 key={d.toISOString()}
@@ -103,6 +112,11 @@ export default function WeekView({
                 <div className="text-[10px] text-muted-foreground mt-0.5">
                   {system === "jalali" ? formatDate(d, "EEEEEE", "jalali") : format(d, "EEE")}
                 </div>
+                {deadlineOnly.slice(0, 1).map((t) => (
+                  <div key={t.id} className="mt-0.5 truncate text-[10px] text-foreground/80">
+                    <span className="truncate">{t.title}</span> <DeadlineMark />
+                  </div>
+                ))}
               </button>
             );
           })}
@@ -115,8 +129,8 @@ export default function WeekView({
               </div>
               {days.map((d) => {
                 const slotTasks = tasks.filter((t) => {
-                  if (!t.due_date) return false;
-                  const dt = parseTaskDueDate(t.due_date);
+                  if (!t.work_date) return false;
+                  const dt = parseTaskDueDate(t.work_date);
                   if (!dt) return false;
                   return isSameDay(dt, d) && dt.getHours() === h;
                 });

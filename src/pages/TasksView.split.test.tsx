@@ -5,7 +5,7 @@ import TasksView from "./TasksView";
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("@/hooks/useTasksData", () => {
-  const tasks = [{ id: "task-1", title: "Sample task", completed: false, status: "todo", priority: "none", parent_id: null, due_date: new Date().toISOString() }];
+  const tasks = [{ id: "task-1", title: "Sample task", completed: false, status: "todo", priority: "none", parent_id: null, work_date: new Date().toISOString() }];
   const folderTasks = tasks.map(task => ({ ...task, folder_id: "folder-1" }));
   return { useTasksData: ({ scope }: { scope: string }) => ({ allTasks: scope === "folder" ? folderTasks : tasks, setAllTasks: vi.fn(), taskTagsMap: {}, outcomeById: {}, outcomeByTaskId: {}, folderName: "", tagName: "", load: vi.fn() }) };
 });

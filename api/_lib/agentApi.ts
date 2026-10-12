@@ -1,3 +1,5 @@
+import { FieldValue } from "firebase-admin/firestore";
+import { normalizeTaskSchedule, scheduleApplyDeleteKeys } from "../../src/lib/taskScheduleMigration.js";
 import { randomBytes, createHash } from "node:crypto";
 import {
   adminDb,
@@ -72,38 +74,35 @@ async function auditLog(
 // Database Access Helpers (Firestore / TestStore)
 // -------------------------------------------------------------
 
+function testCollection(collectionName: string): Map<string, any> {
+  if (collectionName === "tasks") return testStore.tasks;
+  if (collectionName === "folders") return testStore.folders;
+  if (collectionName === "agent_events") return testStore.events;
+  return testStore.notes;
+}
+
 async function getCollectionDocs(grant: AssistantGrant, collectionName: string): Promise<any[]> {
   if (testStore.enabled) {
-    const storeMap: Map<string, any> =
-      collectionName === "tasks"
-        ? testStore.tasks
-        : collectionName === "folders"
-        ? testStore.folders
-        : testStore.notes;
+    const storeMap = testCollection(collectionName);
 
-    return Array.from(storeMap.values()).filter((item) => item.user_id === grant.userId);
+    return Array.from(storeMap.values()).filter((item) => item.user_id === grant.userId).map(item => collectionName === "tasks" ? normalizeTaskSchedule(item) : item);
   }
 
   const snapshot = await adminDb().collection(`users/${grant.userId}/${collectionName}`).get();
-  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snapshot.docs.map((d) => { const row = { id: d.id, ...d.data() }; return collectionName === "tasks" ? normalizeTaskSchedule(row) : row; });
 }
 
 async function getDocById(grant: AssistantGrant, collectionName: string, id: string): Promise<any | null> {
   if (testStore.enabled) {
-    const storeMap: Map<string, any> =
-      collectionName === "tasks"
-        ? testStore.tasks
-        : collectionName === "folders"
-        ? testStore.folders
-        : testStore.notes;
+    const storeMap = testCollection(collectionName);
 
     const item = storeMap.get(id);
     if (!item || item.user_id !== grant.userId) return null;
-    return item;
+    return collectionName === "tasks" ? normalizeTaskSchedule(item) : item;
   }
 
   const doc = await adminDb().doc(`users/${grant.userId}/${collectionName}/${id}`).get();
-  return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  return doc.exists ? (collectionName === "tasks" ? normalizeTaskSchedule({ id: doc.id, ...doc.data() }) : { id: doc.id, ...doc.data() }) : null;
 }
 
 async function saveDoc(
@@ -114,24 +113,23 @@ async function saveDoc(
   isUpdate = false
 ): Promise<any> {
   if (testStore.enabled) {
-    const storeMap: Map<string, any> =
-      collectionName === "tasks"
-        ? testStore.tasks
-        : collectionName === "folders"
-        ? testStore.folders
-        : testStore.notes;
+    const storeMap = testCollection(collectionName);
 
     const existing = storeMap.get(id);
-    const finalDoc = isUpdate ? { ...existing, ...data, id, user_id: grant.userId } : { ...data, id, user_id: grant.userId };
+    const rawDoc = isUpdate ? { ...existing, ...data, id, user_id: grant.userId } : { ...data, id, user_id: grant.userId };
+    const finalDoc = collectionName === "tasks" ? normalizeTaskSchedule(rawDoc) : rawDoc;
     storeMap.set(id, finalDoc);
     return finalDoc;
   }
 
   const ref = adminDb().doc(`users/${grant.userId}/${collectionName}/${id}`);
   if (isUpdate) {
-    await ref.update(data);
+    const applyDeletes = collectionName === "tasks"
+      ? Object.fromEntries(scheduleApplyDeleteKeys(data).map((key) => [key, FieldValue.delete()]))
+      : {};
+    await ref.update({ ...data, ...applyDeletes });
     const updated = await ref.get();
-    return { id, ...updated.data() };
+    return collectionName === "tasks" ? normalizeTaskSchedule({ id, ...updated.data() }) : { id, ...updated.data() };
   } else {
     await ref.set(data);
     return { id, ...data };
@@ -185,14 +183,14 @@ async function handleGetTasks(grant: AssistantGrant, query: any, res: any) {
   if (query.folder_id) {
     filtered = filtered.filter((t) => t.folder_id === query.folder_id);
   }
-  if (query.due_date) {
-    filtered = filtered.filter((t) => t.due_date && t.due_date.startsWith(query.due_date));
+  if (query.work_date) {
+    filtered = filtered.filter((t) => t.work_date && t.work_date.startsWith(query.work_date));
   }
   if (query.from_date) {
-    filtered = filtered.filter((t) => (t.due_date || t.start_at || "") >= query.from_date);
+    filtered = filtered.filter((t) => (t.work_date || "") >= query.from_date);
   }
   if (query.to_date) {
-    filtered = filtered.filter((t) => (t.due_date || t.end_at || "") <= query.to_date);
+    filtered = filtered.filter((t) => (t.work_date || "") <= query.to_date);
   }
   if (query.search) {
     const q = String(query.search).toLowerCase();
@@ -247,12 +245,9 @@ async function handleCreateTask(grant: AssistantGrant, body: any, req: any, res:
     priority: body.priority || "p4",
     status: body.status || (isCompleted ? "done" : "todo"),
     completed: isCompleted,
-    due_date: body.due_date || null,
+    work_date: body.work_date || null,
     folder_id: body.folder_id || null,
     pinned: Boolean(body.pinned),
-    start_at: body.start_at || null,
-    end_at: body.end_at || null,
-    estimated_minutes: typeof body.estimated_minutes === "number" ? body.estimated_minutes : null,
     recurrence: body.recurrence || "none",
     created_at: now,
     updated_at: now,
@@ -288,12 +283,9 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
     "priority",
     "status",
     "completed",
-    "due_date",
+    "work_date",
     "folder_id",
     "pinned",
-    "start_at",
-    "end_at",
-    "estimated_minutes",
     "recurrence",
   ];
 
@@ -619,15 +611,6 @@ async function handlePatchMemory(grant: AssistantGrant, memoryId: string, body: 
 // Schedule & Calendar Handlers (برنامه‌ریزی و تقویم)
 // -------------------------------------------------------------
 
-function hasTimeOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
-  const aStart = Date.parse(startA);
-  const aEnd = Date.parse(endA || startA);
-  const bStart = Date.parse(startB);
-  const bEnd = Date.parse(endB || startB);
-
-  return aStart < bEnd && bStart < aEnd;
-}
-
 async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "month", query: any, res: any) {
   const tasks = await getCollectionDocs(grant, "tasks");
   const baseDate = query.date ? new Date(query.date) : new Date();
@@ -660,8 +643,7 @@ async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "
 
   const matching = tasks.filter((t) => {
     let tTime: number | null = null;
-    if (t.start_at) tTime = Date.parse(t.start_at);
-    else if (t.due_date) tTime = Date.parse(t.due_date);
+    if (t.work_date) tTime = Date.parse(t.work_date);
 
     if (tTime && !isNaN(tTime)) {
       return tTime >= startTime && tTime <= endTime;
@@ -670,8 +652,8 @@ async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "
   });
 
   matching.sort((a, b) => {
-    const timeA = Date.parse(a.start_at || a.due_date || "") || 0;
-    const timeB = Date.parse(b.start_at || b.due_date || "") || 0;
+    const timeA = Date.parse(a.work_date || "") || 0;
+    const timeB = Date.parse(b.work_date || "") || 0;
     return timeA - timeB;
   });
 
@@ -684,6 +666,28 @@ async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "
       count: matching.length,
     },
   });
+}
+
+const TASK_SCHEDULE_KEYS = new Set([
+  "work_date",
+  "status",
+  "priority",
+  "folder_id",
+  "completed",
+  "deadline_date",
+  "due_date",
+  "horizon",
+  "period_start",
+  "period_end",
+]);
+
+function isIsoInstant(value: unknown): value is string {
+  return typeof value === "string" && value.includes("T") && Number.isFinite(Date.parse(value));
+}
+
+function writesTaskSchedule(body: any): boolean {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  return Object.keys(body).some((key) => TASK_SCHEDULE_KEYS.has(key) || key.startsWith("planning_") || key.startsWith("schedule_"));
 }
 
 async function handleGetCalendarEvents(grant: AssistantGrant, query: any, res: any) {
@@ -700,20 +704,14 @@ async function handleGetCalendarEvents(grant: AssistantGrant, query: any, res: a
     return sendError(res, 400, "VALIDATION_ERROR", "Invalid start or end date range.");
   }
 
-  const tasks = await getCollectionDocs(grant, "tasks");
-  const events = tasks.filter((t) => {
-    const eventStart = t.start_at ? Date.parse(t.start_at) : (t.due_date ? Date.parse(t.due_date) : null);
-    const eventEnd = t.end_at ? Date.parse(t.end_at) : eventStart;
-
-    if (!eventStart) return false;
-    return (eventStart >= startTime && eventStart <= endTime) || (eventEnd && eventEnd >= startTime && eventEnd <= endTime);
+  const stored = await getCollectionDocs(grant, "agent_events");
+  const events = stored.filter((event) => {
+    const eventStart = isIsoInstant(event.start) ? Date.parse(event.start) : NaN;
+    if (!Number.isFinite(eventStart)) return false;
+    return eventStart >= startTime && eventStart <= endTime;
   });
 
-  events.sort((a, b) => {
-    const timeA = Date.parse(a.start_at || a.due_date || "") || 0;
-    const timeB = Date.parse(b.start_at || b.due_date || "") || 0;
-    return timeA - timeB;
-  });
+  events.sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
 
   return sendJson(res, 200, {
     data: events,
@@ -726,42 +724,22 @@ async function handleGetCalendarEvents(grant: AssistantGrant, query: any, res: a
 }
 
 async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: any, res: any) {
-  const title = typeof body?.title === "string" ? body.title.trim() : "";
-  const startAt = typeof body?.start_at === "string" ? body.start_at : null;
-  const endAt = typeof body?.end_at === "string" ? body.end_at : null;
-
-  if (!title) return sendError(res, 400, "VALIDATION_ERROR", "Event title is required.");
-  if (!startAt || isNaN(Date.parse(startAt))) {
-    return sendError(res, 400, "VALIDATION_ERROR", "Valid 'start_at' timestamp in ISO 8601 is required.");
+  if (writesTaskSchedule(body)) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Calendar events cannot write a task schedule.");
   }
 
-  const effectiveEndAt = endAt || new Date(Date.parse(startAt) + 30 * 60000).toISOString();
+  const title = typeof body?.title === "string" ? body.title.trim() : "";
+  const start = body?.start;
 
-  // Conflict detection
-  const checkConflict = body.check_conflict !== false;
-  if (checkConflict) {
-    const tasks = await getCollectionDocs(grant, "tasks");
-    const conflicting = tasks.filter((t) => {
-      if (!t.start_at) return false;
-      return hasTimeOverlap(startAt, effectiveEndAt, t.start_at, t.end_at || t.start_at);
-    });
-
-    if (conflicting.length > 0 && !body.force) {
-      return sendJson(res, 409, {
-        error: {
-          code: "TIME_CONFLICT",
-          message: "An overlapping event or task exists in this time interval.",
-          details: {
-            conflicting_events: conflicting.map((c) => ({
-              id: c.id,
-              title: c.title,
-              start_at: c.start_at,
-              end_at: c.end_at,
-            })),
-          },
-        },
-      });
-    }
+  if (!title) return sendError(res, 400, "VALIDATION_ERROR", "Event title is required.");
+  if (!isIsoInstant(start)) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Valid 'start' ISO instant is required.");
+  }
+  if (body?.description != null && typeof body.description !== "string") {
+    return sendError(res, 400, "VALIDATION_ERROR", "Event description must be a string or null.");
+  }
+  if (body?.end != null && !isIsoInstant(body.end)) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Event end must be an ISO instant or null.");
   }
 
   const idempotencyKey = getIdempotencyKey(req, body);
@@ -774,23 +752,18 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
   const id = `event_${Date.now()}_${randomBytes(6).toString("hex")}`;
   const now = new Date().toISOString();
 
-  const eventData: any = {
+  const eventData = {
     id,
     user_id: grant.userId,
     title,
-    description: body.description || null,
-    start_at: startAt,
-    end_at: effectiveEndAt,
-    due_date: startAt.slice(0, 10),
-    completed: false,
-    status: "todo",
-    priority: body.priority || "p3",
-    folder_id: body.folder_id || null,
+    description: typeof body.description === "string" ? body.description : null,
+    start,
+    end: isIsoInstant(body?.end) ? body.end : null,
     created_at: now,
     updated_at: now,
   };
 
-  const created = await saveDoc(grant, "tasks", id, eventData, false);
+  const created = await saveDoc(grant, "agent_events", id, eventData, false);
   await auditLog(grant, "calendar:create_event", id, title);
 
   const responseBody = {
@@ -806,51 +779,43 @@ async function handleCreateCalendarEvent(grant: AssistantGrant, body: any, req: 
 }
 
 async function handlePatchCalendarEvent(grant: AssistantGrant, eventId: string, body: any, res: any) {
-  const existing = await getDocById(grant, "tasks", eventId);
-  if (!existing) return sendError(res, 404, "NOT_FOUND", "Event not found.");
-
-  const startAt = body.start_at || existing.start_at;
-  const endAt = body.end_at || existing.end_at;
-
-  if (body.start_at || body.end_at) {
-    if (body.check_conflict !== false) {
-      const tasks = await getCollectionDocs(grant, "tasks");
-      const conflicting = tasks.filter((t) => {
-        if (t.id === eventId || !t.start_at) return false;
-        return hasTimeOverlap(startAt, endAt, t.start_at, t.end_at || t.start_at);
-      });
-
-      if (conflicting.length > 0 && !body.force) {
-        return sendJson(res, 409, {
-          error: {
-            code: "TIME_CONFLICT",
-            message: "Time overlap detected with existing event.",
-            details: {
-              conflicting_events: conflicting.map((c) => ({
-                id: c.id,
-                title: c.title,
-                start_at: c.start_at,
-                end_at: c.end_at,
-              })),
-            },
-          },
-        });
-      }
-    }
+  if (writesTaskSchedule(body)) {
+    return sendError(res, 400, "VALIDATION_ERROR", "Calendar events cannot write a task schedule.");
   }
 
+  const existing = await getDocById(grant, "agent_events", eventId);
+  if (!existing) return sendError(res, 404, "NOT_FOUND", "Event not found.");
+
   const patch: Record<string, any> = {};
-  if (body.title !== undefined) patch.title = String(body.title).trim();
-  if (body.description !== undefined) patch.description = body.description;
-  if (body.start_at !== undefined) patch.start_at = body.start_at;
-  if (body.end_at !== undefined) patch.end_at = body.end_at;
-  if (body.status !== undefined) patch.status = body.status;
-  if (body.completed !== undefined) patch.completed = Boolean(body.completed);
+  if (body?.title !== undefined) {
+    if (typeof body.title !== "string" || !body.title.trim()) {
+      return sendError(res, 400, "VALIDATION_ERROR", "Event title must be a non-empty string.");
+    }
+    patch.title = body.title.trim();
+  }
+  if (body?.description !== undefined) {
+    if (body.description !== null && typeof body.description !== "string") {
+      return sendError(res, 400, "VALIDATION_ERROR", "Event description must be a string or null.");
+    }
+    patch.description = body.description;
+  }
+  if (body?.start !== undefined) {
+    if (!isIsoInstant(body.start)) return sendError(res, 400, "VALIDATION_ERROR", "Valid 'start' ISO instant is required.");
+    patch.start = body.start;
+  }
+  if (body?.end !== undefined) {
+    if (body.end !== null && !isIsoInstant(body.end)) return sendError(res, 400, "VALIDATION_ERROR", "Event end must be an ISO instant or null.");
+    patch.end = body.end;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return sendError(res, 400, "VALIDATION_ERROR", "No editable event fields supplied.");
+  }
 
   const now = new Date().toISOString();
   patch.updated_at = now;
 
-  const updated = await saveDoc(grant, "tasks", eventId, patch, true);
+  const updated = await saveDoc(grant, "agent_events", eventId, patch, true);
   await auditLog(grant, "calendar:update_event", eventId, patch.title || existing.title);
 
   return sendJson(res, 200, {

@@ -92,9 +92,7 @@ export function NoteEditorTabs({
         <div>
           <p className="text-xs text-muted-foreground mb-1">{T("پیش‌نمایش زنده", "Live preview")}</p>
           <div className="prose-note max-w-none">
-            <NoteMarkdown>
-              {markdown || ""}
-            </NoteMarkdown>
+            {markdown.length > 60_000 ? <p className="text-xs text-muted-foreground">{T("این نوت برای پیش‌نمایش زنده خیلی بلند است.", "This note is too long for a live preview.")}</p> : <NoteMarkdown>{markdown || ""}</NoteMarkdown>}
           </div>
         </div>
       </TabsContent>
@@ -102,9 +100,7 @@ export function NoteEditorTabs({
       <TabsContent value="preview" className="mt-1">
         <div className="min-h-[50vh]">
           <div className="prose-note max-w-none">
-            <NoteMarkdown>
-              {markdown || ""}
-            </NoteMarkdown>
+            {markdown.length > 60_000 ? <p className="text-xs text-muted-foreground">{T("این نوت برای پیش‌نمایش زنده خیلی بلند است.", "This note is too long for a live preview.")}</p> : <NoteMarkdown>{markdown || ""}</NoteMarkdown>}
           </div>
         </div>
       </TabsContent>

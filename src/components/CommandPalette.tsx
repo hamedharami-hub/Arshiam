@@ -112,9 +112,9 @@ export default function CommandPalette() {
         cachedTasks.forEach((t) => {
           if (t?.title?.toLowerCase().includes(term) || t?.description?.toLowerCase().includes(term)) {
             let dueSubtitle: string | undefined;
-            if (t.due_date) {
+            if (t.work_date) {
               try {
-                const parsedDate = parseTaskDueDate(t.due_date);
+                const parsedDate = parseTaskDueDate(t.work_date);
                 if (parsedDate) {
                   dueSubtitle = `${T("موعد", "Due")}: ${parsedDate.toLocaleDateString(isEn ? "en-US" : "fa-IR")}`;
                 }

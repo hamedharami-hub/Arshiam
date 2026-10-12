@@ -366,7 +366,7 @@ export function offlineAssistant(
     const domain = detectDomain(title);
     const data = {
       title,
-      due_date: parsed.dueDate || null,
+      work_date: parsed.dueDate || null,
       priority,
       category: domain !== "general" ? domain : undefined,
       source: "offline-deterministic",
@@ -386,7 +386,7 @@ export function offlineAssistant(
     const data = {
       priority,
       reason,
-      due_date: parsed.dueDate || null,
+      work_date: parsed.dueDate || null,
       category: domain !== "general" ? domain : undefined,
       source: "offline-deterministic",
     };

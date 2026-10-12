@@ -24,7 +24,7 @@ describe("planCascade", () => {
   });
 
   it("finds items of a period and treats due dates as day items", () => {
-    const due = t("due", { due_date: "2026-06-10" });
+    const due = t("due", { work_date: "2026-06-10" });
     const tasks = [t("w", planPatch(week, s)), t("m", planPatch(month, s)), due];
     expect(itemsInPeriod(tasks, week, s).map((x) => x.id)).toEqual(["w"]);
     expect(itemsInPeriod(tasks, periodFor("day", now, s), s).map((x) => x.id)).toEqual(["due"]);

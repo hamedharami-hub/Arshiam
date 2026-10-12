@@ -77,14 +77,20 @@ export function startWidgetSessionSync(): () => void {
   return () => { generation++; unsubscribe(); };
 }
 
+function isWidgetOpen(task: Task) {
+  return !task.completed && task.status !== "done" && task.status !== "wont_do";
+}
+
 export function widgetPayload(tasks: Task[], today = new Date()) {
   const active = tasks.filter((task) => {
-    if (task.completed || task.status === "done" || !task.due_date) return false;
-    const due = new Date(task.due_date.length === 10 ? task.due_date + "T00:00:00" : task.due_date);
+    if (task.completed || task.status === "done" || !task.work_date) return false;
+    const due = new Date(task.work_date.length === 10 ? task.work_date + "T00:00:00" : task.work_date);
     return due.getFullYear() === today.getFullYear() && due.getMonth() === today.getMonth()
       && due.getDate() === today.getDate();
-  }).sort((a, b) => (a.due_date || "").localeCompare(b.due_date || "") || a.id.localeCompare(b.id));
-  return { activeCount: active.length, nextTaskId: active[0]?.id || "",
+  }).sort((a, b) => (a.work_date || "").localeCompare(b.work_date || "") || a.id.localeCompare(b.id));
+  const next = tasks.filter((task) => isWidgetOpen(task) && task.is_next === true)
+    .sort((a, b) => a.id.localeCompare(b.id))[0];
+  return { activeCount: active.length, nextTaskId: next?.id || "",
     nextTaskTitle: active.slice(0, 3).map((task) => `• ${task.title}`).join("\n") };
 }
 
@@ -111,8 +117,8 @@ async function sendTasks(tasks: Task[], ownerId: string): Promise<void> {
     const pendingChanges = (await getPendingOps("tasks")).length > 0;
     if (auth.currentUser?.uid !== ownerId || readyUid !== ownerId) return;
     await widget.syncWidgetData({ ...widgetPayload(tasks), userId: ownerId, pendingChanges,
-      tasks: tasks.map(({ id, title, due_date, completed, status, priority, reminder_at, reminder_plan, folder_id, parent_id, source_type, source_id }) =>
-        ({ id, title, due_date: due_date || "", completed, status, priority, reminder_at: reminder_at || "",
+      tasks: tasks.map(({ id, title, work_date, completed, status, priority, reminder_at, reminder_plan, folder_id, parent_id, source_type, source_id }) =>
+        ({ id, title, work_date: work_date || "", completed, status, priority, reminder_at: reminder_at || "",
           reminder_plan: reminder_plan || null,
           folder_id: folder_id || "", parent_id: parent_id || "",
           source_type: source_type || "", source_id: source_id || "" })) });
