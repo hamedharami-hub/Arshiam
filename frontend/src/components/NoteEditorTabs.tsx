@@ -76,6 +76,7 @@ export function NoteEditorTabs({
           <RichEditor
             key={`${user?.id ?? "signed-out"}:${noteId}`}
             attachmentScopeId={noteId}
+            editorAriaLabel={T("متن یادداشت", "Note body")}
             initialMarkdown={markdown}
             externalMarkdown={markdown}
             externalRevision={contentRevision}
@@ -101,6 +102,7 @@ export function NoteEditorTabs({
           />
         </div>
         <Textarea
+          aria-label={T("متن یادداشت به مارک‌داون", "Note body in Markdown")}
           value={markdown}
           onSelect={(event) => {
             const target = event.currentTarget;
@@ -108,7 +110,7 @@ export function NoteEditorTabs({
           }}
           onChange={(e) => onChange(e.target.value, markdownToHtml(e.target.value))}
           disabled={readOnly}
-          className="min-h-[40vh] font-mono text-sm w-full border-0 focus-visible:ring-0 px-0"
+          className="min-h-[40vh] font-mono text-sm w-full border-0 focus-visible:ring-2 focus-visible:ring-ring px-0"
           dir={isEn ? "ltr" : "auto"}
           style={{ unicodeBidi: "plaintext", textAlign: "start" }}
         />

@@ -45,8 +45,8 @@ const PATTERNS: Pattern[] = [
     name_fa: "۴-۷-۸ · خواب",
     name_en: "4-7-8 · Sleep",
     emoji: "🌙",
-    goal_fa: "آرام‌سازی سریع سیستم عصبی — قبل از خواب.",
-    goal_en: "Rapid nervous system down-regulation — bedtime calming.",
+    goal_fa: "یک تمرین اختیاری قبل از خواب؛ اثر آرام‌بخشی برای همه یکسان نیست.",
+    goal_en: "Optional bedtime practice; calming effects vary.",
     inhale: 4, holdIn: 7, exhale: 8, holdOut: 0, loops: 6,
     ambient: "binaural_delta",
     color: "from-indigo-600 via-purple-600 to-violet-700",
@@ -56,8 +56,8 @@ const PATTERNS: Pattern[] = [
     name_fa: "Coherent · ۵-۵",
     name_en: "Coherent · 5-5",
     emoji: "💗",
-    goal_fa: "هماهنگی ضربان قلب و تنفس — تعادل احساسی.",
-    goal_en: "Heart-rate resonance & HRV coherence — emotional balance.",
+    goal_fa: "تنفس آهسته و یکنواخت؛ ممکن است به آرامش کمک کند.",
+    goal_en: "Slow, even breathing; may support a sense of calm.",
     inhale: 5, holdIn: 0, exhale: 5, holdOut: 0, loops: 12,
     ambient: "binaural_alpha",
     color: "from-rose-500 via-pink-500 to-fuchsia-500",
@@ -78,8 +78,8 @@ const PATTERNS: Pattern[] = [
     name_fa: "Wim Hof سبک",
     name_en: "Light Wim Hof",
     emoji: "❄️",
-    goal_fa: "تحریک سیستم سمپاتیک — تمرکز و مقاومت ذهنی.",
-    goal_en: "Sympathetic stimulation — mental endurance and focus.",
+    goal_fa: "ریتم سریع‌تر؛ اثر آن متفاوت است. نفس را به زور عمیق نکن و در صورت ناراحتی توقف کن.",
+    goal_en: "Faster rhythm; effects vary. Do not force deep breaths; stop if uncomfortable.",
     inhale: 2, holdIn: 0, exhale: 2, holdOut: 0, loops: 30,
     ambient: "wind",
     color: "from-cyan-500 via-teal-500 to-emerald-500",
@@ -129,6 +129,7 @@ export default function BreathingView() {
   const [vol, setVol] = useState(35);
   const [completedSession, setCompletedSession] = useState(false);
   const [postMood, setPostMood] = useState<number | null>(null);
+  const [moodSkipped, setMoodSkipped] = useState(false);
 
   const rafRef = useRef<number | null>(null);
   const phaseStartRef = useRef<number>(0);   // performance.now() when current phase started
@@ -175,6 +176,7 @@ export default function BreathingView() {
     stop(true);
     setCompletedSession(false);
     setPostMood(null);
+    setMoodSkipped(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pattern.id]);
 
@@ -230,6 +232,7 @@ export default function BreathingView() {
     if (!sequence.length) return;
     setCompletedSession(false);
     setPostMood(null);
+    setMoodSkipped(false);
     phaseIdxRef.current = 0;
     loopRef.current = 0;
     phaseStartRef.current = performance.now();
@@ -395,7 +398,7 @@ export default function BreathingView() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            {T("سیستم عصبی شما آرام‌تر شده است. الان احساست چطوره؟", "Your nervous system is down-regulated. How are you feeling now?")}
+            {T("اثر تمرین برای هر فرد متفاوت است و از پایان تمرین نمی‌توان وضعیت سیستم عصبی را تعیین کرد. الان احساست چطوره؟ (اختیاری)", "Effects vary; completing the exercise does not establish a change in your nervous system. How are you feeling now? (Optional)")}
           </p>
           <div className="flex items-center gap-1.5 pt-1 flex-wrap">
             {[
@@ -403,13 +406,15 @@ export default function BreathingView() {
               { emoji: "⚡", label: T("پرانرژی‌تر", "Energized"), val: 2 },
               { emoji: "🎯", label: T("متمرکزتر", "Focused"), val: 3 },
               { emoji: "😐", label: T("بدون تغییر", "No change"), val: 4 },
+              { emoji: "😟", label: T("بدتر یا ناراحت‌تر", "Worse or uncomfortable"), val: 5 },
+              { emoji: "❓", label: T("مطمئن نیستم", "Not sure"), val: 6 },
             ].map((item) => (
               <button
                 key={item.val}
                 type="button"
                 onClick={() => {
                   setPostMood(item.val);
-                  toast.success(T("احساست ثبت شد!", "Feeling noted!"));
+                  setMoodSkipped(false);
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
                   postMood === item.val
@@ -421,7 +426,12 @@ export default function BreathingView() {
                 <span>{item.label}</span>
               </button>
             ))}
+            <Button variant="ghost" size="sm" onClick={() => { setPostMood(null); setMoodSkipped(true); }}>
+              {T("رد کردن", "Skip")}
+            </Button>
           </div>
+          {moodSkipped && <p role="status" className="text-xs">{T("پاسخی ثبت نشد؛ احساس تو نامشخص می‌ماند.", "No response recorded; your feeling remains unknown.")}</p>}
+          {postMood === 5 && <p role="status" className="text-xs">{T("تمرین را ادامه نده و عادی نفس بکش. اگر علائم شدید یا ماندگار است، کمک پزشکی بگیر.", "Do not continue the exercise; breathe normally. Seek medical help for severe or persistent symptoms.")}</p>}
         </Card>
       )}
 

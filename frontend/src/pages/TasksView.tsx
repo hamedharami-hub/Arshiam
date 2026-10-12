@@ -51,7 +51,7 @@ import { parseTaskDueDate, taskDueTimestamp, getLocalDateString, taskWorkDate, w
 import type { TaskSwipeAction } from "@/lib/taskSwipeSettings";
 import { readSchedule, schedulePatch } from "@/lib/taskSchedule";
 import { pushUndo } from "@/lib/undoStack";
-import { pushDeleted } from "@/lib/recentlyDeleted";
+import { pushDeleted, pushDeletedTask } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet } from "@/lib/offlineQueue";
 import { logTaskActivity } from "@/lib/taskActivity";
 import {
@@ -923,7 +923,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     const res = await deleteTaskCascade(ownerId, id, allTasks, { recoverable: true });
     if (!res.success) {
       setAllTasks(previousTasks);
-      toast.error(T("حذف تسک با خطا مواجه شد", "Could not delete task"));
+      setGraceTasks(prev => { const next = { ...prev }; allDescendantIds.forEach(taskId => delete next[taskId]); return next; });
+      setGraceMap(prev => { const next = { ...prev }; allDescendantIds.forEach(taskId => delete next[taskId]); return next; });
+      toast.error(T("حذف انجام نشد؛ برای تهیه نسخهٔ بازگردانی، به اینترنت وصل شوید و همگام‌سازی را کامل کنید.", "Nothing was deleted. Connect and finish syncing so the recovery snapshot can be verified."));
       return false;
     }
 
@@ -938,7 +940,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     // the user can retry from Recently Deleted.
     const restore = async (): Promise<boolean> => {
       const statuses = await Promise.all(recoverTasks.map(s => persistTask(ownerId, s)));
-      if (statuses.some(status => status === "failed")) return false;
+      if (statuses.some(status => status !== "saved" && status !== "queued")) return false;
       try {
         if (recoverTagLinks?.length) {
           const { error } = await firebaseStore.from("task_tags").insert(recoverTagLinks as never);
@@ -961,7 +963,9 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       return true;
     };
     pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: async () => { await restore(); } });
-    pushDeleted({ kind: "task", label: title, restore });
+    if (recovery) {
+      if (!pushDeletedTask(ownerId, title, recovery)) toast.warning(T("بازگردانی فقط تا ۱۰ دقیقه در همین نشست ممکن است؛ با بارگذاری مجدد از دست می‌رود.", "Recovery is available for 10 minutes in this session only; reloading loses it."));
+    } else pushDeleted({ kind: "task", label: title, ownerId, restore });
     return true;
   };
 

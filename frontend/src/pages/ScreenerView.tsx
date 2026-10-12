@@ -274,6 +274,8 @@ export default function ScreenerView() {
       } else {
         toast.error(T("خطا در ذخیره نتیجه ارزیابی", "Failed to save assessment result"));
       }
+    } catch {
+      toast.error(T("خطا در ذخیره نتیجه ارزیابی؛ پاسخ‌ها برای تلاش دوباره حفظ شده‌اند.", "Failed to save assessment result; your answers are kept for retry."));
     } finally {
       setSubmitting(false);
     }
@@ -307,7 +309,7 @@ export default function ScreenerView() {
 
   // Shared safety card, reused in both review and result stages.
   const selfHarmSupportCard = (
-    <Card className="border-2 border-destructive bg-destructive/5 animate-pulse" data-testid="self-harm-support-card">
+    <Card className="border-2 border-destructive bg-destructive/5" data-testid="self-harm-support-card" role="status">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-destructive text-base">
           <AlertTriangle className="w-5 h-5" />
@@ -388,6 +390,7 @@ export default function ScreenerView() {
       </div>
 
       <HeaderTitlePortal title={title} />
+      {stage === "run" && liveFlags.includes("suicidal_ideation") && selfHarmSupportCard}
       {/* Stage 1: INTRO */}
       {stage === "intro" && (
         <>
@@ -757,6 +760,7 @@ export default function ScreenerView() {
                 className="w-full"
                 size="lg"
                 onClick={submitFinal}
+                disabled={submitting}
               >
                 <CheckCircle2 className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} />
                 {validation.isComplete

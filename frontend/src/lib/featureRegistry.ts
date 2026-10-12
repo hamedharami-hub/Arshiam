@@ -41,7 +41,7 @@ import {
   Users,
   Wind,
 } from "lucide-react";
-import type { ModuleId } from "./appModules";
+import { isPathAllowed, type ModuleId, type ModulesState } from "./appModules";
 
 /**
  * Single source of truth for every navigable `/app/*` feature.
@@ -282,7 +282,7 @@ export const FEATURES: FeatureEntry[] = [
     nameFa: "ثبت افکار CBT",
     nameEn: "CBT Thoughts",
     keywordsFa: "افکار ثبت افکار سی‌بی‌تی بررسی فکر ای‌بی‌سی abc",
-    keywordsEn: "thoughts cbt thought record abc model",
+    keywordsEn: "thoughts cbt thought record abc model think it through",
     center: "self-care",
     icon: NotebookPen,
     moduleKey: "mind",
@@ -560,4 +560,16 @@ export function featureSearchText(feature: FeatureEntry): string {
 /** Look up a single feature by its canonical route. */
 export function findFeature(to: string): FeatureEntry | undefined {
   return FEATURES.find((feature) => feature.to === to);
+}
+
+/** Curated navigation keeps its own order/grouping, but not duplicate metadata. */
+export function getFeatureNavigation(to: string) {
+  const feature = findFeature(to);
+  if (!feature) throw new Error(`Unregistered navigation feature: ${to}`);
+  return { url: feature.to, label: feature.nameFa, icon: feature.icon };
+}
+
+/** Delegate module access to the existing route policy; admin remains role-gated. */
+export function isFeatureAvailable(feature: FeatureEntry, modules: ModulesState, isAdmin = modules.isAdmin): boolean {
+  return (feature.to !== "/app/admin" || isAdmin) && isPathAllowed(feature.to, modules);
 }

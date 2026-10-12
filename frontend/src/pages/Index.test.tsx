@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Index from "./Index";
 import { loadSettings } from "@/lib/reminders";
+import { rememberLastRoute } from "@/lib/appNavigation";
 
 let currentUser: { id: string } | null = null;
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: currentUser, loading: false }) }));
@@ -21,6 +22,30 @@ beforeEach(() => {
 });
 
 describe("Index landing route", () => {
+  it("restores only the signed-in account's safe route, tolerating an unattributed legacy value", async () => {
+    currentUser = { id: "second" };
+    rememberLastRoute("first", "/app/inbox");
+    localStorage.setItem("last_route", "/app/inbox");
+    vi.mocked(loadSettings).mockResolvedValue({ default_landing: "last" } as Awaited<ReturnType<typeof loadSettings>>);
+    render(<MemoryRouter initialEntries={["/"]}><Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/app/today" element={<p>Today page</p>} />
+      <Route path="/app/inbox" element={<p>Inbox page</p>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText("Today page")).toBeInTheDocument();
+    expect(screen.queryByText("Inbox page")).not.toBeInTheDocument();
+  });
+
+  it("restores a safe owner-specific query", async () => {
+    currentUser = { id: "owner" };
+    rememberLastRoute("owner", "/app/settings?tab=appearance&new=1");
+    vi.mocked(loadSettings).mockResolvedValue({ default_landing: "last" } as Awaited<ReturnType<typeof loadSettings>>);
+    render(<MemoryRouter initialEntries={["/"]}><Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/app/settings" element={<p>Settings page</p>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText("Settings page")).toBeInTheDocument();
+  });
   it("ignores settings from the previous account while the next account loads", async () => {
     const first = deferred<{ default_landing: string }>();
     const second = deferred<{ default_landing: string }>();

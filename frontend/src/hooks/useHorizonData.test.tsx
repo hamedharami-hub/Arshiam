@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
     subscribeToTasks: vi.fn(),
     subscribeFolders: vi.fn(() => vi.fn()),
     subscribeTags: vi.fn(() => vi.fn()),
+    outcomes: vi.fn(),
   };
 });
 
@@ -24,6 +25,7 @@ vi.mock("@/lib/firestoreDataService", async (importOriginal) => ({
   subscribeTags: mocks.subscribeTags,
 }));
 vi.mock("@/features/tasks/taskService", () => ({ subscribeToTasks: mocks.subscribeToTasks }));
+vi.mock("@/lib/taskOutcomes", () => ({ listTaskOutcomes: mocks.outcomes }));
 
 import { useHorizonData } from "./useHorizonData";
 
@@ -34,6 +36,7 @@ const settings = { calendar: "gregorian" as const, weekStart: "mon" as const, se
 describe("useHorizonData saveTask status and rollback", () => {
   beforeEach(() => {
     mocks.persistTask.mockReset();
+    mocks.outcomes.mockReset();
     mocks.subscribeToTasks.mockReset().mockImplementation((uid: string, update: (tasks: Task[]) => void) => {
       update([uid === "user-1" ? original : other]);
       return vi.fn();
@@ -53,6 +56,26 @@ describe("useHorizonData saveTask status and rollback", () => {
 
     expect(status).toBe("failed");
     expect(result.current.tasks[0].title).toBe("Before");
+  });
+
+  it("hands configured outcomes off to the Tasks picker without completing in Horizon", async () => {
+    mocks.outcomes.mockResolvedValue([{ id: "outcome", task_id: original.id, actions: [] }]);
+    const { result } = renderHook(() => useHorizonData("user-1", settings));
+    let outcome: unknown;
+    await act(async () => { outcome = await result.current.toggleDone(original); });
+    expect(outcome).toEqual({ kind: "study", navUrl: "/app/tasks?completeTaskId=task-1" });
+    expect(mocks.persistTask).not.toHaveBeenCalled();
+    expect(result.current.tasks[0].completed).toBe(false);
+  });
+
+  it("keeps Horizon tasks open when outcome lookup fails", async () => {
+    mocks.outcomes.mockRejectedValue(new Error("read denied"));
+    const { result } = renderHook(() => useHorizonData("user-1", settings));
+    let outcome: unknown;
+    await act(async () => { outcome = await result.current.toggleDone(original); });
+    expect(outcome).toEqual({ kind: "failed" });
+    expect(mocks.persistTask).not.toHaveBeenCalled();
+    expect(result.current.tasks[0].completed).toBe(false);
   });
 
   it("does not let an older failed save erase a newer same-field edit", async () => {

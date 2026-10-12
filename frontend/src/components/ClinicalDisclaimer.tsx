@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ShieldAlert, Phone } from "lucide-react";
 import { toast } from "sonner";
+import { getCrisisResources, resolveSupportRegion, SUPPORT_REGIONS } from "@/lib/crisisResources";
 
 // A5 — Clinical disclaimer onboarding gate.
 // Shows once until the user acknowledges; stores `clinical_consent` on profile.
@@ -19,18 +20,24 @@ export default function ClinicalDisclaimer() {
   const [open, setOpen] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [saving, setSaving] = useState(false);
+  const region = resolveSupportRegion(isEn ? "en" : "fa");
+  const resources = getCrisisResources(region);
+  const regionMeta = SUPPORT_REGIONS.find((r) => r.code === region)!;
 
   // Never force the gate on the crisis route itself — urgent help must be reachable.
   const onCrisisRoute = location.pathname === "/app/crisis";
 
   useEffect(() => {
-    if (!user) return;
-    if (onCrisisRoute) return;
+    setOpen(false);
+    setAgreed(false);
+    if (!user || onCrisisRoute) return;
+    let active = true;
     firebaseStore.from("profiles").select("clinical_consent").eq("id", user.id).maybeSingle()
       .then(({ data }) => {
-        if (data && !(data as any).clinical_consent) setOpen(true);
-      });
-  }, [user, onCrisisRoute]);
+        if (active && data && !(data as any).clinical_consent) setOpen(true);
+      }).catch(() => { /* Urgent help must not depend on this profile read. */ });
+    return () => { active = false; };
+  }, [user?.id, onCrisisRoute]);
 
   // If the user reaches the crisis route while the gate is open, step aside.
   useEffect(() => {
@@ -75,40 +82,18 @@ export default function ClinicalDisclaimer() {
           <div className="bg-rose-500/10 border border-rose-500/30 rounded-md p-3 space-y-2">
             <div className="font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
               <Phone className="w-4 h-4" />
-              {T("در شرایط بحرانی فوراً تماس بگیر:", "In a crisis, call immediately:")}
+              {T("در خطر فوری با خدمات اضطراری محل خود تماس بگیر.", "In immediate danger, contact your local emergency services.")}
             </div>
+            <p className="text-xs">{T("منطقه خطوط کمک: ", "Helpline region: ")}{isEn ? regionMeta.label_en : regionMeta.label}</p>
             <ul className="text-xs space-y-1 list-disc pe-5">
-              <li>
-                <strong>
-                  {T("اورژانس اجتماعی ایران: ", "Iran Social Emergency: ")}
-                  <a href="tel:123" className="text-rose-700 dark:text-rose-300 underline font-bold">
-                    ۱۲۳
+              {resources.map((resource) => (
+                <li key={resource.id}>
+                  <a href={resource.primaryChannel === "sms" ? `sms:${resource.sms}` : resource.phone ? `tel:${resource.phone}` : resource.url}
+                    className="text-rose-700 dark:text-rose-300 underline font-bold">
+                    {isEn ? resource.name_en : resource.name} — {resource.displayPhone}
                   </a>
-                </strong>
-              </li>
-              <li>
-                <strong>
-                  {T("صدای مشاور بهزیستی: ", "Welfare Counseling Line: ")}
-                  <a href="tel:1480" className="text-rose-700 dark:text-rose-300 underline font-bold">
-                    ۱۴۸۰
-                  </a>
-                </strong>
-              </li>
-              <li>
-                <strong>
-                  {T("Lifeline استرالیا: ", "Lifeline Australia: ")}
-                  <a href="tel:131114" className="text-rose-700 dark:text-rose-300 underline font-bold">
-                    13 11 14
-                  </a>
-                </strong>
-              </li>
-              <li>
-                {T("اگر در خطر فوری هستی: ", "If you are in immediate danger: ")}
-                <a href="tel:115" className="text-rose-700 dark:text-rose-300 underline font-bold">
-                  ۱۱۵
-                </a>
-                {T(" (اورژانس)", " (emergency)")}
-              </li>
+                </li>
+              ))}
             </ul>
           </div>
           <p className="text-muted-foreground text-xs">

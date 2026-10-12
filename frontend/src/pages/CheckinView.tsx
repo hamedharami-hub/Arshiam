@@ -332,22 +332,22 @@ export default function CheckinView() {
         setSavedTick(Date.now());
 
         // Instant tailored feedback based on scores
-        const m = form.mood ?? 5;
-        const e = form.energy ?? 5;
-        const s = form.stress ?? 5;
-        if (s >= 7) {
+        const m = payload.mood;
+        const e = payload.energy;
+        const s = payload.stress;
+        if (s != null && s >= 7) {
           setPostCheckinInsight({
-            title: T("سطح استرس بالاست — بازگردانی تعادل سیستم عصبی", "Elevated Stress — Autonomic Reset Recommended"),
+            title: T("استرس بالایی گزارش کردی — یک تمرین اختیاری", "You Reported High Stress — An Optional Practice"),
             desc: T(
-              "نمره استرس بالای ۷ نشان‌دهنده برانگیختگی فیزیکی و ذهنی است. ۲ دقیقه تمرین تنفس ریتمیک ۳بعدی می‌تواند پاسخ جنگ-یا-گریز را مهار کند.",
-              "Stress level is 7+. 2 minutes of paced rhythmic breathing can calm sympathetic arousal."
+              "تنفس آرام ممکن است به بعضی افراد کمک کند؛ اثر آن برای همه یکسان نیست. اگر ناراحت یا دچار سرگیجه شدی، توقف کن و عادی نفس بکش.",
+              "Gentle paced breathing may help some people; effects vary. Stop and breathe normally if you feel uncomfortable or dizzy."
             ),
             actionLabel: T("شروع تنفس ریتمیک ۳بعدی", "Start 3D Breathing"),
             actionLink: "/app/breathing",
             tone: "alert",
             icon: Wind,
           });
-        } else if (m <= 4) {
+        } else if (m != null && m <= 4) {
           setPostCheckinInsight({
             title: T("خلق پایین یا احساس سنگینی — مهربانی با خود", "Low Mood — Self-Compassion & Reframe"),
             desc: T(
@@ -359,7 +359,7 @@ export default function CheckinView() {
             tone: "calm",
             icon: BookOpen,
           });
-        } else if (e <= 3) {
+        } else if (e != null && e <= 3) {
           setPostCheckinInsight({
             title: T("انرژی رو به اتمام — ورود به ریتم بازیابی (Recovery)", "Depleted Energy — Switch to Recovery Mode"),
             desc: T(
@@ -371,7 +371,7 @@ export default function CheckinView() {
             tone: "calm",
             icon: Moon,
           });
-        } else if (m >= 8 && e >= 8) {
+        } else if (m != null && e != null && m >= 8 && e >= 8) {
           setPostCheckinInsight({
             title: T("انرژی و نشاط عالی — پنجره طلایی تمرکز عمیق (Deep Work)", "Peak Vitality — Golden Deep Work Window"),
             desc: T(
@@ -385,10 +385,10 @@ export default function CheckinView() {
           });
         } else {
           setPostCheckinInsight({
-            title: T("وضعیت متعادل و باثبات", "Balanced & Steady State"),
+            title: T("چک‌این ثبت شد — بدون قضاوت", "Check-in Saved — Without Judgment"),
             desc: T(
-              "ریتم ذهنی شما در تعادل مناسبی است. با گام‌های یکنواخت پیش بروید و در طول روز آب و استراحت‌های کوتاه را فراموش نکنید.",
-              "Your state is steady and grounded. Proceed at a comfortable pace with regular short breaks."
+              "مقادیر بی‌پاسخ نامشخص می‌مانند. این ثبت به‌تنهایی وضعیت روانی یا جسمی تو را تعیین نمی‌کند؛ با ریتمی راحت پیش برو.",
+              "Unanswered values remain unknown. This entry alone does not establish your mental or physical state; proceed at a comfortable pace."
             ),
             actionLabel: T("مشاهده ابزارهای ذهن", "Explore Mind Tools"),
             actionLink: "/app/mind",

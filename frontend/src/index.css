@@ -18,6 +18,10 @@
 @layer base {
   /* ===== Paper design tokens — light (default) ===== */
   :root {
+    --font-fa: "Vazirmatn", "IRANSansX", "Tahoma", system-ui, -apple-system, sans-serif;
+    --font-en: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Vazirmatn", sans-serif;
+    --font-sans: var(--font-fa);
+    --app-header-height: 3.5rem;
     --background: 40 20% 97%;
     --foreground: 30 10% 14%;
     --card: 40 25% 99%;
@@ -36,6 +40,7 @@
     --destructive: 0 68% 48%;
     --destructive-foreground: 0 0% 100%;
     --success: 145 40% 38%;
+    --success-foreground: 0 0% 100%;
     --warning: 36 80% 44%;
     --priority-high: 0 72% 50%;
     --priority-medium: 36 88% 46%;
@@ -85,6 +90,7 @@
     --destructive: 0 62% 64%;
     --destructive-foreground: 30 6% 8%;
     --success: 145 35% 55%;
+    --success-foreground: 30 6% 8%;
     --warning: 38 70% 58%;
     --priority-high: 0 70% 62%;
     --priority-medium: 38 80% 58%;
@@ -157,7 +163,7 @@
     @apply bg-background text-foreground;
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
-    font-family: "Vazirmatn", "IRANSansX", "Tahoma", system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
   }
   /* Mixed Persian/English digits and inline LTR fragments */
   .ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
@@ -752,33 +758,33 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 .knowledge-html-content .callout-pearl {
-  background: hsl(160 84% 39% / 0.08);
-  border-color: hsl(160 84% 39% / 0.35);
+  background: hsl(var(--success) / 0.08);
+  border-color: hsl(var(--success) / 0.35);
   border-inline-start-width: 4px;
-  border-inline-start-color: hsl(160 84% 39%);
+  border-inline-start-color: hsl(var(--success));
 }
 .knowledge-html-content .callout-pearl strong {
-  color: hsl(160 84% 39%);
+  color: hsl(var(--foreground));
 }
 
 .knowledge-html-content .callout-warning {
-  background: hsl(0 84% 60% / 0.08);
-  border-color: hsl(0 84% 60% / 0.35);
+  background: hsl(var(--destructive) / 0.08);
+  border-color: hsl(var(--destructive) / 0.35);
   border-inline-start-width: 4px;
-  border-inline-start-color: hsl(0 84% 60%);
+  border-inline-start-color: hsl(var(--destructive));
 }
 .knowledge-html-content .callout-warning strong {
-  color: hsl(0 84% 60%);
+  color: hsl(var(--foreground));
 }
 
 .knowledge-html-content .callout-dosage {
-  background: hsl(270 90% 65% / 0.08);
-  border-color: hsl(270 90% 65% / 0.35);
+  background: hsl(var(--primary) / 0.08);
+  border-color: hsl(var(--primary) / 0.35);
   border-inline-start-width: 4px;
-  border-inline-start-color: hsl(270 90% 65%);
+  border-inline-start-color: hsl(var(--primary));
 }
 .knowledge-html-content .callout-dosage strong {
-  color: hsl(270 90% 65%);
+  color: hsl(var(--foreground));
 }
 
 .knowledge-html-content .callout-note {
@@ -1172,7 +1178,7 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 .interactive-flip-card .flip-badge-answer {
   font-size: 0.75rem;
   font-weight: 700;
-  color: hsl(142 71% 45%);
+  color: hsl(var(--success));
 }
 
 .interactive-flip-card .flip-text {
@@ -1265,26 +1271,26 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 .interactive-quiz-option.option-correct {
-  background: hsl(142 71% 45% / 0.15) !important;
-  border-color: hsl(142 71% 45%) !important;
-  color: hsl(142 71% 35%) !important;
+  background: hsl(var(--success) / 0.15) !important;
+  border-color: hsl(var(--success)) !important;
+  color: hsl(var(--foreground)) !important;
   font-weight: 700;
 }
 .interactive-quiz-option.option-correct .option-marker {
-  background: hsl(142 71% 45%);
-  color: white;
-  border-color: hsl(142 71% 45%);
+  background: hsl(var(--success));
+  color: hsl(var(--success-foreground));
+  border-color: hsl(var(--success));
 }
 
 .interactive-quiz-option.option-incorrect {
-  background: hsl(0 84% 60% / 0.15) !important;
-  border-color: hsl(0 84% 60%) !important;
-  color: hsl(0 84% 50%) !important;
+  background: hsl(var(--destructive) / 0.15) !important;
+  border-color: hsl(var(--destructive)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 .interactive-quiz-option.option-incorrect .option-marker {
-  background: hsl(0 84% 60%);
-  color: white;
-  border-color: hsl(0 84% 60%);
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+  border-color: hsl(var(--destructive));
 }
 
 .interactive-quiz-card .quiz-explanation {
@@ -1367,26 +1373,26 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 .interactive-pair-btn.is-matched {
-  background: hsl(142 71% 45% / 0.15) !important;
-  border-color: hsl(142 71% 45%) !important;
-  color: hsl(142 71% 35%) !important;
+  background: hsl(var(--success) / 0.15) !important;
+  border-color: hsl(var(--success)) !important;
+  color: hsl(var(--foreground)) !important;
   cursor: default;
   font-weight: 600;
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .interactive-pair-btn.is-mismatch {
   animation: shake 0.4s ease;
-  background: hsl(0 84% 60% / 0.15) !important;
-  border-color: hsl(0 84% 60%) !important;
+  background: hsl(var(--destructive) / 0.15) !important;
+  border-color: hsl(var(--destructive)) !important;
 }
 
 .pair-feedback {
   padding: 0.75rem;
   border-radius: 0.75rem;
-  background: hsl(142 71% 45% / 0.15);
-  border: 1px solid hsl(142 71% 45% / 0.4);
-  color: hsl(142 71% 35%);
+  background: hsl(var(--success) / 0.15);
+  border: 1px solid hsl(var(--success) / 0.4);
+  color: hsl(var(--foreground));
   font-size: 0.85rem;
   font-weight: 700;
   text-align: center;
@@ -1449,8 +1455,8 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 .interactive-case-container .step-key-point {
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
-  background: hsl(38 92% 50% / 0.12);
-  border: 1px solid hsl(38 92% 50% / 0.35);
+  background: hsl(var(--warning) / 0.12);
+  border: 1px solid hsl(var(--warning) / 0.35);
   color: hsl(var(--foreground));
   font-size: 0.82rem;
   margin: 0.75rem 0;
@@ -1479,9 +1485,9 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 .interactive-case-container .step-completed-badge {
   padding: 0.75rem;
   border-radius: 0.75rem;
-  background: hsl(142 71% 45% / 0.15);
-  border: 1px solid hsl(142 71% 45%);
-  color: hsl(142 71% 35%);
+  background: hsl(var(--success) / 0.15);
+  border: 1px solid hsl(var(--success));
+  color: hsl(var(--foreground));
   font-size: 0.85rem;
   font-weight: 700;
   text-align: center;
@@ -1522,9 +1528,9 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 .interactive-cloze-blank.is-revealed {
-  background: hsl(142 71% 45% / 0.15);
-  border: 1px solid hsl(142 71% 45%);
-  color: hsl(142 71% 35%);
+  background: hsl(var(--success) / 0.15);
+  border: 1px solid hsl(var(--success));
+  color: hsl(var(--foreground));
   animation: pulse 0.3s ease;
 }
 
@@ -1591,15 +1597,15 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 .node-alert.alert-warning {
-  background: hsl(38 92% 50% / 0.12);
-  border: 1px solid hsl(38 92% 50% / 0.4);
+  background: hsl(var(--warning) / 0.12);
+  border: 1px solid hsl(var(--warning) / 0.4);
   color: hsl(var(--foreground));
 }
 
 .node-alert.alert-success {
-  background: hsl(142 71% 45% / 0.15);
-  border: 1px solid hsl(142 71% 45% / 0.4);
-  color: hsl(142 71% 35%);
+  background: hsl(var(--success) / 0.15);
+  border: 1px solid hsl(var(--success) / 0.4);
+  color: hsl(var(--foreground));
 }
 
 /* 7. MEMORY MATCH MINI-GAME (مینی‌گیم تطبیق حافظه) */
@@ -1673,9 +1679,20 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 .memory-tile.is-matched .tile-back {
-  background: hsl(142 71% 45% / 0.2);
-  border-color: hsl(142 71% 45%);
-  color: hsl(142 71% 35%);
+  background: hsl(var(--success) / 0.2);
+  border-color: hsl(var(--success));
+  color: hsl(var(--foreground));
+}
+
+/* Higher-contrast preference removes tinted surfaces, not status meaning.
+   Labels, result markers and the callouts' start borders still identify status. */
+@media (prefers-contrast: more) {
+  .knowledge-html-content :is(.callout-pearl, .callout-warning, .callout-dosage, .callout-note),
+  .interactive-learning-block :is(.option-correct, .option-incorrect, .is-matched, .is-revealed, .pair-feedback, .step-key-point, .step-completed-badge, .node-alert) {
+    background: hsl(var(--card)) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: currentColor !important;
+  }
 }
 
 @keyframes shake {
@@ -1728,16 +1745,16 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 }
 
 /* ==========================================================================
-   Paper redesign v2 — neutralise legacy decoration (gradients, blur, glow,
-   bouncy motion) globally so older screens inherit the calm look.
+   Paper surfaces: opt-in component semantics, never arbitrary gradient utilities.
    ========================================================================== */
-[class*="backdrop-blur"]:not([data-bottom-bar="true"]) { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-[class*="bg-gradient-to-"] { background-image: none !important; }
-[class*="bg-gradient-to-"][class*="text-white"],
-[class*="bg-gradient-to-"][class*="text-primary-foreground"] { background-color: hsl(var(--primary)) !important; }
-.bg-clip-text[class*="text-transparent"], .text-transparent.bg-clip-text {
-  color: hsl(var(--foreground)) !important;
-  -webkit-text-fill-color: currentColor;
+.app-shell-header, .surface-card, [data-sidebar="sidebar"][data-mobile="true"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background-image: none;
+}
+[data-sidebar="sidebar"][data-mobile="true"] {
+  background-color: hsl(var(--sidebar-background));
+  color: hsl(var(--sidebar-foreground));
 }
 .animate-fade-in, .animate-fade-in-up, .animate-fade-in-down, .animate-fade-in-scale,
 .animate-slide-in-right, .animate-slide-in-left, .animate-slide-in-up, .animate-pop-in,
@@ -1775,18 +1792,18 @@ ul[data-type="taskList"] li[data-type="taskItem"] > div {
 @media (pointer: coarse) { .paper-chip { min-height: 2.5rem; } }
 
 /* Toasts use the app font; Latin digits in English mode (ss01 = Persian digits) */
-[data-sonner-toaster], [data-sonner-toast] { font-family: "Vazirmatn", "Tahoma", system-ui, sans-serif !important; }
-html[lang^="en"] body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Vazirmatn", sans-serif; font-feature-settings: "cv11"; }
-html[lang^="en"] [data-sonner-toaster], html[lang^="en"] [data-sonner-toast] { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Vazirmatn", sans-serif !important; }
+[data-sonner-toaster], [data-sonner-toast] { font-family: var(--font-sans) !important; }
+html[lang^="en"] { --font-sans: var(--font-en); }
+html[lang^="en"] body { font-feature-settings: "cv11"; }
 /* Persian text written by the user inside the English UI keeps the Persian font. */
-html[lang^="en"] [dir="rtl"], html[lang^="en"] :lang(fa) { font-family: "Vazirmatn", system-ui, sans-serif; }
+html[lang^="en"] [dir="rtl"], html[lang^="en"] :lang(fa) { --font-sans: var(--font-fa); font-family: var(--font-sans); }
 
 /* Study panes scroll within the space left by the shared header and navigation. */
 .study-workspace {
-  height: calc(100dvh - 3rem - env(safe-area-inset-top, 0px) - var(--app-bottom-space, 0.5rem));
+  height: calc(100dvh - var(--app-header-height) - env(safe-area-inset-top, 0px) - var(--app-bottom-space, 0.5rem));
 }
 @media (min-width: 768px) {
-  .study-workspace { height: calc(100dvh - 3rem - env(safe-area-inset-top, 0px) - 0.5rem); }
+  .study-workspace { height: calc(100dvh - var(--app-header-height) - env(safe-area-inset-top, 0px) - 0.5rem); }
 }
 
 .rich-editor-surface .tiptap img{max-width:100%;height:auto;border-radius:8px;margin-block:12px;border:1px solid hsl(var(--border))}
@@ -1898,7 +1915,7 @@ html[lang^="en"] [dir="rtl"], html[lang^="en"] :lang(fa) { font-family: "Vazirma
 }
 
 .app-shell-header {
-  min-height: calc(3.5rem + env(safe-area-inset-top));
+  min-height: calc(var(--app-header-height) + env(safe-area-inset-top, 0px));
   padding-inline: 0.85rem;
   border-bottom: 1px solid hsl(var(--border) / 0.55);
   background: hsl(var(--background));

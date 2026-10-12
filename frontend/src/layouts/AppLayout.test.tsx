@@ -1,6 +1,6 @@
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import AppLayout from "./AppLayout";
 
 const appLayoutMocks = vi.hoisted(() => ({
@@ -41,11 +41,15 @@ vi.mock("@/components/InstallPrompt", () => ({
 }));
 
 vi.mock("@/components/EdgeSwipeHandler", () => ({
-  default: () => null,
+  default: () => <span data-testid="edge-owner" />,
 }));
 
 vi.mock("@/components/EdgePanBack", () => ({
-  default: () => null,
+  default: () => <span data-testid="competing-edge-owner" />,
+}));
+
+vi.mock("@/components/modules/ModuleGatedOutlet", () => ({
+  ModuleGatedOutlet: () => <h1>Route heading</h1>,
 }));
 
 vi.mock("@/components/gestures/SwipeNavigator", () => ({
@@ -105,6 +109,11 @@ vi.mock("@/components/AndroidTaskSync", () => ({
 }));
 
 let mockSidebarPosition: "left" | "right" = "right";
+
+function RouteControl() {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate("/app/notes")}>Open notes route</button>;
+}
 
 vi.mock("@/lib/sidebarPosition", () => ({
   useSidebarPosition: () => ({
@@ -206,5 +215,43 @@ describe("AppLayout desktop layout reservation and physical placement", () => {
 
     await waitFor(() => expect(appLayoutMocks.loadSettings).toHaveBeenCalledWith("user-1"));
     await waitFor(() => expect(appLayoutMocks.hydrateSidebarPositionFromCloud).toHaveBeenCalledWith("left"));
+  });
+
+  it("mounts one web edge owner and exposes a focusable skip target", () => {
+    render(<MemoryRouter initialEntries={["/app/today"]}><AppLayout /></MemoryRouter>);
+    expect(screen.getAllByTestId("edge-owner")).toHaveLength(1);
+    expect(screen.queryByTestId("competing-edge-owner")).not.toBeInTheDocument();
+    const skip = screen.getByRole("link", { name: /محتوای اصلی|Skip to main/ });
+    expect(skip).toHaveAttribute("href", "#main-scroll");
+    fireEvent.click(skip);
+    expect(document.getElementById("main-scroll")).toHaveFocus();
+  });
+
+  it("focuses and announces meaningful route content", async () => {
+    render(<MemoryRouter initialEntries={["/app/today"]}><AppLayout /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Route heading" })).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent("Route heading");
+  });
+
+  it("moves focus from route navigation to the destination content", async () => {
+    render(<MemoryRouter initialEntries={["/app/today"]}><RouteControl /><AppLayout /></MemoryRouter>);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Route heading" })).toHaveFocus());
+    const control = screen.getByRole("button", { name: "Open notes route" });
+    control.focus(); fireEvent.click(control);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Route heading" })).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent("Route heading");
+  });
+
+  it.each(["editor", "modal"])("does not steal route focus or announce over an active %s", async (owner) => {
+    const input = document.createElement("input");
+    document.body.append(input); input.focus();
+    const modal = document.createElement("div");
+    if (owner === "modal") { input.blur(); modal.setAttribute("role", "dialog"); document.body.append(modal); }
+    render(<MemoryRouter initialEntries={["/app/today"]}><AppLayout /></MemoryRouter>);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(screen.getByRole("heading", { name: "Route heading" })).not.toHaveFocus();
+    if (owner === "editor") expect(input).toHaveFocus();
+    input.remove(); modal.remove();
   });
 });

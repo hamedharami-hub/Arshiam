@@ -68,9 +68,9 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
             type="button"
             onClick={handleQuickAdd}
             aria-label={label}
-            className={`group relative h-9 px-3.5 rounded-xl bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground font-medium text-xs shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 active:scale-95 flex items-center gap-1.5 transition-all duration-150 border border-primary/30 select-none ${className}`}
+            className={`group relative h-11 min-w-11 px-3.5 rounded-xl bg-gradient-to-r from-primary via-primary/95 to-primary/90 text-primary-foreground font-medium text-xs shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 flex items-center gap-1.5 transition-[color,background-color,box-shadow] duration-150 border border-primary/30 select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}
           >
-            <Plus className="w-4 h-4 stroke-[2.5] transition-transform duration-200 group-hover:rotate-90" />
+            <Plus aria-hidden="true" className="w-4 h-4 stroke-[2.5] transition-transform duration-200 motion-safe:group-hover:rotate-90" />
             <span className="hidden lg:inline">{label}</span>
             <kbd className="hidden lg:inline-flex text-[9px] font-mono px-1.5 py-0.5 rounded-md bg-primary-foreground/20 text-primary-foreground border border-white/20 shadow-[0_1px_0_rgba(0,0,0,0.1)] ltr">
               Alt+N
@@ -88,8 +88,8 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
   // Mobile mode: Sleek, perfectly aligned primary action button
   return (
     <>
-      <div className="relative z-10 h-full flex-1 flex items-center justify-center select-none min-w-0">
-        <div className="relative">
+      <div className="relative z-10 h-full w-[92px] shrink-0 flex items-center justify-center select-none">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             ref={quickAddButtonRef}
@@ -97,11 +97,11 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
             {...longPressProps.handlers}
             aria-label={label}
             title={label}
-            className={`group/add relative flex items-center justify-center h-10 w-[4rem] max-w-full overflow-hidden rounded-full bg-primary text-primary-foreground shadow-[0_5px_15px_hsl(var(--primary)/0.32),inset_0_1px_0_hsl(var(--primary-foreground)/0.32)] active:scale-[0.96] hover:scale-[1.03] hover:shadow-[0_7px_20px_hsl(var(--primary)/0.42),inset_0_1px_0_hsl(var(--primary-foreground)/0.4)] transition-all duration-200 ease-out border border-primary/45 ring-1 ring-primary/15 select-none ${className}`}
+            className={`group/add relative flex items-center justify-center h-11 w-11 shrink-0 overflow-hidden rounded-full bg-primary text-primary-foreground shadow-[0_5px_15px_hsl(var(--primary)/0.32),inset_0_1px_0_hsl(var(--primary-foreground)/0.32)] hover:shadow-[0_7px_20px_hsl(var(--primary)/0.42),inset_0_1px_0_hsl(var(--primary-foreground)/0.4)] transition-shadow duration-200 ease-out border border-primary/45 ring-1 ring-primary/15 select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}
             style={{ backgroundImage: "linear-gradient(145deg, hsl(var(--primary)), hsl(var(--primary) / 0.86))" }}
           >
             <span aria-hidden="true" className="pointer-events-none absolute inset-x-3 top-px h-1/2 rounded-full bg-primary-foreground/10 blur-[5px]" />
-            <Plus className="relative h-6 w-6 stroke-[2.8] text-primary-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-out group-hover/add:rotate-90 group-active/add:scale-90" />
+            <Plus aria-hidden="true" className="relative h-6 w-6 stroke-[2.8] text-primary-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform duration-300 ease-out motion-safe:group-hover/add:rotate-90 motion-safe:group-active/add:scale-90" />
           </button>
           {/* Explicit, labelled affordance: the speed dial is no longer reachable
               only through a long-press gesture. Tapping/long-pressing the main
@@ -118,9 +118,11 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
             aria-haspopup="dialog"
             aria-expanded={speedDialOpen}
             title={moreLabel}
-            className="absolute -bottom-1 -end-1 z-20 grid h-6 w-6 place-items-center rounded-full bg-card text-primary border border-primary/45 shadow-sm hover:bg-primary hover:text-primary-foreground active:scale-95 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+            className="group/more grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
           >
-            <ChevronUp className="h-3.5 w-3.5 stroke-[2.6]" aria-hidden="true" />
+            <span aria-hidden="true" className="pointer-events-none grid h-6 w-6 place-items-center rounded-full bg-card border border-primary/45 shadow-sm group-hover/more:bg-primary group-hover/more:text-primary-foreground transition-colors duration-150">
+              <ChevronUp className="h-3.5 w-3.5 stroke-[2.6]" />
+            </span>
           </button>
         </div>
       </div>

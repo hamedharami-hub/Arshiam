@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ export function LinkDialog({
   const [url, setUrl] = useState("");
   const [text, setText] = useState(initialText);
   const [error, setError] = useState("");
+  const errorId = useId();
 
   useEffect(() => {
     if (open) { setUrl(""); setText(initialText); setError(""); }
@@ -54,17 +55,21 @@ export function LinkDialog({
         </DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-3">
           <Input
-            autoFocus dir="ltr" inputMode="url" placeholder="https://example.com"
+             autoFocus dir="ltr" inputMode="url" placeholder="https://example.com"
+             aria-label={T("نشانی لینک", "Link address")}
+             aria-invalid={!!error}
+             aria-describedby={error ? errorId : undefined}
             value={url} onChange={(e) => { setUrl(e.target.value); setError(""); }}
             data-testid="link-dialog-url"
           />
           {askText && (
             <Input
-              dir="auto" placeholder={T("متن نمایشی (اختیاری)", "Link text (optional)")}
+               dir="auto" placeholder={T("متن نمایشی (اختیاری)", "Link text (optional)")}
+               aria-label={T("متن نمایشی (اختیاری)", "Link text (optional)")}
               value={text} onChange={(e) => setText(e.target.value)} data-testid="link-dialog-text"
             />
           )}
-          {error && <p className="text-xs text-destructive" data-testid="link-dialog-error">{error}</p>}
+          {error && <p id={errorId} role="alert" className="text-xs text-destructive" data-testid="link-dialog-error">{error}</p>}
           <DialogFooter className="gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>{T("انصراف", "Cancel")}</Button>
             <Button type="submit" data-testid="link-dialog-submit">{T("افزودن", "Add")}</Button>

@@ -4,7 +4,7 @@ import path from "path";
 import os from "os";
 
 const ARTIFACT_DIR = process.env.LAYOUT_ARTIFACT_DIR ?? path.resolve(process.cwd(), "artifacts", "layout");
-const TEMP_USER_DATA = path.join(os.tmpdir(), `chrome-temp-profile-${Date.now()}`);
+const TEMP_USER_DATA = process.env.LAYOUT_USER_DATA_DIR ?? path.join(os.tmpdir(), `chrome-temp-profile-${Date.now()}`);
 
 function findChrome() {
   if (process.env.TEST_SIMULATE_NO_CHROME === "1") return null;
@@ -134,9 +134,10 @@ async function runTests() {
   }
 
   console.log("Launching headless Chrome...");
+  let debugPort = Number(process.env.LAYOUT_DEBUG_PORT ?? 9222);
   const chrome = spawn(chromePath, [
     "--headless=new",
-    "--remote-debugging-port=9222",
+    `--remote-debugging-port=${debugPort}`,
     `--user-data-dir=${TEMP_USER_DATA}`,
     "--no-first-run",
     "--no-default-browser-check",
@@ -156,7 +157,11 @@ async function runTests() {
   let versionData = null;
   for (let i = 0; i < 35; i++) {
     try {
-      const res = await fetch("http://127.0.0.1:9222/json/version");
+      if (debugPort === 0) {
+        const portFile = path.join(TEMP_USER_DATA, "DevToolsActivePort");
+        if (fs.existsSync(portFile)) debugPort = Number(fs.readFileSync(portFile, "utf8").split(/\r?\n/)[0]);
+      }
+      const res = await fetch(`http://127.0.0.1:${debugPort}/json/version`);
       if (res.ok) {
         versionData = await res.json();
         break;
@@ -166,7 +171,7 @@ async function runTests() {
   }
 
   if (!versionData) {
-    console.error("❌ ERROR: Failed to connect to Chrome DevTools port (9222) within timeout.");
+    console.error(`❌ ERROR: Failed to connect to Chrome DevTools port (${debugPort}) within timeout.`);
     chrome.kill();
     process.exit(1);
   }
@@ -176,7 +181,7 @@ async function runTests() {
   // Open dedicated test tab
   let newTab = null;
   try {
-    const res = await fetch(`http://127.0.0.1:9222/json/new?${encodeURIComponent(devServerUrl)}`, {
+    const res = await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(devServerUrl)}`, {
       method: "PUT",
     });
     newTab = await res.json();

@@ -194,7 +194,7 @@ export default function FolderAIChat({
         context,
         undefined,
         undefined,
-        { systemPromptOverride: systemPrompt, signal: controller.signal },
+        { systemPromptOverride: systemPrompt, signal: controller.signal, skipPersonalization: true },
       );
       if (!isCurrentRequest(requestId, ownerId)) return;
 

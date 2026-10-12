@@ -71,9 +71,14 @@ export async function addToAlbum(entry: Omit<AlbumEntry, "id" | "createdAt">): P
   return row;
 }
 
-export async function removeFromAlbum(id: string) {
+export async function removeFromAlbum(id: string): Promise<boolean> {
   const d = await db();
-  if (!d) return;
-  await d.delete(STORE, id);
-  notify();
+  if (!d) return false;
+  try {
+    await d.delete(STORE, id);
+    notify();
+    return true;
+  } catch {
+    return false;
+  }
 }

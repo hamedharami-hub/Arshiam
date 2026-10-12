@@ -8,7 +8,7 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { getKnowledgeDocument } from "@/lib/knowledgeService";
 import type { KnowledgeDocument } from "@/lib/knowledgeTypes";
 import { learningVersion } from "@/lib/learningWorkspace";
-import { getLastStudy, syncLastStudy, type LastStudy } from "@/lib/lastStudy";
+import { getLastStudy, syncLastStudy, studyResumeUrl, type LastStudy } from "@/lib/lastStudy";
 
 export default function ContinueLearningView() {
   const { user } = useAuth();
@@ -23,15 +23,16 @@ function ContinueLearning({ userId }: { userId: string }) {
   const [loaded, setLoaded] = useState(false);
   const [lastFailed, setLastFailed] = useState(false);
   const [lastMissing, setLastMissing] = useState(false);
+  const [documentRetry, setDocumentRetry] = useState(0);
   const lastStudyDocId = lastStudy?.docId;
   useEffect(() => {
     setLastMissing(false);
     setLastDoc(null);
     if (!lastStudyDocId) return;
     let active = true;
-    getKnowledgeDocument(userId, lastStudyDocId).then(doc => { if (!active) return; setLastDoc(doc); if (doc === null) setLastMissing(true); }).catch(() => undefined);
+    getKnowledgeDocument(userId, lastStudyDocId).then(doc => { if (!active) return; setLastDoc(doc); if (doc === null || doc.is_archived) setLastMissing(true); }).catch(() => { if (active) setLastFailed(true); });
     return () => { active = false; };
-  }, [userId, lastStudyDocId]);
+  }, [userId, lastStudyDocId, documentRetry]);
   const loadDue = useCallback(() => {
     setLastFailed(false);
     setLoaded(false);
@@ -44,7 +45,7 @@ function ContinueLearning({ userId }: { userId: string }) {
   const failed = lastFailed;
   const loading = !failed && !loaded;
   const empty = !failed && !loading && !lastStudy;
-  const retry = () => { loadDue(); };
+  const retry = () => { setDocumentRetry(value => value + 1); loadDue(); };
   const card = "rounded-lg border p-4 space-y-2";
 
   // The stored source version is only used to decide whether the remembered
@@ -52,19 +53,12 @@ function ContinueLearning({ userId }: { userId: string }) {
   const resumeVersionMatches = useMemo(() => {
     if (!lastStudy?.version) return true;
     if (!lastDoc) return false;
-    return [lastDoc.content_html, lastDoc.content_en]
-      .filter((value): value is string => typeof value === "string")
-      .some(value => learningVersion(value) === lastStudy.version);
+    const content = lastStudy.language === "fa" ? lastDoc.content_html : lastDoc.content_en || lastDoc.content_html;
+    return learningVersion(content || "") === lastStudy.version;
   }, [lastStudy?.version, lastDoc]);
   const resumeUrl = useMemo(() => {
     if (!lastStudy) return "/app/knowledge";
-    const params = new URLSearchParams({ docId: lastStudy.docId });
-    if (lastStudy.language) params.set("sourceLang", lastStudy.language);
-    if (resumeVersionMatches) {
-      if (lastStudy.section) params.set("section", lastStudy.section);
-      if (lastStudy.card) params.set("card", lastStudy.card);
-    }
-    return `/app/knowledge?${params.toString()}`;
+    return studyResumeUrl(lastStudy, resumeVersionMatches);
   }, [lastStudy, resumeVersionMatches]);
   // Distinct labels: practice resumes the generated practice, otherwise reading.
   const resumeLabel = lastStudy?.practice
@@ -81,7 +75,8 @@ function ContinueLearning({ userId }: { userId: string }) {
         ? <p role="status" data-testid="continue-last-missing" className="text-sm text-muted-foreground">{T("این مطلب دیگر وجود ندارد (حذف یا جابه‌جا شده). از کتابخانه مطلب دیگری باز کن.", "This page no longer exists (deleted or moved). Open another one from the library.")} <Link className="text-primary underline" to="/app/knowledge">{T("کتابخانه", "Library")}</Link></p>
         : <>
             <Link className="flex items-center gap-2 text-sm text-primary" to={resumeUrl} data-testid="continue-resume"><BookOpen className="h-4 w-4" aria-hidden="true" /><span className="font-semibold">{resumeLabel}</span></Link>
-            <p dir="auto" className="text-sm text-muted-foreground">{isEn ? lastStudy.titleEn || lastStudy.title : lastStudy.title}</p>
+             <p dir="auto" className="text-sm text-muted-foreground">{isEn ? lastStudy.titleEn || lastStudy.title : lastStudy.title}</p>
+             {lastDoc && !resumeVersionMatches && <p role="status" className="text-sm text-muted-foreground">{T("نسخهٔ منبع تغییر کرده؛ موقعیت قبلی قابل بازیابی نیست. تمرین ذخیره‌شده ممکن است بر اساس متن قدیمی باشد.", "The source version changed; the previous position cannot be restored. Saved practice may use the older text.")}</p>}
           </>}</section>}
     <nav className="flex flex-wrap items-center gap-2" aria-label={T("دسترسی سریع", "Quick access")}>
       <Button asChild className="h-11 rounded-full px-5"><Link to="/app/recall" data-testid="continue-recall">{T("شروع مرور سررسید", "Start due review")}</Link></Button>

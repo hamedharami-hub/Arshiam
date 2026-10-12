@@ -1,5 +1,7 @@
-import { createDebouncedWrites, readNoteDraft, writeNoteDraft, clearNoteDraft } from "@/lib/debouncedWrites";
+import { createDebouncedWrites, readNoteDraft, writeNoteDraft, clearNoteDraft, type NoteDraftRecord } from "@/lib/debouncedWrites";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
+import { useRecoverableExit } from "@/hooks/useRecoverableExit";
+import { filterNotesForList, noteListPreview } from "@/lib/notesList";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
@@ -191,6 +193,21 @@ export default function NotesView() {
   const selectedIdRef = useRef<string | undefined>(undefined);
   const durableCopyRef = useRef(true);
   const unsyncedEditsRef = useRef(false);
+  const retainedEditsRef = useRef(new Map<string, { revision: number | undefined; durable: boolean }>());
+  const pendingDraftsRef = useRef(new Map<string, NoteDraftRecord>());
+  const [recoveryChoice, setRecoveryChoice] = useState<NoteDraftRecord | null>(null);
+  const [recoveredPendingSave, setRecoveredPendingSave] = useState(false);
+  const recoveredNoteRef = useRef<string | null>(null);
+  const deviceWritesRef = useRef(new Map<string, Promise<unknown>>());
+  const previousOwnerRef = useRef(user?.id);
+  useEffect(() => {
+    for (const noteId of pendingDraftsRef.current.keys()) writes.cancel(noteId);
+    retainedEditsRef.current.clear();
+    pendingDraftsRef.current.clear();
+    noteRevisionsRef.current.clear();
+    if (previousOwnerRef.current !== user?.id) { setSelected(null); setDraft(null); setNotes([]); }
+    previousOwnerRef.current = user?.id;
+  }, [user?.id, writes]);
   const aiControllerRef = useRef<AbortController | null>(null);
   selectedIdRef.current = selected?.id;
   const bumpContentRevision = useCallback(() => {
@@ -213,6 +230,15 @@ export default function NotesView() {
     setNoteSaveState("idle");
     durableCopyRef.current = true;
     unsyncedEditsRef.current = false;
+    setRecoveryChoice(null);
+    setRecoveredPendingSave(false);
+    recoveredNoteRef.current = null;
+    const pending = selected?.id ? pendingDraftsRef.current.get(selected.id) : undefined;
+    if (pending) {
+      durableCopyRef.current = retainedEditsRef.current.get(pending.noteId)?.durable ?? false;
+      unsyncedEditsRef.current = true;
+      setNoteSaveState(durableCopyRef.current ? "device" : "failed");
+    }
   }, [selected?.id, user?.id]);
 
   // Recover a device-only draft that was retained when the cloud write failed.
@@ -226,30 +252,18 @@ export default function NotesView() {
       if (!active || accountRef.current !== accountId || selectedIdRef.current !== noteId) return;
       if (contentRevisionRef.current !== revisionAtStart) return; // newer typing wins
       const note = notesRef.current.find((item) => item.id === noteId);
-      if (record && record.md !== (note?.content ?? "")) {
-        setDraft({ md: record.md, html: record.html });
-        const revision = bumpContentRevision();
-        noteRevisionsRef.current.set(noteId, revision);
-        durableCopyRef.current = true;
-        unsyncedEditsRef.current = true;
-        setNoteSaveState("device");
-        if (note) scheduleCloudContent(noteId, accountId, record.md, note, revision);
+      if (record && (record.md !== (note?.content ?? "") || (record.title !== undefined && record.title !== note?.title))) {
+        // Recovery is a choice, never an unsolicited write over the current cloud copy.
+        setRecoveryChoice(record);
       }
     }).catch(() => undefined);
     return () => { active = false; };
   }, [selected?.id, user?.id, bumpContentRevision]);
 
-  // Block reload only while the text has no durable device copy to recover from.
-  useEffect(() => {
-    const guard = (event: BeforeUnloadEvent) => {
-      if (unsyncedEditsRef.current && !durableCopyRef.current) {
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", guard);
-    return () => window.removeEventListener("beforeunload", guard);
-  }, []);
+  useRecoverableExit(
+    () => [...retainedEditsRef.current.values()].some((edit) => !edit.durable),
+    T("نسخه‌ای از تغییرات ذخیره نشده است. با خروج ممکن است متن از بین برود. ادامه می‌دهی؟", "These edits have no recoverable copy. Leaving may lose your text. Continue?"),
+  );
   // Folder / tag pickers open inline under the note header (one at a time; Escape closes).
   const [notePanel, setNotePanel] = useState<"folder" | "tags" | null>(null);
   useEffect(() => {
@@ -368,6 +382,7 @@ export default function NotesView() {
 
   const load = useCallback(async () => {
     if (!user) return;
+    const ownerId = user.id;
     let base = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
     // 1. Try Firebase Firestore
     try {
@@ -403,6 +418,7 @@ export default function NotesView() {
       } catch {}
     }
     const merged = await applyNoteQueue(base);
+    if (accountRef.current !== ownerId) return;
     setNotes(merged);
   }, [user, NOTES_CACHE_KEY, applyNoteQueue]);
 
@@ -411,6 +427,7 @@ export default function NotesView() {
     load();
     const fsUnsub = subscribeNotes(user.id, async (fsNotes) => {
       const merged = await applyNoteQueue((fsNotes || []) as Note[]);
+      if (accountRef.current !== user.id) return;
       setNotes(merged);
       await cacheSet(NOTES_CACHE_KEY, merged);
     });
@@ -578,11 +595,17 @@ export default function NotesView() {
 
   // Title edits update the screen at once and reach the cloud after typing pauses.
   const saveTitleSoon = (title: string) => {
-    if (!selected || !user || !canEdit) return;
+    if (!selected || !user || !canEdit || recoveryChoice) return;
     const target = selected;
     const accountId = user.id;
+    const md = draft?.md ?? target.content ?? "";
+    const html = draft?.html ?? markdownToHtml(md);
+    const revision = bumpContentRevision();
+    noteRevisionsRef.current.set(target.id, revision);
+    unsyncedEditsRef.current = true;
     setSelected(current => current?.id === target.id ? { ...current, title } : current);
-    writes.schedule(`${target.id}:title`, () => persistNote(target, { title }, accountId, true));
+    stageLocalDraft(target.id, accountId, md, html, title);
+    scheduleCloudContent(target.id, accountId, md, target, revision);
   };
 
   // Flush the previous document before its editor disappears; writes retain their own record/account.
@@ -617,6 +640,8 @@ export default function NotesView() {
         toast.error(T("حذف ذخیره نشد؛ نوت برگردانده شد", "Delete was not saved; the note was restored"));
         return;
       }
+      retainedEditsRef.current.delete(id);
+       pendingDraftsRef.current.delete(id);
       await cacheSet(NOTES_CACHE_KEY, previous.filter((n) => n.id !== id));
       if (selected?.id === id) {
         setSelected(null);
@@ -646,6 +671,8 @@ export default function NotesView() {
       toast.error(T("حذف ذخیره نشد؛ نوت برگردانده شد", "Delete was not saved; the note was restored"));
       return;
     }
+    retainedEditsRef.current.delete(id);
+    pendingDraftsRef.current.delete(id);
     await cacheSet(NOTES_CACHE_KEY, previous.filter((n) => n.id !== id));
     if (selected?.id === id) {
       setSelected(null);
@@ -668,14 +695,32 @@ export default function NotesView() {
   };
 
   // Write the device-only copy first so a failed cloud write never loses text.
-  const stageLocalDraft = (noteId: string, accountId: string, md: string, html: string) => {
+  const stageLocalDraft = (noteId: string, accountId: string, md: string, html: string, title?: string) => {
+    durableCopyRef.current = false;
+    const revision = noteRevisionsRef.current.get(noteId);
+    retainedEditsRef.current.set(noteId, { revision, durable: false });
+    const previous = pendingDraftsRef.current.get(noteId);
+    const target = selected?.id === noteId ? selected : notesRef.current.find(note => note.id === noteId);
+    const record: NoteDraftRecord = {
+      accountId, noteId, md, html, title: title ?? previous?.title ?? target?.title ?? "", revision, updatedAt: Date.now(),
+      base: previous?.base ?? { title: target?.title ?? "", md: target?.content ?? "", updatedAt: target?.updated_at },
+    };
+    pendingDraftsRef.current.set(noteId, record);
     setNoteSaveState("saving");
-    void writeNoteDraft({ accountId, noteId, md, html, updatedAt: Date.now() }).then((durable) => {
-      if (accountRef.current !== accountId || selectedIdRef.current !== noteId) return;
+    const deviceKey = `${accountId}:${noteId}`;
+    const operation = (deviceWritesRef.current.get(deviceKey) ?? Promise.resolve()).catch(() => undefined)
+      .then(() => writeNoteDraft(record));
+    deviceWritesRef.current.set(deviceKey, operation);
+    void operation.then((durable) => {
+      if (accountRef.current !== accountId) return;
+      const pending = retainedEditsRef.current.get(noteId);
+      if (pending && pending.revision === revision) pending.durable = durable;
+      if (selectedIdRef.current !== noteId) return;
+      if (noteRevisionsRef.current.get(noteId) !== revision || !unsyncedEditsRef.current) return;
       durableCopyRef.current = durable;
       setNoteSaveState(durable ? "device" : "failed");
     }).catch(() => {
-      if (accountRef.current === accountId && selectedIdRef.current === noteId) {
+      if (accountRef.current === accountId && selectedIdRef.current === noteId && noteRevisionsRef.current.get(noteId) === revision && unsyncedEditsRef.current) {
         durableCopyRef.current = false;
         setNoteSaveState("failed");
       }
@@ -683,16 +728,33 @@ export default function NotesView() {
   };
 
   // Debounced cloud write; the draft clears only for the newest acknowledged revision.
-  const scheduleCloudContent = (noteId: string, accountId: string, md: string, target: Note, revision: number) => {
+  const scheduleCloudContent = (noteId: string, accountId: string, md: string, target: Note, revision: number, explicitlySaveRecovery = false) => {
+    if (recoveredNoteRef.current === noteId && !explicitlySaveRecovery) return;
+    const record = pendingDraftsRef.current.get(noteId);
     writes.schedule(noteId, async () => {
-      const saved = await persistNote(target, { content: md }, accountId, true);
+      if (accountRef.current !== accountId || noteRevisionsRef.current.get(noteId) !== revision) return true;
+      const saved = await persistNote(target, { content: md, title: record?.title ?? target.title }, accountId, true);
       if (accountRef.current !== accountId) return saved;
       if (saved && noteRevisionsRef.current.get(noteId) === revision) {
-        await clearNoteDraft(accountId, noteId);
-        durableCopyRef.current = true;
-        unsyncedEditsRef.current = false;
-        if (selectedIdRef.current === noteId) setNoteSaveState("idle");
-      } else if (!saved && selectedIdRef.current === noteId) {
+        // Serialize removal with retention writes: an old acknowledgement must
+        // not erase a newer device draft written while deletion is in flight.
+        const deviceKey = `${accountId}:${noteId}`;
+        const clear = (deviceWritesRef.current.get(deviceKey) ?? Promise.resolve()).catch(() => undefined).then(async () => {
+          if (accountRef.current === accountId && noteRevisionsRef.current.get(noteId) === revision) await clearNoteDraft(accountId, noteId);
+        });
+        deviceWritesRef.current.set(deviceKey, clear);
+        await clear;
+        if (accountRef.current !== accountId || noteRevisionsRef.current.get(noteId) !== revision) return saved;
+        retainedEditsRef.current.delete(noteId);
+        pendingDraftsRef.current.delete(noteId);
+        if (selectedIdRef.current === noteId) {
+          durableCopyRef.current = true;
+          unsyncedEditsRef.current = false;
+          setNoteSaveState("idle");
+          recoveredNoteRef.current = null;
+          setRecoveredPendingSave(false);
+        }
+      } else if (!saved && selectedIdRef.current === noteId && noteRevisionsRef.current.get(noteId) === revision) {
         setNoteSaveState("failed");
       }
       return saved;
@@ -706,15 +768,35 @@ export default function NotesView() {
     const md = draft?.md ?? selected.content ?? "";
     const html = draft?.html ?? markdownToHtml(md);
     const target = notesRef.current.find((item) => item.id === noteId) ?? selected;
-    const revision = noteRevisionsRef.current.get(noteId) ?? bumpContentRevision();
+    const revision = bumpContentRevision();
+    noteRevisionsRef.current.set(noteId, revision);
     unsyncedEditsRef.current = true;
     stageLocalDraft(noteId, accountId, md, html);
-    scheduleCloudContent(noteId, accountId, md, target, revision);
+    scheduleCloudContent(noteId, accountId, md, target, revision, true);
+  };
+
+  const useDeviceDraft = () => {
+    const record = recoveryChoice;
+    if (!record || !selected || record.accountId !== user?.id || record.noteId !== selected.id) return;
+    const revision = bumpContentRevision();
+    noteRevisionsRef.current.set(record.noteId, revision);
+    pendingDraftsRef.current.set(record.noteId, { ...record, revision });
+    retainedEditsRef.current.set(record.noteId, { revision, durable: true });
+    setSelected(current => current?.id === record.noteId ? { ...current, title: record.title ?? current.title, content: record.md } : current);
+    setDraft({ md: record.md, html: record.html });
+    setEditorRevision(value => value + 1);
+    durableCopyRef.current = true;
+    unsyncedEditsRef.current = true;
+    recoveredNoteRef.current = record.noteId;
+    setRecoveredPendingSave(true);
+    setNoteSaveState("device");
+    setRecoveryChoice(null);
+    // Keep the cloud copy untouched until the explicit Save recovered draft action.
   };
 
   const copyDraft = async () => {
     try {
-      await navigator.clipboard.writeText(draft?.md ?? selected?.content ?? "");
+      await navigator.clipboard.writeText(`${selected?.title ?? ""}\n\n${draft?.md ?? selected?.content ?? ""}`);
       toast.success(T("کپی شد", "Copied"));
     } catch {
       toast.error(T("کپی نشد", "Copy failed"));
@@ -863,45 +945,24 @@ export default function NotesView() {
     return counts;
   }, [notes]);
 
-  const searchLower = (search || "").toLowerCase();
-  const filtered = useMemo(() => {
-    return notes.filter((n) => {
-      if (n.kind === "diary") return false;
-
-      // 1. Text Search
-      if (searchLower) {
-        const matchesTitle = (n.title || "").toLowerCase().includes(searchLower);
-        const matchesContent = (n.content || "").toLowerCase().includes(searchLower);
-        if (!matchesTitle && !matchesContent) return false;
-      }
-
-      // 2. Folder filter
-      if (selectedFolder === "__none__") {
-        if (n.folder_id) return false;
-      } else if (selectedFolder) {
-        if (n.folder_id !== selectedFolder) return false;
-      }
-
-      // 3. Tag filter
-      if (selectedTag) {
-        if (!n.tag_ids || !n.tag_ids.includes(selectedTag)) return false;
-      }
-
-      return true;
-    });
-  }, [notes, searchLower, selectedFolder, selectedTag]);
-
-  // Plain-preview helper (strip MD chars) for sidebar
-  const stripMd = (s: string) => (s || "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")            // images
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")          // links → text
-    .replace(/<[^>]+>/g, " ")                          // html tags
-    .replace(/\\([\\`*_{}\[\]()#+\-.!>~|])/g, "$1")    // markdown escapes (\_ → _)
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]\s\[[ xX]\]|[-*+]|\d+\.)\s+/gm, "") // block markers
-    .replace(/(\*\*|__|~~|`)/g, "")                      // inline emphasis
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
+  const filtered = useMemo(
+    () => filterNotesForList(notes, search, selectedFolder, selectedTag),
+    [notes, search, selectedFolder, selectedTag],
+  );
+  const [visibleNoteCount, setVisibleNoteCount] = useState(50);
+  useEffect(() => { setVisibleNoteCount(50); }, [search, selectedFolder, selectedTag]);
+  const previewCacheRef = useRef(new Map<string, { content: string; preview: string }>());
+  const notePreview = (note: Note) => {
+    const cached = previewCacheRef.current.get(note.id);
+    if (cached?.content === note.content) return cached.preview;
+    const preview = noteListPreview(note.content);
+    previewCacheRef.current.set(note.id, { content: note.content, preview });
+    return preview;
+  };
+  useEffect(() => {
+    const ids = new Set(notes.map((note) => note.id));
+    for (const id of previewCacheRef.current.keys()) if (!ids.has(id)) previewCacheRef.current.delete(id);
+  }, [notes]);
 
   const emptyState = (
     <div className="flex items-center justify-center h-full p-8">
@@ -939,7 +1000,8 @@ export default function NotesView() {
               (e.currentTarget as HTMLTextAreaElement).blur();
             }
           }}
-          disabled={!canEdit}
+          disabled={!canEdit || Boolean(recoveryChoice)}
+          aria-label={T("عنوان نوت", "Note title")}
           placeholder={T("عنوان نوت...", "Note title...")}
           className="text-lg md:text-xl font-bold border-none focus-visible:ring-0 px-0 flex-1 min-w-[100px] py-0.5 leading-snug bg-transparent resize-none shadow-none text-foreground placeholder:text-muted-foreground/40"
           dir="auto"
@@ -951,8 +1013,8 @@ export default function NotesView() {
         {/* Minimal inline actions cluster */}
         <div className="flex items-center gap-0.5 shrink-0">
           <VoiceInputButton
-            onTranscript={(text) => save({ title: selected.title ? selected.title.trimEnd() + " " + text : text })}
-            disabled={!canEdit}
+            onTranscript={(text) => saveTitleSoon(selected.title ? selected.title.trimEnd() + " " + text : text)}
+            disabled={!canEdit || Boolean(recoveryChoice)}
             size="icon"
             className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
             title={T("تایپ صوتی عنوان", "Voice input for title")}
@@ -1154,6 +1216,21 @@ export default function NotesView() {
         </div>
       )}
 
+      {recoveryChoice && recoveryChoice.accountId === user?.id && recoveryChoice.noteId === selected.id && (
+        <section role="region" aria-label={T("بازیابی پیش‌نویس نوت", "Recover note draft")} data-testid="note-draft-recovery" className="mb-2 space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-3 text-xs">
+          <p>{T("پیش‌نویس همین دستگاه با نسخهٔ فعلی متفاوت است. هر دو نسخه حفظ شده‌اند؛ انتخاب شما چیزی را در ابر ذخیره نمی‌کند.", "This device has a draft different from the current version. Both copies are kept; choosing one does not save anything to the cloud.")}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div><h3 className="font-semibold">{T("پیش‌نویس دستگاه", "Device draft")}</h3><p>{recoveryChoice.title ?? selected.title}</p><pre className="max-h-32 overflow-auto whitespace-pre-wrap">{recoveryChoice.md}</pre></div>
+            <div><h3 className="font-semibold">{T("نسخهٔ فعلی", "Current version")}</h3><p>{(notesRef.current.find(note => note.id === selected.id) ?? selected).title}</p><pre className="max-h-32 overflow-auto whitespace-pre-wrap">{(notesRef.current.find(note => note.id === selected.id) ?? selected).content}</pre></div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={useDeviceDraft}>{T("ویرایش پیش‌نویس دستگاه", "Use device draft")}</Button>
+            <Button size="sm" variant="outline" onClick={() => setRecoveryChoice(null)}>{T("نگه‌داشتن نسخهٔ فعلی و حفظ پیش‌نویس", "Keep current version and retain draft")}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { void navigator.clipboard.writeText(`${recoveryChoice.title ?? selected.title}\n\n${recoveryChoice.md}`).catch(() => toast.error(T("کپی نشد", "Copy failed"))); }}>{T("کپی پیش‌نویس", "Copy device draft")}</Button>
+          </div>
+        </section>
+      )}
+
       {aiProposal && aiProposal.noteId === selected.id && (
         <div role="region" aria-label={T("پیشنهاد هوش مصنوعی", "AI suggestion")} data-testid="note-ai-proposal" className="mb-2 rounded-lg border border-primary/40 bg-primary/5 p-2.5 text-xs">
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -1186,9 +1263,10 @@ export default function NotesView() {
                   ? T("همگام‌سازی ناموفق؛ روی این دستگاه ذخیره شده", "Sync failed; saved on this device")
                   : T("ذخیره ناموفق؛ متن هنوز روی این دستگاه ذخیره نشده", "Save failed; not yet saved on this device")}
           </span>
-          {noteSaveState === "failed" && (
+          {recoveredPendingSave && <span>{T("ذخیرهٔ صریح، نسخهٔ فعلی را با این پیش‌نویس جایگزین می‌کند.", "Explicitly saving will replace the current version with this draft.")}</span>}
+          {(noteSaveState === "failed" || recoveredPendingSave) && (
             <>
-              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={retryNoteSave} data-testid="note-save-retry">{T("تلاش دوباره", "Retry")}</Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={retryNoteSave} data-testid="note-save-retry">{recoveredPendingSave ? T("ذخیرهٔ پیش‌نویس بازیابی‌شده", "Save recovered draft") : T("تلاش دوباره", "Retry")}</Button>
               <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => void copyDraft()} data-testid="note-save-copy"><Copy className="h-3 w-3 me-1" />{T("کپی", "Copy")}</Button>
             </>
           )}
@@ -1200,6 +1278,7 @@ export default function NotesView() {
         markdown={draft?.md ?? selected.content ?? ""}
         contentRevision={editorRevision}
         onChange={(md, html) => {
+          if (recoveryChoice) return;
           setDraft({ html, md });
           if (!user || !canEdit) return;
           const accountId = user.id;
@@ -1216,7 +1295,7 @@ export default function NotesView() {
           stageLocalDraft(noteId, accountId, md, html);
           scheduleCloudContent(noteId, accountId, md, target, revision);
         }}
-        readOnly={!canEdit}
+        readOnly={!canEdit || Boolean(recoveryChoice)}
         mode={editorMode}
         onModeChange={setEditorMode}
         onSelectedTextChange={setSelectedText}
@@ -1400,7 +1479,7 @@ export default function NotesView() {
                 : T("هنوز نوتی ننوشتی. با دکمه + بالا اولین نوتت رو بساز!", "No notes yet. Click + above to create your first note!")}
             </div>
           )}
-          {filtered.map((n) => {
+          {filtered.slice(0, visibleNoteCount).map((n) => {
             const fItem = n.folder_id ? folderMap.get(n.folder_id) : null;
             return (
               <SwipeableRow
@@ -1437,7 +1516,7 @@ export default function NotesView() {
                       </div>
                       <BidiText
                         as="p"
-                        text={stripMd(n.content)}
+                        text={notePreview(n)}
                         className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap break-words"
                       />
 
@@ -1534,6 +1613,10 @@ export default function NotesView() {
               </SwipeableRow>
             );
           })}
+          {filtered.length > 50 && <div className="space-y-2 p-3 text-center">
+            <p role="status" className="text-xs text-muted-foreground">{T(`نمایش ${Math.min(visibleNoteCount, filtered.length)} از ${filtered.length} نوت؛ جستجو در همهٔ نوت‌ها انجام می‌شود.`, `Showing ${Math.min(visibleNoteCount, filtered.length)} of ${filtered.length} notes. Search covers all notes.`)}</p>
+            {visibleNoteCount < filtered.length && <Button variant="outline" size="sm" onClick={() => setVisibleNoteCount((count) => count + 50)}>{T("نمایش ۵۰ نوت بعدی", "Load 50 more notes")}</Button>}
+          </div>}
         </div>
       </div>
 

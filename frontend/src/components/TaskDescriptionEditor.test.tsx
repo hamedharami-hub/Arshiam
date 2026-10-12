@@ -34,6 +34,25 @@ vi.mock("@/components/VoiceInputButton", () => ({
 }));
 
 describe("TaskDescriptionEditor", () => {
+  it.each([
+    { key: "Enter" },
+    { key: "Enter", isComposing: true },
+    { key: "Enter", keyCode: 229 },
+  ])("keeps multiline/IME Enter local without blocking the editor default: %o", async key => {
+    const onSave = vi.fn();
+    const parentKey = vi.fn();
+    render(<div onKeyDown={parentKey}><TaskDescriptionEditor taskId="ime" value="" onChange={vi.fn()} onSave={onSave} /></div>);
+    const editor = await screen.findByRole("textbox", { name: "توضیحات" }, { timeout: 5000 });
+    expect(fireEvent.keyDown(editor, key)).toBe(true);
+    expect(parentKey).not.toHaveBeenCalled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it.each([{ isComposing: true }, { keyCode: 229 }])("does not activate the preview during IME confirmation: %o", async ime => {
+    render(<TaskDescriptionEditor taskId="preview-ime" value="Description" onChange={vi.fn()} onSave={vi.fn()} />);
+    fireEvent.keyDown(screen.getByRole("button", { name: "ویرایش توضیحات" }), { key: "Enter", ...ime });
+    expect(screen.getByTestId("task-description-preview")).toBeInTheDocument();
+  });
   it("renders bold and safe text colors without exposing markup, including read-only descriptions", () => {
     const { container } = render(<TaskDescriptionEditor taskId="formatted" readOnly value={'**Bold** <span style="color: red">Color</span><script>bad()</script>'} onChange={vi.fn()} onSave={vi.fn()} />);
     expect(container.querySelector("strong")?.textContent).toBe("Bold");

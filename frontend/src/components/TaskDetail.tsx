@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { AutoTextarea } from "@/components/ui/auto-textarea";
+import { TaskTitleInput } from "@/components/TaskTitleInput";
 import { BidiText } from "@/components/BidiText";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -84,7 +85,7 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
-import { pushDeleted } from "@/lib/recentlyDeleted";
+import { pushDeleted, pushDeletedTask } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import { subscribeFolders, subscribeTags, persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
 import { toSaveStatus } from "@/lib/saveFeedback";
@@ -802,7 +803,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         // panel offers the same "Recently Deleted" restore as the task list.
         const res = await deleteTaskCascade(user.id, t.id, allTasks, { recoverable: true });
         if (!res.success) {
-          toast.error(T("حذف روی این دستگاه ذخیره نشد", "Delete could not be saved on this device"));
+          toast.error(T("حذف انجام نشد؛ برای تهیه نسخهٔ بازگردانی، به اینترنت وصل شوید و همگام‌سازی را کامل کنید.", "Nothing was deleted. Connect and finish syncing so the recovery snapshot can be verified."));
           return false;
         }
         const recovery = res.recovery;
@@ -811,7 +812,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           : allTasks.filter(task => res.deletedIds.includes(task.id));
         const restore = async (): Promise<boolean> => {
           const statuses = await Promise.all(restoreTasks.map(task => persistTask(user.id, task)));
-          if (statuses.some(status => status === "failed")) return false;
+          if (statuses.some(status => status !== "saved" && status !== "queued")) return false;
           try {
             if (recovery?.tagLinks?.length) {
               const { error } = await firebaseStore.from("task_tags").insert(recovery.tagLinks as never);
@@ -833,7 +834,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           onChanged();
           return true;
         };
-        pushDeleted({ kind: "task", label: t.title || T("بدون عنوان", "Untitled"), restore });
+        if (recovery) {
+          if (!pushDeletedTask(user.id, t.title || T("بدون عنوان", "Untitled"), recovery)) toast.warning(T("بازگردانی فقط تا ۱۰ دقیقه در همین نشست ممکن است؛ با بارگذاری مجدد از دست می‌رود.", "Recovery is available for 10 minutes in this session only; reloading loses it."));
+        } else pushDeleted({ kind: "task", label: t.title || T("بدون عنوان", "Untitled"), restore });
         onClose();
         onChanged();
       },
@@ -1096,7 +1099,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           ? <BookOpen className="w-5 h-5" />
           : <span className={`grid h-5 w-5 place-items-center rounded-md border-2 ${t.priority === "urgent" ? "border-red-600 bg-red-600" : t.priority === "high" ? "border-rose-500 bg-rose-500" : t.priority === "medium" ? "border-amber-500 bg-amber-500" : t.priority === "low" ? "border-emerald-500 bg-emerald-500" : "border-muted-foreground/50 bg-muted-foreground"} ${t.completed ? "text-white" : "!bg-transparent"}`}>{t.completed && <Check className="h-4 w-4" />}</span>}
       </button>
-      <AutoTextarea
+      <TaskTitleInput
         ref={titleInputRef}
         value={t.title}
         onChange={(e) => setT({ ...t, title: e.target.value })}
@@ -1107,6 +1110,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
         rows={1}
         dir="auto"
         placeholder={T("عنوان تسک", "Task title")}
+        aria-label={T("عنوان تسک", "Task title")}
         data-task-title
         data-testid="task-detail-title"
         className={`flex-1 border-0 bg-transparent px-1 py-1 text-lg md:text-xl font-semibold leading-snug focus-visible:ring-0 focus-visible:bg-transparent placeholder:text-muted-foreground/50 break-words whitespace-pre-wrap ${t.completed ? "text-muted-foreground line-through decoration-1" : "text-foreground"}`}

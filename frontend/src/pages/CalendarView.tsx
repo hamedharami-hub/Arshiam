@@ -1,7 +1,7 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { format, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight, CheckCircle2, Filter, RotateCcw } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
@@ -37,13 +37,34 @@ const EMPTY_TASK_TAGS: Record<string, string[]> = {};
 const EMPTY_FOLDERS: CalendarFolder[] = [];
 const EMPTY_TAGS: CalendarTag[] = [];
 
+export function parseCalendarDate(value: string | null): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isFinite(parsed.getTime()) && getLocalDateString(parsed) === value ? parsed : null;
+}
+
+export function parseCalendarView(value: string | null): ViewMode {
+  return value === "week" || value === "day" || value === "agenda" ? value : "month";
+}
+
 export default function CalendarView() {
   const { user } = useAuth();
   const nav = useNavigate();
   const { T, isEn } = useBilingual();
   const showCompletedTasks = useShowCompletedTasks();
-  const [date, setDate] = useState(new Date());
-  const [view, setView] = useState<ViewMode>("month");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [fallbackDate] = useState(() => new Date());
+  const dateKey = searchParams.get("date");
+  const date = useMemo(() => parseCalendarDate(dateKey) || fallbackDate, [dateKey, fallbackDate]);
+  const view = parseCalendarView(searchParams.get("view"));
+  const setCalendarLocation = (nextDate: Date, nextView: ViewMode) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("date", getLocalDateString(nextDate));
+    params.set("view", nextView);
+    setSearchParams(params);
+  };
+  const setDate = (next: Date) => setCalendarLocation(next, view);
+  const setView = (next: ViewMode) => setCalendarLocation(date, next);
   const [tasks, setTasks] = useState<CalendarTask[]>([]);
   const [tasksOwnerId, setTasksOwnerId] = useState<string | null>(null);
   const [folders, setFolders] = useState<CalendarFolder[]>([]);
@@ -63,6 +84,8 @@ export default function CalendarView() {
   const [cycleLogs, setCycleLogs] = useState<CycleLog[]>([]);
   const [cycleOverlayEnabled, setCycleOverlayEnabled] = useState(true);
   const [detailDate, setDetailDate] = useState<Date | null>(null);
+  const [detailHour, setDetailHour] = useState<number | null>(null);
+  const openDayDetail = (day: Date, hour: number | null = null) => { setDetailHour(hour); setDetailDate(new Date(day)); };
   const currentTasks = tasksOwnerId === user?.id ? tasks : EMPTY_TASKS;
   const currentTaskTags = metadataOwnerId === user?.id ? taskTags : EMPTY_TASK_TAGS;
   const currentFolders = metadataOwnerId === user?.id ? folders : EMPTY_FOLDERS;
@@ -399,22 +422,22 @@ export default function CalendarView() {
           <Card className="p-3 bg-card/60 border-border/60 shadow-sm">
             <MonthGrid month={date} tasks={visibleTasks} holidays={holidays} system={system}
               cycleProfile={cycleProfile} cycleLogs={cycleLogs}
-              onDayClick={(d) => setDetailDate(d)} />
+              onDayClick={(d) => openDayDetail(d)} />
           </Card>
         </TabsContent>
 
         <TabsContent value="week">
           <Card className="p-3 bg-card/60 border-border/60 shadow-sm">
             <WeekView date={date} tasks={visibleTasks} holidays={holidays} system={system}
-              onDayClick={(d) => { setDate(d); setView("day"); }}
-              onSlotClick={(d) => setDetailDate(d)} />
+              onDayClick={(d) => setCalendarLocation(d, "day")}
+              onSlotClick={(d, hour) => openDayDetail(d, hour)} />
           </Card>
         </TabsContent>
 
         <TabsContent value="day">
           <Card className="p-4 bg-card/60 border-border/60 shadow-sm">
             <DayView date={date} tasks={visibleTasks} system={system}
-              onSlotClick={() => setDetailDate(date)}
+              onSlotClick={(hour) => openDayDetail(date, hour)}
               onTaskClick={(id) => nav(`/app/tasks/${id}`)} />
           </Card>
         </TabsContent>
@@ -431,6 +454,7 @@ export default function CalendarView() {
 
       <DayDetailSheet
         date={detailDate}
+        initialHour={detailHour}
         open={!!detailDate}
         onOpenChange={(v) => !v && setDetailDate(null)}
         tasks={visibleTasks}

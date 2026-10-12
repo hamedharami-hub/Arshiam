@@ -20,6 +20,7 @@ function timeAgo(ms: number) {
 export default function RecentlyDeletedSheet({ open, onOpenChange }: Props) {
   const { prefersDialog } = useDeviceFormFactor();
   const [items, setItems] = useState<DeletedEntry[]>([]);
+  const [restoring, setRestoring] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -30,12 +31,17 @@ export default function RecentlyDeletedSheet({ open, onOpenChange }: Props) {
   }, [open]);
 
   const handleRestore = async (e: DeletedEntry) => {
-    haptic("success");
+    if (restoring) return;
+    setRestoring(e.id);
     try {
-      await restoreDeleted(e.id);
+      const restored = await restoreDeleted(e.id);
+      if (restored === false) throw new Error("بازگردانی انجام نشد؛ حساب و وجود نسخهٔ بازیابی را بررسی کن.");
+      haptic("success");
       toast.success(`بازگردانی شد: ${e.label}`);
     } catch (err: any) {
       toast.error(err?.message || "خطا در بازگردانی");
+    } finally {
+      setRestoring(null);
     }
   };
 
@@ -54,13 +60,14 @@ export default function RecentlyDeletedSheet({ open, onOpenChange }: Props) {
     </div>
   ) : (
     <>
+      <p className="mt-3 text-xs text-muted-foreground">نسخه‌های دستگاهی فقط در همین دستگاه تا ۱۰ دقیقه قابل بازگردانی‌اند؛ نسخه‌های موقت با بارگذاری مجدد از بین می‌روند. این فهرست پشتیبان ابری نیست.</p>
       <div className="mt-3 space-y-2">
         {items.map((e) => (
           <div key={e.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40">
             <span className="text-[10px] uppercase opacity-60 w-12">{e.kind}</span>
-            <span className="text-sm truncate flex-1">{e.label}</span>
+            <div className="min-w-0 flex-1"><span className="block text-sm truncate">{e.label}</span><span className="text-[10px] text-muted-foreground">{e.recoveryMode === "device" ? "نسخهٔ دستگاهی" : "موقت — فقط این نشست"}</span></div>
             <span className="text-[10px] text-muted-foreground tabular-nums">{timeAgo(e.deletedAt)}</span>
-            <Button size="sm" variant="ghost" onClick={() => handleRestore(e)} className="h-7 px-2">
+            <Button size="sm" variant="ghost" disabled={restoring !== null} onClick={() => handleRestore(e)} className="min-h-11 px-2">
               <RotateCcw className="w-3.5 h-3.5 me-1" /> بازگردانی
             </Button>
           </div>
@@ -68,7 +75,8 @@ export default function RecentlyDeletedSheet({ open, onOpenChange }: Props) {
       </div>
       <div className="mt-3 flex justify-end">
         <Button size="sm" variant="ghost" className="text-xs text-muted-foreground"
-          onClick={() => { clearDeleted(); toast("لیست پاک شد"); }}>
+          disabled={restoring !== null}
+          onClick={() => { if (!window.confirm("نسخه‌های بازیابی از این فهرست حذف شوند؟ پس از پاک‌سازی از اینجا قابل بازگردانی نیستند.")) return; clearDeleted(); toast("لیست پاک شد"); }}>
           پاک‌سازی لیست
         </Button>
       </div>

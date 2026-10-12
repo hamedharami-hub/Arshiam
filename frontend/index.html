@@ -47,7 +47,6 @@
   <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#F8F6F2">
 
   <!-- Preload most-used local Vazirmatn weights for instant offline typography -->
   <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/Vazirmatn-Regular.woff2">
@@ -55,10 +54,14 @@
 
   <!-- Inline critical styles for the initial shell so FCP fires before the JS bundle parses -->
   <style>
-    html, body { margin: 0; padding: 0; background-color: #0F172A; color: #e2e8f0; font-family: Vazirmatn, system-ui, -apple-system, sans-serif; }
+    html { --boot-bg: #F8F6F2; --boot-fg: #292622; --boot-accent: #5260A9; }
+    html.dark { --boot-bg: #1C1B18; --boot-fg: #F0ECE5; --boot-accent: #ADB5E5; }
+    html.theme-oled { --boot-bg: #000; }
+    html, body { margin: 0; padding: 0; background-color: var(--boot-bg); color: var(--boot-fg); font-family: Vazirmatn, system-ui, -apple-system, sans-serif; }
     #root { min-height: 100vh; }
     .app-boot { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-    .app-boot__spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid rgba(226,232,240,0.2); border-top-color: #ec4899; animation: app-boot-spin 0.8s linear infinite; }
+    .app-boot__spinner { width: 32px; height: 32px; border-radius: 50%; border: 3px solid var(--boot-fg); border-top-color: var(--boot-accent); animation: app-boot-spin 0.8s linear infinite; }
+    @media (prefers-reduced-motion: reduce) { .app-boot__spinner { animation: none; } }
     @keyframes app-boot-spin { to { transform: rotate(360deg); } }
   </style>
 </head>

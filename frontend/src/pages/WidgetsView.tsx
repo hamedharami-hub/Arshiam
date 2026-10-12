@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -44,7 +44,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { fetchTasks, saveTask, deleteTask } from "@/features/tasks/taskService";
+import { fetchTasks, hasServerAuthoritativeTasks, saveTask, deleteTask } from "@/features/tasks/taskService";
+import { setTaskCompletion } from "@/features/tasks/taskCompletion";
 import type { Task } from "@/lib/taskTypes";
 import { taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { refreshAndroidWidgets, getWidgetDiagnostics } from "@/lib/androidWidget";
@@ -76,8 +77,18 @@ const DEFAULT_SETTINGS: WidgetSettings = {
   sort: "time",
 };
 
+type WidgetTaskData = {
+  kind: "loading" | "real" | "empty" | "error" | "sample";
+  ownerId: string | null;
+  tasks: Task[];
+  serverConfirmed?: boolean;
+};
+
 export default function WidgetsView() {
   const { user } = useAuth();
+  const ownerId = user?.id || user?.uid || null;
+  const accountRef = useRef(ownerId);
+  accountRef.current = ownerId;
   const showCompletedTasks = useShowCompletedTasks();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -100,8 +111,16 @@ export default function WidgetsView() {
   ], [isEn]);
 
   const [activeWidget, setActiveWidget] = useState<string>(initialTab);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [taskData, setTaskData] = useState<WidgetTaskData>({ kind: "loading", ownerId, tasks: [] });
+  const dataRef = useRef(taskData);
+  dataRef.current = taskData;
+  const loadGeneration = useRef(0);
+  const [reload, setReload] = useState(0);
+  const pendingRef = useRef(new Set<string>());
+  const [pending, setPending] = useState(new Set<string>());
+  const currentSource = taskData.ownerId === ownerId ? taskData.kind : "loading";
+  const tasks = taskData.ownerId === ownerId ? taskData.tasks : [];
+  const loading = currentSource === "loading";
   const [syncBusy, setSyncBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -137,26 +156,30 @@ export default function WidgetsView() {
   // Fetch real user tasks
   useEffect(() => {
     let mounted = true;
+    const generation = ++loadGeneration.current;
+    setTaskData({ kind: "loading", ownerId, tasks: [] });
     async function load() {
-      if (!user?.uid) {
-        setTasks(sampleTasks);
-        setLoading(false);
+      if (!ownerId) {
+        setTaskData({ kind: "sample", ownerId: null, tasks: sampleTasks });
         return;
       }
       try {
-        const loaded = await fetchTasks(user.uid);
-        if (mounted) setTasks(loaded.length > 0 ? loaded : sampleTasks);
+        const loaded = await fetchTasks(ownerId);
+        if (!mounted || generation !== loadGeneration.current) return;
+        const accountTasks = loaded.filter((task) => !task.user_id || task.user_id === ownerId);
+        const serverConfirmed = hasServerAuthoritativeTasks(ownerId);
+        // fetchTasks may recover from a failed fetch using the device cache.
+        // An unconfirmed empty cache is not proof that an account has no tasks.
+        setTaskData({ kind: accountTasks.length ? "real" : serverConfirmed ? "empty" : "error", ownerId, tasks: accountTasks, serverConfirmed });
       } catch {
-        if (mounted) setTasks(sampleTasks);
-      } finally {
-        if (mounted) setLoading(false);
+        if (mounted && generation === loadGeneration.current) setTaskData({ kind: "error", ownerId, tasks: [] });
       }
     }
     void load();
     return () => {
       mounted = false;
     };
-  }, [user, sampleTasks]);
+  }, [ownerId, sampleTasks, reload]);
 
   // Pomodoro countdown effect
   useEffect(() => {
@@ -189,62 +212,92 @@ export default function WidgetsView() {
     });
   }, [tasks, agendaScope, settings.showCompleted, settings.highPriorityOnly, showCompletedTasks]);
 
+  const currentTaskData = (task: Task) => {
+    const data = dataRef.current;
+    return data.ownerId === accountRef.current && data.tasks.includes(task) ? data : null;
+  };
+  const mutateLocal = (task: Task, patch: Partial<Task> | null) => setTaskData((data) => ({ ...data, tasks: patch
+    ? data.tasks.map((item) => item.id === task.id ? { ...item, ...patch } : item)
+    : data.tasks.filter((item) => item.id !== task.id) }));
+  const beginMutation = (task: Task, data: WidgetTaskData) => {
+    if (data.kind !== "real" || !data.ownerId) return null;
+    const key = `${data.ownerId}:${task.id}`;
+    if (pendingRef.current.has(key)) return null;
+    pendingRef.current.add(key);
+    setPending(new Set(pendingRef.current));
+    return { key, ownerId: data.ownerId, generation: loadGeneration.current };
+  };
+  const endMutation = (key: string) => { pendingRef.current.delete(key); setPending(new Set(pendingRef.current)); };
+  const stillCurrent = (context: { ownerId: string; generation: number }) => accountRef.current === context.ownerId && loadGeneration.current === context.generation;
+
   const handleToggleTask = async (task: Task) => {
-    const nextCompleted = !task.completed;
-    if (nextCompleted) {
-      playCompletionFeedback();
-    } else {
-      haptic("light");
+    const data = currentTaskData(task);
+    if (!data) return;
+    const done = !(task.completed || task.status === "done");
+    if (data.kind === "sample") {
+      mutateLocal(task, { completed: done, status: done ? "done" : "todo" });
+      return;
     }
-    const updated = {
-      ...task,
-      completed: nextCompleted,
-      status: (nextCompleted ? "done" : "todo") as "done" | "todo",
-      updated_at: new Date().toISOString(),
-    };
-
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-
-    if (user?.uid && task.id && !task.id.startsWith("s")) {
-      try {
-        await saveTask(user.uid, updated);
-        toast.success(nextCompleted ? T("تسک در ویجت انجام شد", "Task marked done in widget") : T("تسک دوباره فعال شد", "Task reactivated"));
-      } catch {
-        toast.error(T("خطا در ذخیره وضعیت تسک", "Error updating task status"));
+    const context = beginMutation(task, data);
+    if (!context) return;
+    try {
+      const result = await setTaskCompletion(context.ownerId, task, done, { allKnownTasks: data.tasks });
+      if (!stillCurrent(context)) return;
+      if (result.kind === "failed") throw new Error("Completion failed");
+      if (result.kind === "study") { navigate(result.navUrl); return; }
+      if (result.kind === "outcomes") {
+        // Same reviewed outcome handoff as Horizon: Tasks owns the picker and
+        // execution. Nothing is completed here until that flow acknowledges it.
+        navigate(`/app/tasks?completeTaskId=${encodeURIComponent(task.id)}`);
+        return;
       }
-    }
+      mutateLocal(task, result.patch);
+      if (done) playCompletionFeedback(); else haptic("light");
+      if (result.kind === "queued") toast.info(T("تغییر روی دستگاه ذخیره شد؛ در انتظار همگام‌سازی", "Change retained on this device; awaiting sync"));
+      else if (result.kind === "advanced") toast.success(T(`تکرار بعدی: ${result.nextLabel}`, `Next occurrence: ${result.nextLabel}`));
+      else toast.success(done ? T("تسک در ویجت انجام شد", "Task marked done in widget") : T("تسک دوباره فعال شد", "Task reactivated"));
+    } catch {
+      if (stillCurrent(context)) toast.error(T("خطا در ذخیره وضعیت تسک؛ وضعیت قبلی حفظ شد", "Could not update task status; previous state kept"));
+    } finally { endMutation(context.key); }
   };
 
   const handlePostponeTask = async (task: Task) => {
-    haptic("light");
-    const tomorrowStr = toLocalISO(addDaysLocal(new Date(), 1));
-    const updated = {
-      ...task,
-      ...workDatePatch(task, tomorrowStr),
-      updated_at: new Date().toISOString(),
-    };
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-    if (user?.uid && task.id && !task.id.startsWith("s")) {
-      try {
-        await saveTask(user.uid, updated);
-        toast.success(T("موعد تسک به فردا منتقل شد 📅", "Task postponed to tomorrow 📅"));
-      } catch {
-        toast.error(T("خطا در به‌روزرسانی موعد تسک", "Error updating due date"));
-      }
-    }
+    const data = currentTaskData(task);
+    if (!data) return;
+    const patch = { ...workDatePatch(task, toLocalISO(addDaysLocal(new Date(), 1))), updated_at: new Date().toISOString() };
+    if (data.kind === "sample") { mutateLocal(task, patch); return; }
+    const context = beginMutation(task, data);
+    if (!context) return;
+    try {
+      if (!await saveTask(context.ownerId, { ...task, ...patch })) throw new Error("Save failed");
+      if (!stillCurrent(context)) return;
+      mutateLocal(task, patch);
+      toast.success(T("موعد تسک به فردا منتقل شد 📅", "Task postponed to tomorrow 📅"));
+    } catch {
+      if (stillCurrent(context)) toast.error(T("خطا در به‌روزرسانی موعد؛ وضعیت قبلی حفظ شد", "Could not postpone task; previous state kept"));
+    } finally { endMutation(context.key); }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    haptic("warning");
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    if (user?.uid && !taskId.startsWith("s")) {
-      try {
-        await deleteTask(user.uid, taskId);
-        toast.success(T("تسک حذف شد 🗑️", "Task deleted 🗑️"));
-      } catch {
-        toast.error(T("خطا در حذف تسک", "Error deleting task"));
-      }
-    }
+  const handleDeleteTask = async (task: Task) => {
+    const data = currentTaskData(task);
+    if (!data) return;
+    if (data.kind === "sample") { mutateLocal(task, null); return; }
+    const context = beginMutation(task, data);
+    if (!context) return;
+    try {
+      if (!await deleteTask(context.ownerId, task.id, data.tasks)) throw new Error("Delete failed");
+      if (!stillCurrent(context)) return;
+      mutateLocal(task, null);
+      toast.success(T("تسک حذف شد 🗑️", "Task deleted 🗑️"));
+    } catch {
+      if (stillCurrent(context)) toast.error(T("حذف انجام نشد؛ تسک حفظ شد", "Could not delete task; task kept"));
+    } finally { endMutation(context.key); }
+  };
+  const openTask = (task: Task) => {
+    const data = currentTaskData(task);
+    if (!data) return;
+    if (data.kind === "sample") toast.info(T("این تسک نمونه است و در حساب ذخیره نمی‌شود", "This sample task is not stored in an account"));
+    else if (data.kind === "real") navigate(`/app/tasks/${encodeURIComponent(task.id)}`);
   };
 
   // Trigger instant Android sync
@@ -306,6 +359,24 @@ export default function WidgetsView() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3" data-testid="widgets-task-source" data-source={currentSource}>
+        <p role={currentSource === "error" ? "alert" : "status"} className="text-sm">
+          {currentSource === "loading" ? T("در حال بارگذاری تسک‌های حساب…", "Loading account tasks…")
+            : currentSource === "sample" ? T("نمای نمونه؛ تغییرات فقط در این پیش‌نمایش هستند و در هیچ حسابی ذخیره نمی‌شوند.", "Sample demo: changes stay in this preview and are never saved to an account.")
+            : currentSource === "error" ? T("بارگذاری تسک‌ها تأیید نشد. دوباره تلاش کنید؛ هیچ دادهٔ نمونه‌ای جایگزین نشده است.", "Could not confirm task loading. Retry; no sample data has replaced your tasks.")
+            : currentSource === "empty" ? T("حساب شما هنوز تسکی ندارد.", "Your account has no tasks yet.")
+            : taskData.serverConfirmed ? T("تسک‌های واقعی حساب؛ تغییرات در حساب اعمال می‌شوند.", "Real account tasks: actions update your account.")
+            : T("تسک‌های حساب از حافظهٔ دستگاه؛ دادهٔ سرور هنوز تأیید نشده است.", "Account tasks from device cache; server data is not yet confirmed.")}
+        </p>
+        {ownerId && <div className="flex gap-2">
+          {currentSource === "sample" || currentSource === "error" ? <Button size="sm" variant="outline" onClick={() => setReload((value) => value + 1)}>{currentSource === "sample" ? T("استفاده از تسک‌های حساب", "Use my account tasks") : T("تلاش مجدد", "Retry loading tasks")}</Button> : null}
+          {currentSource !== "sample" && <Button size="sm" variant="ghost" onClick={() => {
+            loadGeneration.current += 1;
+            setTaskData({ kind: "sample", ownerId, tasks: sampleTasks });
+          }}>{T("نمایش نمونهٔ آزمایشی", "Show sample demo")}</Button>}
+        </div>}
+      </div>
+
       {/* Diagnostics / Status Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-2xl border border-border/50 bg-card/60 p-3 backdrop-blur-md">
@@ -325,7 +396,7 @@ export default function WidgetsView() {
             <span>{T("تسک‌های فعال", "Active Tasks")}</span>
           </div>
           <div className="mt-2 text-sm font-semibold">
-            {loading ? "..." : (isEn ? `${filteredTasks.filter((t) => !t.completed).length} tasks` : `${filteredTasks.filter((t) => !t.completed).length} تسک`)}
+            {loading ? "..." : currentSource === "error" ? T("نامشخص", "Unavailable") : (isEn ? `${filteredTasks.filter((t) => !t.completed).length} tasks` : `${filteredTasks.filter((t) => !t.completed).length} تسک`)}
           </div>
         </div>
 
@@ -492,7 +563,7 @@ export default function WidgetsView() {
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                            {isEn ? `${filteredTasks.filter((t) => !t.completed).length} active` : `${filteredTasks.filter((t) => !t.completed).length} فعال`}
+                            {loading ? "..." : currentSource === "error" ? T("نامشخص", "Unavailable") : isEn ? `${filteredTasks.filter((t) => !t.completed).length} active` : `${filteredTasks.filter((t) => !t.completed).length} فعال`}
                           </span>
                         </div>
                       </div>
@@ -526,7 +597,7 @@ export default function WidgetsView() {
                       <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                         {filteredTasks.length === 0 ? (
                           <div className="py-8 text-center text-xs text-muted-foreground">
-                            {T("هیچ تسکی در این نما وجود ندارد", "No tasks in this view")}
+                            {loading ? T("در حال بارگذاری…", "Loading…") : currentSource === "error" ? T("تسک‌ها در دسترس نیستند؛ دوباره بارگذاری کنید", "Tasks unavailable; retry loading") : T("هیچ تسکی در این نما وجود ندارد", "No tasks in this view")}
                           </div>
                         ) : (
                           filteredTasks.slice(0, 5).map((t) => (
@@ -540,7 +611,9 @@ export default function WidgetsView() {
                             >
                               {/* Checkbox */}
                               <button
-                                onClick={() => void handleToggleTask(t)}
+                                 onClick={() => void handleToggleTask(t)}
+                                 disabled={pending.has(`${ownerId}:${t.id}`)}
+                                 aria-label={t.completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
                                 title={t.completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
                                 className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-primary/40 text-primary transition-all hover:scale-105"
                               >
@@ -550,7 +623,7 @@ export default function WidgetsView() {
                               {/* Task Content */}
                               <div
                                 className="min-w-0 flex-1 cursor-pointer"
-                                onClick={() => navigate(`/app/tasks/${t.id}`)}
+                                 onClick={() => openTask(t)}
                               >
                                 <p className={`truncate text-xs font-medium ${t.completed ? "line-through text-muted-foreground" : ""}`}>
                                   {t.title}
@@ -574,7 +647,7 @@ export default function WidgetsView() {
                                   </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-48 text-xs">
-                                  <DropdownMenuItem onClick={() => void handleToggleTask(t)}>
+                                  <DropdownMenuItem disabled={pending.has(`${ownerId}:${t.id}`)} onClick={() => void handleToggleTask(t)}>
                                     {t.completed ? (
                                       <>
                                         <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
@@ -587,17 +660,18 @@ export default function WidgetsView() {
                                       </>
                                     )}
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => void handlePostponeTask(t)}>
+                                  <DropdownMenuItem disabled={pending.has(`${ownerId}:${t.id}`)} onClick={() => void handlePostponeTask(t)}>
                                     <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
                                     <span>{T("انتقال موعد به فردا", "Postpone to tomorrow")}</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => navigate(`/app/tasks/${t.id}`)}>
+                                  <DropdownMenuItem onClick={() => openTask(t)}>
                                     <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
                                     <span>{T("مشاهده در برنامه اصلی", "Open in main app")}</span>
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
-                                    onClick={() => void handleDeleteTask(t.id)}
+                                    disabled={pending.has(`${ownerId}:${t.id}`)}
+                                    onClick={() => void handleDeleteTask(t)}
                                     className="text-destructive focus:text-destructive"
                                   >
                                     <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -638,7 +712,9 @@ export default function WidgetsView() {
                         return (
                           <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/5 p-3 group">
                             <button
-                              onClick={() => void handleToggleTask(focusTask)}
+                               onClick={() => void handleToggleTask(focusTask)}
+                               disabled={pending.has(`${ownerId}:${focusTask.id}`)}
+                               aria-label={focusTask.completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
                               title={focusTask.completed ? T("علامت‌گذاری به عنوان انجام‌نشده", "Mark uncompleted") : T("انجام شد (تیک زدن)", "Mark done")}
                               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card border border-primary/40 text-primary transition-all hover:scale-105"
                             >
@@ -646,7 +722,7 @@ export default function WidgetsView() {
                             </button>
                             <div
                               className="min-w-0 flex-1 cursor-pointer"
-                              onClick={() => navigate(`/app/tasks/${focusTask.id}`)}
+                              onClick={() => openTask(focusTask)}
                             >
                               <h4 className={`truncate text-xs font-bold ${focusTask.completed ? "line-through text-muted-foreground" : ""}`}>
                                 {focusTask.title}
@@ -664,7 +740,7 @@ export default function WidgetsView() {
                                 </button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48 text-xs">
-                                <DropdownMenuItem onClick={() => void handleToggleTask(focusTask)}>
+                                <DropdownMenuItem disabled={pending.has(`${ownerId}:${focusTask.id}`)} onClick={() => void handleToggleTask(focusTask)}>
                                   {focusTask.completed ? (
                                     <>
                                       <Circle className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
@@ -677,17 +753,18 @@ export default function WidgetsView() {
                                     </>
                                   )}
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => void handlePostponeTask(focusTask)}>
+                                <DropdownMenuItem disabled={pending.has(`${ownerId}:${focusTask.id}`)} onClick={() => void handlePostponeTask(focusTask)}>
                                   <Calendar className="h-3.5 w-3.5 mr-2 text-primary" />
                                   <span>{T("انتقال موعد به فردا", "Postpone to tomorrow")}</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => navigate(`/app/tasks/${focusTask.id}`)}>
+                                <DropdownMenuItem onClick={() => openTask(focusTask)}>
                                   <ArrowUpRight className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
                                   <span>{T("مشاهده در برنامه اصلی", "Open in main app")}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
-                                  onClick={() => void handleDeleteTask(focusTask.id)}
+                                  disabled={pending.has(`${ownerId}:${focusTask.id}`)}
+                                  onClick={() => void handleDeleteTask(focusTask)}
                                   className="text-destructive focus:text-destructive"
                                 >
                                   <Trash2 className="h-3.5 w-3.5 mr-2" />
@@ -699,7 +776,7 @@ export default function WidgetsView() {
                         );
                       })() : (
                         <div className="py-4 text-center text-xs text-muted-foreground">
-                          {T("تسک فعالی وجود ندارد · آماده افزودن", "No active task · Ready to add")}
+                          {loading ? T("در حال بارگذاری…", "Loading…") : currentSource === "error" ? T("تسک‌ها در دسترس نیستند؛ دوباره بارگذاری کنید", "Tasks unavailable; retry loading") : T("تسک فعالی وجود ندارد · آماده افزودن", "No active task · Ready to add")}
                         </div>
                       )}
 

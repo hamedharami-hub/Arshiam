@@ -658,7 +658,7 @@ export default function TodayDashboardView() {
     if (activeFocusSession) {
       const running = activeFocusSession.endAt != null;
       return (
-        <div data-testid="today-next-action" className="rounded-xl border border-primary/30 bg-primary/5 p-3">
+        <div data-testid="today-next-action" data-focus-runtime="true" className="rounded-xl border border-primary/30 bg-primary/5 p-3">
           <div className="flex items-center gap-2">
             <button
               type="button"

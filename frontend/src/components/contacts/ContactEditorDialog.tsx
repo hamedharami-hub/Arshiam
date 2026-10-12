@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ export function ContactEditorDialog({
   const T = (fa: string, en: string) => (isEn ? en : fa);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fieldId = useId();
   const [busy, setBusy] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
 
@@ -279,16 +280,21 @@ export function ContactEditorDialog({
 
         <div className="flex-1 space-y-2">
           <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
+            <label htmlFor={`${fieldId}-display`} className="text-xs font-medium text-muted-foreground block mb-1">
               {T("نام و نام خانوادگی / عنوان *", "Display Name *")}
             </label>
             <Input
+              id={`${fieldId}-display`}
+              aria-describedby={`${fieldId}-display-help`}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder={T("مثلاً: علی رضایی یا دکتر مهدی", "e.g. John Doe")}
               className="h-9"
               autoFocus
             />
+            <p id={`${fieldId}-display-help`} className="text-xs text-muted-foreground mt-1">
+              {T("نام نمایشی، نام و نام خانوادگی یا شرکت را وارد کنید.", "Enter a display name, first and last name, or company.")}
+            </p>
           </div>
 
           <Button
@@ -341,10 +347,11 @@ export function ContactEditorDialog({
       {/* First & Last name */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-1">
+          <label htmlFor={`${fieldId}-first`} className="text-xs font-medium text-muted-foreground block mb-1">
             {T("نام کوچک", "First Name")}
           </label>
           <Input
+            id={`${fieldId}-first`}
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             placeholder={T("نام", "First Name")}
@@ -352,10 +359,11 @@ export function ContactEditorDialog({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-1">
+          <label htmlFor={`${fieldId}-last`} className="text-xs font-medium text-muted-foreground block mb-1">
             {T("نام خانوادگی", "Last Name")}
           </label>
           <Input
+            id={`${fieldId}-last`}
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             placeholder={T("نام خانوادگی", "Last Name")}
@@ -367,10 +375,11 @@ export function ContactEditorDialog({
       {/* Company & Job title */}
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-1 flex items-center gap-1">
+          <label htmlFor={`${fieldId}-company`} className="text-xs font-medium text-muted-foreground block mb-1 flex items-center gap-1">
             <Building2 className="w-3 h-3" /> {T("شرکت / سازمان", "Company")}
           </label>
           <Input
+            id={`${fieldId}-company`}
             value={company}
             onChange={(e) => setCompany(e.target.value)}
             placeholder={T("نام شرکت", "Company")}
@@ -378,10 +387,11 @@ export function ContactEditorDialog({
           />
         </div>
         <div>
-          <label className="text-xs font-medium text-muted-foreground block mb-1 flex items-center gap-1">
+          <label htmlFor={`${fieldId}-job`} className="text-xs font-medium text-muted-foreground block mb-1 flex items-center gap-1">
             <Briefcase className="w-3 h-3" /> {T("سمت / نقش", "Job Title / Role")}
           </label>
           <Input
+            id={`${fieldId}-job`}
             value={jobTitle}
             onChange={(e) => setJobTitle(e.target.value)}
             placeholder={T("سمت شغلی", "Role / Title")}
@@ -393,9 +403,9 @@ export function ContactEditorDialog({
       {/* Phone numbers */}
       <div className="space-y-1.5 pt-1">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold flex items-center gap-1 text-foreground">
+          <span className="text-xs font-semibold flex items-center gap-1 text-foreground">
             <Phone className="w-3.5 h-3.5 text-primary" /> {T("شماره‌های تماس", "Phone Numbers")}
-          </label>
+          </span>
           <Button
             type="button"
             size="sm"
@@ -408,7 +418,9 @@ export function ContactEditorDialog({
         </div>
         {phones.map((phone, idx) => (
           <div key={idx} className="flex items-center gap-1.5">
+            <label className="sr-only" htmlFor={`${fieldId}-phone-label-${idx}`}>{T("برچسب شماره", "Phone label")} {idx + 1}</label>
             <Input
+              id={`${fieldId}-phone-label-${idx}`}
               value={phone.label}
               onChange={(e) => {
                 const next = [...phones];
@@ -418,7 +430,10 @@ export function ContactEditorDialog({
               placeholder={T("برچسب", "Label")}
               className="w-24 h-8 text-xs shrink-0"
             />
+            <label className="sr-only" htmlFor={`${fieldId}-phone-${idx}`}>{T("شماره تماس", "Phone number")} {idx + 1}</label>
             <Input
+              id={`${fieldId}-phone-${idx}`}
+              type="tel"
               value={phone.value}
               onChange={(e) => {
                 const next = [...phones];
@@ -431,6 +446,7 @@ export function ContactEditorDialog({
               className="h-8 text-xs flex-1"
             />
             <Button
+              aria-label={T(`حذف شماره ${idx + 1}`, `Remove phone ${idx + 1}`)}
               type="button"
               size="icon"
               variant="ghost"
@@ -450,9 +466,9 @@ export function ContactEditorDialog({
       {/* Email addresses */}
       <div className="space-y-1.5 pt-1">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold flex items-center gap-1 text-foreground">
+          <span className="text-xs font-semibold flex items-center gap-1 text-foreground">
             <Mail className="w-3.5 h-3.5 text-blue-500" /> {T("ایمیل‌ها", "Emails")}
-          </label>
+          </span>
           <Button
             type="button"
             size="sm"
@@ -465,7 +481,9 @@ export function ContactEditorDialog({
         </div>
         {emails.map((email, idx) => (
           <div key={idx} className="flex items-center gap-1.5">
+            <label className="sr-only" htmlFor={`${fieldId}-email-label-${idx}`}>{T("برچسب ایمیل", "Email label")} {idx + 1}</label>
             <Input
+              id={`${fieldId}-email-label-${idx}`}
               value={email.label}
               onChange={(e) => {
                 const next = [...emails];
@@ -475,7 +493,10 @@ export function ContactEditorDialog({
               placeholder={T("برچسب", "Label")}
               className="w-24 h-8 text-xs shrink-0"
             />
+            <label className="sr-only" htmlFor={`${fieldId}-email-${idx}`}>{T("نشانی ایمیل", "Email address")} {idx + 1}</label>
             <Input
+              id={`${fieldId}-email-${idx}`}
+              type="email"
               value={email.value}
               onChange={(e) => {
                 const next = [...emails];
@@ -488,6 +509,7 @@ export function ContactEditorDialog({
               className="h-8 text-xs flex-1"
             />
             <Button
+              aria-label={T(`حذف ایمیل ${idx + 1}`, `Remove email ${idx + 1}`)}
               type="button"
               size="icon"
               variant="ghost"
@@ -508,10 +530,11 @@ export function ContactEditorDialog({
 
       {/* Notes */}
       <div>
-        <label className="text-xs font-medium text-muted-foreground block mb-1">
+        <label htmlFor={`${fieldId}-notes`} className="text-xs font-medium text-muted-foreground block mb-1">
           {T("یادداشت و توضیحات", "Notes")}
         </label>
         <Textarea
+          id={`${fieldId}-notes`}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder={T("توضیحات در مورد این شخص...", "Additional notes...")}

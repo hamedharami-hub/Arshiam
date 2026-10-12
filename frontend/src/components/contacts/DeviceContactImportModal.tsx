@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useId } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -55,13 +55,24 @@ export function DeviceContactImportModal({
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
+  const createdByDeviceId = useRef(new Map<string, Contact>());
+  const attemptBusy = useRef(false);
+  const fieldId = useId();
 
   // Field selection options
   const [importPhones, setImportPhones] = useState(true);
   const [importEmails, setImportEmails] = useState(true);
   const [importOrg, setImportOrg] = useState(true);
   const [importAddresses, setImportAddresses] = useState(true);
-  const [importWebsites, setImportWebsites] = useState(true);
+  const [importWebsites, setImportWebsites] = useState(false);
+
+  useEffect(() => {
+    createdByDeviceId.current.clear();
+    setCompletedIds(new Set());
+    setImportError("");
+  }, [userId, taskId]);
 
   useEffect(() => {
     if (open) {
@@ -113,6 +124,7 @@ export function DeviceContactImportModal({
   };
 
   const toggleSelect = (id: string) => {
+    if (busy || completedIds.has(id)) return;
     const next = new Set(selectedIds);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -120,47 +132,71 @@ export function DeviceContactImportModal({
   };
 
   const handleImport = async () => {
-    if (selectedIds.size === 0 || !userId) return;
+    if (selectedIds.size === 0 || !userId || attemptBusy.current) return;
 
+    attemptBusy.current = true;
     setBusy(true);
+    setImportError("");
     try {
-      const candidates = deviceContacts.filter((c) => selectedIds.has(c.id));
+      const candidates = deviceContacts.filter((c) => selectedIds.has(c.id) && !completedIds.has(c.id));
       const createdContacts: Contact[] = [];
+      const completed = new Set(completedIds);
+      const errors: string[] = [];
 
       for (const cand of candidates) {
-        const created = await createContact(userId, {
-          display_name: cand.display_name,
-          first_name: cand.first_name,
-          last_name: cand.last_name,
-          company: importOrg ? cand.company : undefined,
-          job_title: importOrg ? cand.job_title : undefined,
-          phones: importPhones ? cand.phones : [],
-          emails: importEmails ? cand.emails : [],
-          addresses: importAddresses ? cand.addresses : [],
-          websites: importWebsites ? cand.websites : [],
-          source: "device_import",
-        });
+        try {
+          let created = createdByDeviceId.current.get(cand.id);
+          if (!created) {
+            created = await createContact(userId, {
+              display_name: cand.display_name,
+              first_name: cand.first_name,
+              last_name: cand.last_name,
+              company: importOrg ? cand.company : undefined,
+              job_title: importOrg ? cand.job_title : undefined,
+              phones: importPhones ? cand.phones : [],
+              emails: importEmails ? cand.emails : [],
+              addresses: importAddresses ? cand.addresses : [],
+              websites: importWebsites ? cand.websites : [],
+              source: "device_import",
+            });
 
-        createdContacts.push(created);
+            createdByDeviceId.current.set(cand.id, created);
+            createdContacts.push(created);
+          }
 
-        // If taskId was provided, also auto-link to task
-        if (taskId) {
-          await linkTaskContact(taskId, created.id, userId);
+          // Retain the created ID even if linking fails, so retry never recreates it.
+          if (taskId) {
+            await linkTaskContact(taskId, created.id, userId);
+          }
+          completed.add(cand.id);
+        } catch (err) {
+          errors.push(`${cand.display_name}: ${err instanceof Error ? err.message : T("خطا در واردسازی", "Import error")}`);
         }
       }
 
-      toast.success(
-        T(
-          `${createdContacts.length} مخاطب با موفقیت وارد شد`,
-          `Successfully imported ${createdContacts.length} contacts`
-        )
-      );
-
-      onImported?.(createdContacts);
-      onOpenChange(false);
+      setCompletedIds(completed);
+      setSelectedIds(new Set(candidates.filter(c => !completed.has(c.id)).map(c => c.id)));
+      if (createdContacts.length) {
+        onImported?.(createdContacts);
+        toast.success(
+          T(
+            `${createdContacts.length} مخاطب ذخیره شد`,
+            `${createdContacts.length} contacts saved`
+          )
+        );
+      }
+      if (errors.length) {
+        setImportError(T(
+          `مخاطبین ذخیره‌شده حفظ شدند. ${errors.length} مورد کامل نشد؛ برای موارد باقی‌مانده دوباره تلاش کنید. `,
+          `Saved contacts were kept. ${errors.length} could not finish; retry the remaining contacts. `
+        ) + errors.join("; "));
+      } else {
+        onOpenChange(false);
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : T("خطا در واردسازی مخاطبین", "Import error"));
+      setImportError(err instanceof Error ? err.message : T("خطا در واردسازی مخاطبین", "Import error"));
     } finally {
+      attemptBusy.current = false;
       setBusy(false);
     }
   };
@@ -229,28 +265,34 @@ export function DeviceContactImportModal({
         </span>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <Checkbox checked={importPhones} onCheckedChange={(v) => setImportPhones(Boolean(v))} />
+            <Checkbox disabled={busy} checked={importPhones} onCheckedChange={(v) => setImportPhones(Boolean(v))} />
             <span>{T("شماره‌ها", "Phones")}</span>
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <Checkbox checked={importEmails} onCheckedChange={(v) => setImportEmails(Boolean(v))} />
+            <Checkbox disabled={busy} checked={importEmails} onCheckedChange={(v) => setImportEmails(Boolean(v))} />
             <span>{T("ایمیل‌ها", "Emails")}</span>
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <Checkbox checked={importOrg} onCheckedChange={(v) => setImportOrg(Boolean(v))} />
+            <Checkbox disabled={busy} checked={importOrg} onCheckedChange={(v) => setImportOrg(Boolean(v))} />
             <span>{T("شرکت و سمت", "Company & Role")}</span>
           </label>
           <label className="flex items-center gap-1.5 cursor-pointer">
-            <Checkbox checked={importAddresses} onCheckedChange={(v) => setImportAddresses(Boolean(v))} />
+            <Checkbox disabled={busy} checked={importAddresses} onCheckedChange={(v) => setImportAddresses(Boolean(v))} />
             <span>{T("آدرس‌ها", "Addresses")}</span>
           </label>
+          <label htmlFor={`${fieldId}-websites`} className="flex items-center gap-1.5 cursor-pointer">
+            <Checkbox id={`${fieldId}-websites`} disabled={busy} checked={importWebsites} onCheckedChange={(v) => setImportWebsites(v === true)} aria-describedby={`${fieldId}-websites-help`} />
+            <span>{T("وب‌سایت‌ها (اختیاری)", "Websites (optional)")}</span>
+          </label>
         </div>
+        <p id={`${fieldId}-websites-help`} className="text-muted-foreground">{T("وب‌سایت‌ها فقط با انتخاب شما کپی می‌شوند.", "Websites are copied only if you opt in.")}</p>
       </div>
 
       {/* Search Bar */}
       <div className="relative">
         <Search className="w-3.5 h-3.5 text-muted-foreground absolute start-2.5 top-1/2 -translate-y-1/2" />
         <Input
+          aria-label={T("جستجوی مخاطبین گوشی", "Search phone contacts")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={T("جستجوی مخاطبین گوشی...", "Search phone contacts...")}
@@ -281,7 +323,7 @@ export function DeviceContactImportModal({
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(c.id)} />
+                  <Checkbox aria-label={c.display_name} disabled={busy || completedIds.has(c.id)} checked={isSelected || completedIds.has(c.id)} onClick={(event) => event.stopPropagation()} onCheckedChange={() => toggleSelect(c.id)} />
                   <Avatar className="h-7 w-7 shrink-0 text-[10px]">
                     <AvatarFallback className="font-bold">{c.display_name.slice(0, 2)}</AvatarFallback>
                   </Avatar>
@@ -303,6 +345,7 @@ export function DeviceContactImportModal({
       </div>
 
       {/* Footer */}
+      {importError && <p role="alert" className="text-xs text-destructive">{importError}</p>}
       <div className="pt-2 border-t border-border/40 flex items-center justify-between shrink-0">
         <span className="text-xs text-muted-foreground">
           {selectedIds.size > 0
@@ -310,7 +353,7 @@ export function DeviceContactImportModal({
             : T("مخاطبی انتخاب نشده", "None selected")}
         </span>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => onOpenChange(false)}>
             {T("انصراف", "Cancel")}
           </Button>
           <Button
@@ -320,7 +363,7 @@ export function DeviceContactImportModal({
             className="gap-1.5"
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            {T("ورود به برنامه", "Import to ARSHNAZ")}
+            {importError ? T("تلاش دوباره برای موارد باقی‌مانده", "Retry remaining") : T("ورود به برنامه", "Import to ARSHNAZ")}
           </Button>
         </div>
       </div>
@@ -330,7 +373,7 @@ export function DeviceContactImportModal({
   return (
     <>
       {prefersDialog ? (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
           <DialogContent
             dir={isEn ? "ltr" : "rtl"}
             className="w-full max-w-md sm:max-w-lg max-h-[75vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
@@ -351,7 +394,7 @@ export function DeviceContactImportModal({
           </DialogContent>
         </Dialog>
       ) : (
-        <Sheet open={open} onOpenChange={onOpenChange}>
+        <Sheet open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next); }}>
           <SheetContent
             side="bottom"
             dir={isEn ? "ltr" : "rtl"}

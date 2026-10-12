@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useRecoverableExit } from "@/hooks/useRecoverableExit";
 import {
   Blocks, Check, Code2, Copy, Download, Eye, FileUp, Lightbulb,
   Loader2, Play, Plus, Save, ShieldCheck, Trash2,
@@ -154,11 +155,13 @@ function readStoredDraft(userId: string, appId: string): MiniApp | null {
   }
 }
 
-function writeStoredDraft(userId: string, app: MiniApp): void {
+function writeStoredDraft(userId: string, app: MiniApp): boolean {
   try {
-    localStorage.setItem(draftStorageKey(userId, app.id), JSON.stringify(app));
+    const serialized = JSON.stringify(app);
+    localStorage.setItem(draftStorageKey(userId, app.id), serialized);
+    return localStorage.getItem(draftStorageKey(userId, app.id)) === serialized;
   } catch {
-    // A full disk/quota must not block editing; the in-memory draft still works.
+    return false;
   }
 }
 
@@ -178,15 +181,21 @@ function draftDiffersFromSaved(draft: MiniApp, saved: MiniApp): boolean {
 export default function MiniAppsView() {
   const { user, loading: authLoading } = useAuth();
   const { T, isEn } = useBilingual();
+  const languageRef = useRef(isEn);
+  languageRef.current = isEn;
   const navigate = useNavigate();
   const [items, setItems] = useState<MiniApp[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<MiniApp | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [retentionFailed, setRetentionFailed] = useState(false);
   const [search, setSearch] = useState("");
   const [previewDocument, setPreviewDocument] = useState("");
   const [previewVersion, setPreviewVersion] = useState(0);
+  const [viewMode, setViewMode] = useState<"run" | "edit">("run");
+  const viewModeRef = useRef<"run" | "edit">("run");
+  const [previewSnapshot, setPreviewSnapshot] = useState<MiniApp | null>(null);
   const [bridgeAction, setBridgeAction] = useState<BridgeAction | null>(null);
   const [busy, setBusy] = useState(false);
   const bindingRef = useRef<CloudBinding | null>(null);
@@ -197,6 +206,7 @@ export default function MiniAppsView() {
   const bridgeCooldownUntilRef = useRef(0);
   const selectedIdRef = useRef<string | null>(null);
   const dirtyRef = useRef(false);
+  const durableDraftRef = useRef(true);
 
   const t = useCallback((fa: string, en: string) => T(fa, en), [T]);
   const clearBridgeAction = useCallback(() => {
@@ -204,7 +214,7 @@ export default function MiniAppsView() {
     bridgeCooldownUntilRef.current = Date.now() + 1_000;
     setBridgeAction(null);
   }, []);
-  const setActive = useCallback((app: MiniApp | null) => {
+  const setActive = useCallback((app: MiniApp | null, edit = false) => {
     selectedIdRef.current = app?.id || null;
     setSelectedId(app?.id || null);
     const stored = app && user?.id ? readStoredDraft(user.id, app.id) : null;
@@ -214,8 +224,22 @@ export default function MiniAppsView() {
     setDraft(next);
     setDirty(restoredDirty);
     dirtyRef.current = restoredDirty;
-    setPreviewDocument("");
-    previewTokenRef.current = "";
+    durableDraftRef.current = true;
+    setRetentionFailed(false);
+    const nextMode = restoredDirty || edit ? "edit" : "run";
+    viewModeRef.current = nextMode;
+    setViewMode(nextMode);
+    if (next && nextMode === "run") {
+      const token = randomToken();
+      previewTokenRef.current = token;
+      setPreviewDocument(buildMiniAppPreview(next.html, token, readThemeContext(languageRef.current)));
+      setPreviewSnapshot({ ...next });
+      setPreviewVersion((version) => version + 1);
+    } else {
+      setPreviewDocument("");
+      setPreviewSnapshot(null);
+      previewTokenRef.current = "";
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -241,7 +265,7 @@ export default function MiniAppsView() {
         if (!dirtyRef.current) {
           const activeId = selectedIdRef.current;
           const active = remote.find((item) => item.id === activeId) || remote[0] || null;
-          setActive(active);
+          setActive(active, viewModeRef.current === "edit");
         }
       },
     });
@@ -253,7 +277,7 @@ export default function MiniAppsView() {
       setItems(refreshed);
       if (!dirtyRef.current) {
         const activeId = selectedIdRef.current;
-        setActive(refreshed.find((item) => item.id === activeId) || refreshed[0] || null);
+        setActive(refreshed.find((item) => item.id === activeId) || refreshed[0] || null, viewModeRef.current === "edit");
       }
     };
     const onLocalUpdate = (event: Event) => {
@@ -301,17 +325,10 @@ export default function MiniAppsView() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  // Warn on reload/close/external navigation while the current tool has unsaved edits.
-  // In-app route changes are covered by the recoverable per-tool draft above.
-  useEffect(() => {
-    if (!dirty) return;
-    const guardUnsavedExit = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", guardUnsavedExit);
-    return () => window.removeEventListener("beforeunload", guardUnsavedExit);
-  }, [dirty]);
+  useRecoverableExit(
+    () => dirtyRef.current && !durableDraftRef.current,
+    t("تغییرات روی دستگاه ذخیره نشده‌اند. خروج ممکن است آن‌ها را از بین ببرد. ادامه می‌دهی؟", "These edits could not be retained on this device. Leaving may lose them. Continue?"),
+  );
 
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase();
@@ -320,12 +337,11 @@ export default function MiniAppsView() {
   const htmlBytes = draft ? measureHtmlBytes(draft.html) : 0;
 
   const updateDraft = (patch: Partial<MiniApp>) => {
-    setDraft((current) => {
-      if (!current) return current;
-      const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
-      if (user?.id) writeStoredDraft(user.id, next);
-      return next;
-    });
+    if (!draft) return;
+    const next = { ...draft, ...patch, updatedAt: new Date().toISOString() };
+    durableDraftRef.current = Boolean(user?.id && writeStoredDraft(user.id, next));
+    setRetentionFailed(!durableDraftRef.current);
+    setDraft(next);
     setDirty(true);
     dirtyRef.current = true;
   };
@@ -333,7 +349,8 @@ export default function MiniAppsView() {
   const saveList = (next: MiniApp[]) => {
     if (!user?.id) return false;
     try {
-      saveMiniAppsLocal(user.id, next);
+      const saved = saveMiniAppsLocal(user.id, next);
+      if (localStorage.getItem(`arshnaz_mini_apps_v1_${user.id}`) !== JSON.stringify(saved)) throw new Error(t("ذخیره روی دستگاه تأیید نشد.", "Device storage could not be verified."));
       setItems(next);
       bindingRef.current?.push();
       return true;
@@ -344,7 +361,7 @@ export default function MiniAppsView() {
   };
 
   const discardOrContinue = () => {
-    if (!dirtyRef.current) return true;
+    if (!dirtyRef.current || durableDraftRef.current) return true;
     const confirmed = window.confirm(t("تغییرات ذخیره‌نشده از بین می‌روند. ادامه می‌دهی؟", "Unsaved changes will be discarded. Continue?"));
     if (confirmed && draft && user?.id) clearStoredDraft(user.id, draft.id);
     return confirmed;
@@ -364,7 +381,7 @@ export default function MiniAppsView() {
       updatedAt: now,
     };
     if (!saveList([...items, app])) return;
-    setActive(app);
+    setActive(app, true);
     toast.success(t("ابزارک ساخته شد.", "Mini app created."));
   };
 
@@ -382,6 +399,8 @@ export default function MiniAppsView() {
     setDraft(nextApp);
     setDirty(false);
     dirtyRef.current = false;
+    durableDraftRef.current = true;
+    setRetentionFailed(false);
     if (user?.id) clearStoredDraft(user.id, nextApp.id);
     toast.success(t("تغییرات ذخیره شد.", "Changes saved."));
   };
@@ -396,6 +415,7 @@ export default function MiniAppsView() {
     previewTokenRef.current = token;
     bridgeCooldownUntilRef.current = 0;
     setPreviewDocument(buildMiniAppPreview(draft.html, token, readThemeContext(isEn)));
+    setPreviewSnapshot({ ...draft });
     setPreviewVersion((current) => current + 1);
   };
 
@@ -440,7 +460,7 @@ export default function MiniAppsView() {
       : [...items, draft];
     if (!saveList([...savedCurrent, copy])) return;
     if (user?.id && draft.id) clearStoredDraft(user.id, draft.id);
-    setActive(copy);
+    setActive(copy, true);
   };
 
   const deleteApp = () => {
@@ -485,7 +505,7 @@ export default function MiniAppsView() {
         updatedAt: now,
       };
       if (saveList([...items, app])) {
-        setActive(app);
+        setActive(app, true);
         toast.success(t("فایل به مخزن اضافه شد.", "HTML file added to the library."));
       }
     } catch {
@@ -508,8 +528,7 @@ export default function MiniAppsView() {
       }
       return;
     }
-    // Creating a task navigates away from the editor; don't lose an unsaved draft silently.
-    if (!discardOrContinue()) return;
+    // The router exit guard handles at-risk edits once; durable drafts need no prompt.
     const params = new URLSearchParams();
     params.set("title", bridgeAction.title);
     if (bridgeAction.description) params.set("description", bridgeAction.description);
@@ -598,10 +617,25 @@ export default function MiniAppsView() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" variant="outline" onClick={() => void copyPrompt()}><Lightbulb className="me-2 size-4" />{t("دستور هوش مصنوعی", "AI prompt")}</Button>
-                      <Button size="sm" variant="outline" onClick={runPreview}><Play className="me-2 size-4" />{t("اجرا", "Run")}</Button>
+                       <Button size="sm" variant={viewMode === "run" ? "default" : "outline"} aria-pressed={viewMode === "run"} onClick={() => { viewModeRef.current = "run"; setViewMode("run"); }}><Play className="me-2 size-4" />{t("اجرا", "Run")}</Button>
+                       <Button size="sm" variant={viewMode === "edit" ? "default" : "outline"} aria-pressed={viewMode === "edit"} onClick={() => { viewModeRef.current = "edit"; setViewMode("edit"); }}><Code2 className="me-2 size-4" />{t("ویرایش", "Edit")}</Button>
                       <Button size="sm" onClick={saveDraft} disabled={!dirty}><Save className="me-2 size-4" />{t("ذخیره", "Save")}</Button>
                     </div>
                   </div>
+
+                  {retentionFailed && <p role="alert" className="text-sm text-destructive">{t("نسخهٔ قابل‌بازیابی ذخیره نشد. قبل از خروج کد را کپی یا دریافت کن، یا دوباره ذخیره کن.", "No recoverable copy was saved. Copy or download your code before leaving, or retry Save.")}</p>}
+
+                  <div className="flex flex-wrap gap-1" aria-label={t("عملیات ابزارک", "Mini-app actions")}>
+                    <Button size="sm" variant="ghost" onClick={copySource}><Copy className="me-1 size-4" />{t("کپی کد", "Copy")}</Button>
+                    <Button size="sm" variant="ghost" onClick={exportHtml}><Download className="me-1 size-4" />{t("دریافت فایل", "Download")}</Button>
+                    <Button size="sm" variant="ghost" onClick={duplicateApp}><Copy className="me-1 size-4" />{t("تکثیر", "Duplicate")}</Button>
+                    <Button size="sm" variant="ghost" onClick={deleteApp} className="text-destructive hover:text-destructive"><Trash2 className="me-1 size-4" />{t("حذف", "Delete")}</Button>
+                  </div>
+
+                  {viewMode === "run" ? <div className="space-y-2 text-sm" data-testid="mini-app-metadata">
+                    <p className="whitespace-pre-wrap text-muted-foreground">{draft.description || t("این ابزارک توضیحی ندارد.", "No description for this tool.")}</p>
+                    <p className="text-xs text-muted-foreground">{t("آخرین تغییر:", "Last updated:")} <time dateTime={draft.updatedAt}>{draft.updatedAt}</time></p>
+                  </div> : <div className="space-y-4" data-testid="mini-app-editor">
 
                   <div className="grid gap-3 sm:grid-cols-[5rem_minmax(0,1fr)]">
                     <label className="space-y-1 text-sm">
@@ -625,12 +659,6 @@ export default function MiniAppsView() {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <label htmlFor="mini-app-html" className="flex items-center gap-2 text-sm font-medium"><Code2 className="size-4" />{t("کد کامل HTML", "Complete HTML source")}</label>
-                      <div className="flex flex-wrap gap-1">
-                        <Button size="sm" variant="ghost" onClick={copySource}><Copy className="me-1 size-4" />{t("کپی کد", "Copy")}</Button>
-                        <Button size="sm" variant="ghost" onClick={exportHtml}><Download className="me-1 size-4" />{t("دریافت فایل", "Download")}</Button>
-                        <Button size="sm" variant="ghost" onClick={duplicateApp}><Copy className="me-1 size-4" />{t("تکثیر", "Duplicate")}</Button>
-                        <Button size="sm" variant="ghost" onClick={deleteApp} className="text-destructive hover:text-destructive"><Trash2 className="me-1 size-4" />{t("حذف", "Delete")}</Button>
-                      </div>
                     </div>
                     <Textarea
                       id="mini-app-html"
@@ -654,20 +682,23 @@ export default function MiniAppsView() {
                       <span className={htmlBytes > MAX_MINI_APP_HTML_BYTES ? "text-destructive" : ""}>{Math.ceil(htmlBytes / 1024)} / 120 KB</span>
                     </div>
                   </div>
+                  </div>}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base"><Eye className="size-4" />{t("پیش‌نمایش زنده", "Live preview")}</CardTitle>
+                   <CardTitle className="flex items-center gap-2 text-base"><Eye className="size-4" />{t("پیش‌نمایش محدود", "Isolated preview")}</CardTitle>
                   <Button size="sm" variant="outline" onClick={runPreview}><Play className="me-2 size-4" />{t("اجرای آخرین کد", "Run latest source")}</Button>
                 </CardHeader>
-                <CardContent>
+                 <CardContent>
+                   {previewSnapshot && draftDiffersFromSaved(draft, previewSnapshot) && <p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">{t("پیش‌نمایش قدیمی است؛ تغییرات فعلی اجرا نشده‌اند. آخرین کد را اجرا کن.", "Preview is stale: current edits have not been run. Run latest source to refresh.")}</p>}
+                   {previewSnapshot && !draftDiffersFromSaved(draft, previewSnapshot) && <p className="mb-3 text-xs text-muted-foreground">{t("نمایش آخرین کد اجراشده؛ پیش‌نمایش با تایپ تغییر نمی‌کند.", "Showing the last run source. Preview does not update as you type.")}</p>}
                   {previewDocument ? (
                     <iframe
                       key={previewVersion}
                       ref={previewFrameRef}
-                      title={`${draft.name} — ${t("پیش‌نمایش", "preview")}`}
+                       title={`${previewSnapshot?.name || draft.name} — ${t("پیش‌نمایش", "preview")}`}
                       srcDoc={previewDocument}
                       sandbox="allow-scripts"
                       referrerPolicy="no-referrer"

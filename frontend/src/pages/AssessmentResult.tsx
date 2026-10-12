@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,6 +42,14 @@ import { useBilingual } from "@/hooks/useBilingual";
 
 export default function AssessmentResult() {
   const { type } = useParams<{ type: string }>();
+  const { user, loading } = useAuth();
+  const { isEn } = useBilingual();
+  // Remount all result-derived state before displaying a different owner/type.
+  return <AssessmentResultContent key={`${user?.id || "guest"}:${type}:${isEn}:${loading}`} />;
+}
+
+function AssessmentResultContent() {
+  const { type } = useParams<{ type: string }>();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { T, isEn } = useBilingual();
@@ -52,6 +60,10 @@ export default function AssessmentResult() {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [addedHabitKeys, setAddedHabitKeys] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const aiController = useRef<AbortController | null>(null);
+  useEffect(() => () => aiController.current?.abort(), []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -60,20 +72,43 @@ export default function AssessmentResult() {
       return;
     }
     setLoaded(false);
-    const unsub = subscribeAssessmentResults(user.id, type, (results) => {
+    setLoadError(false);
+    let active = true;
+    // The current three-argument subscription has no error callback. A missing
+    // first snapshot must not leave the page in an indefinite loading state.
+    const timer = setTimeout(() => {
+      if (active) { setLoadError(true); setLoaded(true); }
+    }, 10000);
+    let unsub = () => {};
+    try {
+      unsub = subscribeAssessmentResults(user.id, type, (results) => {
+      if (!active) return;
+      clearTimeout(timer);
+      setLoadError(false);
       setLoaded(true);
+      aiController.current?.abort();
+      setLoadingAi(false);
+      setAiAnalysis(null);
+      setAddedHabitKeys(new Set());
       if (results && results.length > 0) {
         setData(results[0]);
         const docId = results[0].id || results[0].created_at || "latest";
-        const cachedKey = `assessment_ai_${type}_${docId}_${isEn ? "en" : "fa"}`;
-        const cached = localStorage.getItem(cachedKey);
-        if (cached) setAiAnalysis(cached);
+        const cachedKey = `assessment_ai_${user.id}_${type}_${docId}_${isEn ? "en" : "fa"}`;
+        try {
+          const cached = localStorage.getItem(cachedKey);
+          if (cached) setAiAnalysis(cached);
+        } catch { /* Cache is optional. */ }
       } else {
         setData(null);
       }
-    });
-    return () => unsub();
-  }, [user, type, isEn, authLoading]);
+      });
+    } catch {
+      clearTimeout(timer);
+      setLoadError(true);
+      setLoaded(true);
+    }
+    return () => { active = false; clearTimeout(timer); unsub(); };
+  }, [user?.id, type, isEn, authLoading, retry]);
 
   async function handleAddHabit(habitName: string, habitDesc: string, key: string) {
     if (!user) return;
@@ -140,6 +175,9 @@ export default function AssessmentResult() {
     if (!data || !type) return;
     setLoadingAi(true);
     setAiAnalysis("");
+    aiController.current?.abort();
+    const controller = new AbortController();
+    aiController.current = controller;
     const labelMap: Record<string, string> = isEn
       ? {
           hexaco: "HEXACO-60 (Six personality dimensions: H/E/X/A/C/O, 10..50 each)",
@@ -162,17 +200,21 @@ export default function AssessmentResult() {
         mode: "assessment_analysis",
         input: JSON.stringify(payload),
         language: isEn ? "en" : "fa",
+        signal: controller.signal,
         onDelta: (chunk) => {
+          if (controller.signal.aborted) return;
           accumulated += chunk;
           setAiAnalysis(accumulated);
         },
         onDone: () => {
+          if (controller.signal.aborted) return;
           const docId = data.id || data.created_at || "latest";
-          localStorage.setItem(`assessment_ai_${type}_${docId}_${isEn ? "en" : "fa"}`, accumulated);
+          try { localStorage.setItem(`assessment_ai_${user?.id}_${type}_${docId}_${isEn ? "en" : "fa"}`, accumulated); } catch { /* Cache is optional. */ }
           toast.success(T("بازتاب کمک‌شده با AI آماده شد", "AI-assisted reflection ready"));
         },
       });
     } catch (e: any) {
+      if (controller.signal.aborted) return;
       toast.error(e.message || T("خطا در دریافت تحلیل آنلاین", "Failed to generate online analysis"));
       if (!accumulated) {
         // Fallback rule-based comprehensive synthesis
@@ -185,7 +227,7 @@ export default function AssessmentResult() {
         setAiAnalysis(fallbackText);
       }
     } finally {
-      setLoadingAi(false);
+      if (!controller.signal.aborted) setLoadingAi(false);
     }
   }
 
@@ -194,6 +236,14 @@ export default function AssessmentResult() {
       <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8">
         {!loaded ? (
           <div className="p-8 text-center text-muted-foreground">{T("در حال بارگذاری…", "Loading…")}</div>
+        ) : loadError ? (
+          <Card className="rounded-3xl border-border/70 text-center">
+            <CardContent className="p-8 space-y-4" role="alert">
+              <h2 className="font-bold text-lg">{T("نتایج بارگذاری نشد", "Results could not be loaded")}</h2>
+              <p className="text-sm text-muted-foreground">{T("هنوز پاسخی دریافت نشده است. اتصال را بررسی کن و دوباره تلاش کن؛ این به معنی نبودن نتیجه نیست.", "No response has arrived yet. Check your connection and retry; this does not mean there is no result.")}</p>
+              <Button onClick={() => setRetry((value) => value + 1)}>{T("تلاش دوباره", "Retry")}</Button>
+            </CardContent>
+          </Card>
         ) : (
           <Card className="rounded-3xl border-border/70 text-center">
             <CardContent className="p-8 space-y-4">

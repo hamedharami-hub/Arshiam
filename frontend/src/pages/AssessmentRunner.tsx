@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,10 @@ export default function AssessmentRunner() {
   const [saveError, setSaveError] = useState(false);
   /** Distinguishes a failed final result write from a failed incremental progress write. */
   const [failedFinish, setFailedFinish] = useState(false);
+  // One result identity per mounted assessment attempt: retries must not mint
+  // another result when only the final progress acknowledgement failed.
+  const finishAttempt = useRef<{ owner: string; type: Type; id: string; completedAt: string } | null>(null);
+  const finishing = useRef(false);
 
   const meta = type ? META[type as Type] : null;
 
@@ -173,7 +177,12 @@ export default function AssessmentRunner() {
   }
 
   async function finish(final: Record<number, number>) {
-    if (!user || !type) return;
+    if (!user || !type || finishing.current) return;
+    finishing.current = true;
+    if (finishAttempt.current?.owner !== user.id || finishAttempt.current?.type !== type) {
+      finishAttempt.current = { owner: user.id, type, id: `result_${crypto.randomUUID()}`, completedAt: new Date().toISOString() };
+    }
+    const attempt = finishAttempt.current;
     setSaving(true);
     try {
       let scores: any, analysis: any = {};
@@ -189,18 +198,22 @@ export default function AssessmentRunner() {
       }
 
       const savedResult = await upsertAssessmentResult(user.id, {
+        id: attempt.id,
+        completed_at: attempt.completedAt,
         assessment_type: type,
         scores,
         analysis,
       });
 
       // Mirror to firebaseStore if accessible
-      firebaseStore.from("assessment_results").insert({
+      firebaseStore.from("assessment_results").upsert({
+        id: attempt.id,
         user_id: user.id,
         assessment_type: type,
         scores,
         analysis,
-      }).catch(() => {});
+        completed_at: attempt.completedAt,
+      }, { onConflict: "id" }).catch(() => {});
 
       const progressSaved = await persist(final, total - 1, true);
 
@@ -235,8 +248,11 @@ export default function AssessmentRunner() {
       toast.success(T("تست تکمیل شد ✨", "Assessment Completed ✨"));
       navigate(`/app/self/result/${type}`);
     } catch (e: any) {
+      setFailedFinish(true);
+      setSaveError(true);
       toast.error(e.message || T("خطا در ذخیره", "Failed to save"));
     } finally {
+      finishing.current = false;
       setSaving(false);
     }
   }
@@ -272,8 +288,12 @@ export default function AssessmentRunner() {
             {Array.from({ length: meta.scale }, (_, i) => i + 1).map((n) => (
               <button
                 key={n}
+                type="button"
+                aria-label={`${isEn ? n : toPersianDigits(n)} — ${labels[n - 1]}`}
+                aria-pressed={current === n}
+                disabled={saving || exiting}
                 onClick={() => answer(n)}
-                className={`h-14 rounded-lg border-2 transition text-sm font-medium ${
+                className={`h-14 rounded-lg border-2 transition text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   current === n
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border hover:border-primary/50 bg-background"

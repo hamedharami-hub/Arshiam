@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
-import { format, startOfDay, subDays, isSameDay, isWithinInterval } from "date-fns";
+import { format, startOfDay, subDays, isSameDay, isWithinInterval, endOfDay } from "date-fns";
 import { getCalendarSystem, formatDate, toPersianDigits, jalaliDayOfWeek, WEEKDAY_SHORT_FA, type CalendarSystem } from "@/lib/jalali";
 import { isTaskOverdue } from "@/lib/taskPlanning";
 import { getTimeSettings } from "@/lib/timeHorizon";
 import type { Task } from "@/lib/taskTypes";
+import { focusMinutesInRange, type FocusMetricSession } from "@/lib/focusMetrics";
+import { getFocusState, subscribeFocus } from "@/lib/focusSession";
 import {
   Bar,
   Line,
@@ -23,7 +25,7 @@ import {
 import { CheckCircle2, Clock, Flame, AlertCircle, Target, TrendingUp } from "lucide-react";
 
 type TaskRow = Pick<Task, "id" | "title" | "completed" | "completed_at" | "due_date" | "priority"> & Partial<Task>;
-type PomRow = { duration_minutes: number; started_at: string };
+type PomRow = FocusMetricSession;
 type HabitLogRow = { habit_id: string; log_date: string; habits: { name: string; target_per_week: number; frequency: "daily" | "weekly" } | null };
 
 type Period = "today" | "week" | "month";
@@ -33,28 +35,77 @@ export default function StatsView() {
   const { T, isEn } = useBilingual();
   const [system] = useState<CalendarSystem>(getCalendarSystem());
   const [period, setPeriod] = useState<Period>("week");
-  const [tasks, setTasks] = useState<TaskRow[]>([]);
-  const [pomSessions, setPomSessions] = useState<PomRow[]>([]);
-  const [habitLogs, setHabitLogs] = useState<HabitLogRow[]>([]);
-
-  const todayStart = useMemo(() => startOfDay(new Date()), []);
-  const weekStart = useMemo(() => startOfDay(subDays(new Date(), 6)), []);
-  const monthStart = useMemo(() => startOfDay(subDays(new Date(), 29)), []);
+  const [snapshot, setSnapshot] = useState<{ ownerId: string; tasks: TaskRow[]; sessions: PomRow[]; habits: HabitLogRow[] } | null>(null);
+  const [loadState, setLoadState] = useState<{ ownerId: string | null; status: "loading" | "ready" | "error" }>({ ownerId: null, status: "loading" });
+  const [now, setNow] = useState(() => new Date());
+  const [refreshKey, setRefreshKey] = useState(0);
+  const currentSnapshot = snapshot?.ownerId === user?.id ? snapshot : null;
+  const tasks = currentSnapshot?.tasks || [];
+  const pomSessions = currentSnapshot?.sessions || [];
+  const habitLogs = currentSnapshot?.habits || [];
+  const status = loadState.ownerId === (user?.id || null) ? loadState.status : "loading";
+  const todayKey = format(now, "yyyy-MM-dd");
+  const todayStart = useMemo(() => startOfDay(now), [todayKey]);
+  const weekStart = useMemo(() => startOfDay(subDays(now, 6)), [todayKey]);
+  const monthStart = useMemo(() => startOfDay(subDays(now, 29)), [todayKey]);
 
   const periodStart = period === "today" ? todayStart : period === "week" ? weekStart : monthStart;
 
   useEffect(() => {
-    if (!user) return;
+    const refresh = () => { setNow(new Date()); setRefreshKey((key) => key + 1); };
+    const events = ["tasks-changed", "habits-changed", "habit-logs-changed", "firebase-store-changed"];
+    events.forEach((event) => window.addEventListener(event, refresh));
+    window.addEventListener("focus", refresh);
+    const onVisibility = () => { if (document.visibilityState === "visible") refresh(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    // Runtime notifications include stopped sessions, not only completions.
+    let outcomeVersion = getFocusState().completedVersion;
+    const unsubscribe = subscribeFocus(() => {
+      const nextVersion = getFocusState().completedVersion;
+      if (nextVersion !== outcomeVersion) { outcomeVersion = nextVersion; refresh(); }
+    });
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, refresh));
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(timer);
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const ownerId = user?.id;
+    setSnapshot(null);
+    setLoadState({ ownerId: ownerId || null, status: ownerId ? "loading" : "ready" });
+    if (!ownerId) return;
+    let active = true;
     const start = startOfDay(subDays(new Date(), 29));
     const end = new Date();
     const isoStart = start.toISOString();
     const isoEnd = end.toISOString();
-
-    firebaseStore.from("tasks")
-      .select("id,title,completed,completed_at,due_date,priority,status,due_at,horizon,period_start,period_end,is_exact,bucket_kind,bucket_anchor,bucket_calendar,planning_horizon,planning_start,planning_end")
-      .eq("user_id", user.id)
-      .then(({ data }) => {
-        const rows = (data as TaskRow[] | null) || [];
+    const load = async () => {
+      try {
+        const [taskResult, sessionResult, habitResult] = await Promise.all([
+          firebaseStore.from("tasks")
+            .select("id,title,completed,completed_at,due_date,priority,status,due_at,horizon,period_start,period_end,is_exact,bucket_kind,bucket_anchor,bucket_calendar,planning_horizon,planning_start,planning_end")
+            .eq("user_id", ownerId),
+          firebaseStore.from("pomodoro_sessions")
+            .select("duration_minutes,ended_at,completed")
+            .eq("user_id", ownerId)
+            .gte("ended_at", isoStart)
+            .lte("ended_at", isoEnd)
+            .order("ended_at", { ascending: true }),
+          firebaseStore.from("habit_logs")
+            .select("habit_id, log_date, habits(name, target_per_week, frequency)")
+            .eq("user_id", ownerId)
+            .gte("log_date", format(start, "yyyy-MM-dd"))
+            .lte("log_date", format(end, "yyyy-MM-dd"))
+            .order("log_date", { ascending: true }),
+        ]);
+        if (!active) return;
+        if (taskResult.error || sessionResult.error || habitResult.error) throw new Error("Stats read failed");
+        const rows = (taskResult.data as TaskRow[] | null) || [];
         const filtered = rows.filter((t) => {
           if (t.completed) {
             if (!t.completed_at) return false;
@@ -63,28 +114,18 @@ export default function StatsView() {
           }
           return isTaskOverdue(t, getTimeSettings());
         });
-        setTasks(filtered);
-      });
+        setSnapshot({ ownerId, tasks: filtered, sessions: (sessionResult.data as PomRow[] | null) || [], habits: (habitResult.data as HabitLogRow[] | null) || [] });
+        setNow(new Date());
+        setLoadState({ ownerId, status: "ready" });
+      } catch {
+        if (active) setLoadState({ ownerId, status: "error" });
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [user?.id, todayKey, refreshKey]);
 
-    firebaseStore.from("pomodoro_sessions")
-      .select("duration_minutes,started_at")
-      .eq("user_id", user.id)
-      .eq("completed", true)
-      .gte("started_at", isoStart)
-      .lte("started_at", isoEnd)
-      .order("started_at", { ascending: true })
-      .then(({ data }) => setPomSessions((data as PomRow[] | null) || []));
-
-    firebaseStore.from("habit_logs")
-      .select("habit_id, log_date, habits(name, target_per_week, frequency)")
-      .eq("user_id", user.id)
-      .gte("log_date", format(start, "yyyy-MM-dd"))
-      .lte("log_date", format(end, "yyyy-MM-dd"))
-      .order("log_date", { ascending: true })
-      .then(({ data }) => setHabitLogs((data as HabitLogRow[] | null) || []));
-  }, [user, todayStart]);
-
-  const periodEnd = useMemo(() => new Date(), []);
+  const periodEnd = now;
 
   const completedTasks = useMemo(() =>
     tasks.filter((t) => t.completed && t.completed_at && isWithinInterval(new Date(t.completed_at), { start: periodStart, end: periodEnd })),
@@ -94,10 +135,7 @@ export default function StatsView() {
     tasks.filter((t) => isTaskOverdue(t, getTimeSettings())),
   [tasks, todayStart]);
 
-  const focusMinutes = useMemo(() =>
-    pomSessions
-      .filter((s) => isWithinInterval(new Date(s.started_at), { start: periodStart, end: periodEnd }))
-      .reduce((sum, s) => sum + (s.duration_minutes || 0), 0),
+  const focusMinutes = useMemo(() => focusMinutesInRange(pomSessions, periodStart, periodEnd),
   [pomSessions, periodStart, periodEnd]);
 
   const habitStats = useMemo(() => {
@@ -116,8 +154,7 @@ export default function StatsView() {
 
     return Array.from(byHabit.entries()).map(([id, h]) => {
       const logsInPeriod = Array.from(h.days).filter((d) => {
-        const date = new Date(d);
-        return date >= start && date <= periodEnd;
+        return d >= format(start, "yyyy-MM-dd") && d <= format(periodEnd, "yyyy-MM-dd");
       }).length;
       const targetDays = h.frequency === "daily" ? expectedDays : Math.min(expectedDays / 7, 4) * (h.target || 1);
       const rate = targetDays > 0 ? Math.min(100, Math.round((logsInPeriod / targetDays) * 100)) : 0;
@@ -127,19 +164,17 @@ export default function StatsView() {
 
   const chartData = useMemo(() => {
     const days = period === "today"
-      ? [startOfDay(new Date())]
-      : Array.from({ length: period === "week" ? 7 : 30 }, (_, i) => startOfDay(subDays(new Date(), (period === "week" ? 7 : 30) - 1 - i)));
+      ? [todayStart]
+      : Array.from({ length: period === "week" ? 7 : 30 }, (_, i) => startOfDay(subDays(now, (period === "week" ? 7 : 30) - 1 - i)));
 
     return days.map((d) => {
       const taskCount = tasks.filter((t) => t.completed && t.completed_at && isSameDay(new Date(t.completed_at), d)).length;
-      const minutes = pomSessions
-        .filter((s) => isSameDay(new Date(s.started_at), d))
-        .reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+      const minutes = focusMinutesInRange(pomSessions, d, new Date(Math.min(endOfDay(d).getTime(), periodEnd.getTime())));
       const weekday = system === "jalali" ? WEEKDAY_SHORT_FA[jalaliDayOfWeek(d)] : format(d, "EEE")[0];
       const dayNum = system === "jalali" ? formatDate(d, "d", "jalali") : format(d, "d");
       return { label: `${weekday} ${dayNum}`, tasks: taskCount, minutes, date: d };
     });
-  }, [tasks, pomSessions, period, system]);
+  }, [tasks, pomSessions, period, system, todayStart, periodEnd]);
 
   const bestHabit = habitStats[0];
 
@@ -156,7 +191,7 @@ export default function StatsView() {
         <div>
           <HeaderTitlePortal title={T("آمار و خلاصه", "Stats & Summary")} />
           <p className="text-xs md:text-sm text-muted-foreground mt-1">
-            {system === "jalali" ? formatDate(new Date(), "d MMMM yyyy", "jalali") : format(new Date(), "MMMM d, yyyy")}
+            {system === "jalali" ? formatDate(now, "d MMMM yyyy", "jalali") : format(now, "MMMM d, yyyy")}
           </p>
         </div>
         <div className="flex rounded-lg bg-muted p-0.5">
@@ -179,6 +214,13 @@ export default function StatsView() {
         </div>
       </div>
 
+      <Button type="button" variant="outline" size="sm" onClick={() => { setNow(new Date()); setRefreshKey((key) => key + 1); }}>{T("تازه‌سازی", "Refresh")}</Button>
+      {status === "loading" && <p role="status">{T("در حال بارگذاری آمار…", "Loading statistics…")}</p>}
+      {status === "error" && <div role="alert" className="rounded-lg border border-destructive/40 p-3">
+        <p>{T("بارگذاری آمار ناموفق بود.", "Could not load statistics.")}</p>
+        <Button type="button" variant="outline" onClick={() => setRefreshKey((key) => key + 1)}>{T("تلاش دوباره", "Retry")}</Button>
+      </div>}
+      {status === "ready" && <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger-children">
         <SummaryCard
           icon={CheckCircle2}
@@ -339,6 +381,7 @@ export default function StatsView() {
           </CardContent>
         </Card>
       )}
+      </>}
     </div>
   );
 }

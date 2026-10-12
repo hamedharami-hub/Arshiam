@@ -130,9 +130,9 @@ describe("MobileBottomBar", () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByRole("button", { name: "ذهن" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "یادداشت‌ها" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "امروز" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "ذهن" })).toHaveAttribute("href", "/app/mind");
+    expect(screen.getByRole("link", { name: "یادداشت‌ها" })).toHaveAttribute("href", "/app/notes");
+    expect(screen.getByRole("link", { name: "امروز" })).toHaveAttribute("href", "/app/today");
     expect(screen.getByRole("button", { name: "منو" })).toBeDefined();
 
     // Now switch to left position

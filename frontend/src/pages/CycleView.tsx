@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, differenceInCalendarDays, format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,32 @@ import {
 import { deleteCycleProfileAndLogs, persistActiveCycleProfile } from "@/lib/cycleProfileService";
 import { formatDate, toPersianDigits } from "@/lib/jalali";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useRecoverableExit } from "@/hooks/useRecoverableExit";
 
 type ProfileNumberField = "avg_cycle_length" | "avg_period_length" | "luteal_length";
 type ProfileDraft = Record<ProfileNumberField, string>;
+
+const draftKey = (owner: string, profile: string) => `arshnaz_cycle_draft_v1:${encodeURIComponent(owner)}:${encodeURIComponent(profile)}`;
+function readDeviceDraft(owner: string, profile: string): unknown {
+  try { return JSON.parse(localStorage.getItem(draftKey(owner, profile)) || "null"); } catch { return null; }
+}
+function retainDeviceDraft(owner: string | undefined, profile: string, value: unknown): boolean {
+  if (!owner) return false;
+  try {
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(draftKey(owner, profile), serialized);
+    return localStorage.getItem(draftKey(owner, profile)) === serialized;
+  } catch { return false; }
+}
+function clearDeviceDraft(owner: string | undefined, profile: string) {
+  if (!owner) return;
+  try { localStorage.removeItem(draftKey(owner, profile)); } catch { /* Keep the old copy if storage is unavailable. */ }
+}
+const numbersFor = (profile: CycleProfile): ProfileDraft => ({
+  avg_cycle_length: String(profile.avg_cycle_length),
+  avg_period_length: String(profile.avg_period_length),
+  luteal_length: String(profile.luteal_length),
+});
 
 function normalizeProfile(profile: CycleProfile): CycleProfile {
   return {
@@ -53,24 +76,56 @@ const profileNumberRules: Record<ProfileNumberField, { min: number; max: number 
 
 export default function CycleView() {
   const { user } = useAuth();
+  // Remount before hydration on account changes: never display or apply another owner's draft.
+  return <CycleWorkspace key={user?.id || "signed-out"} />;
+}
+
+function CycleWorkspace() {
+  const { user } = useAuth();
   const userId = user?.id;
   const { T, isEn } = useBilingual();
   const [profiles, setProfiles] = useState<CycleProfile[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [logs, setLogs] = useState<CycleLog[]>([]);
   const [overlayEnabled, setOverlayEnabled] = useState(true);
-  const [today] = useState(() => new Date());
+  const [today, setToday] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
+  const [newLabel, setNewLabel] = useState(() => {
+    const stored = userId ? readDeviceDraft(userId, "new-profile") : null;
+    return typeof stored === "string" ? stored : "";
+  });
+  const [creating, setCreating] = useState(Boolean(newLabel));
+  const profileRisk = useRef(false);
+  const labelRisk = useRef(false);
+  const draftProfileId = useRef<string | null>(null);
+  const [retentionFailed, setRetentionFailed] = useState(false);
+  const exitMessage = T("تغییرات روی دستگاه نگه‌داری نشد؛ با ادامه ممکن است از دست بروند. ادامه می‌دهید؟", "Changes could not be retained on this device and may be lost. Continue?");
+  useRecoverableExit(() => profileRisk.current || labelRisk.current, exitMessage);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft>({
     avg_cycle_length: String(DEFAULT_CYCLE_PROFILE.avg_cycle_length),
     avg_period_length: String(DEFAULT_CYCLE_PROFILE.avg_period_length),
     luteal_length: String(DEFAULT_CYCLE_PROFILE.luteal_length),
   });
+  const latestProfileDraft = useRef(profileDraft);
+  latestProfileDraft.current = profileDraft;
 
   const active = profiles.find((profile) => profile.id === activeId) || null;
   const todayKey = format(today, "yyyy-MM-dd");
+
+  useEffect(() => {
+    const refreshToday = () => setToday((previous) => {
+      const now = new Date();
+      return format(previous, "yyyy-MM-dd") === format(now, "yyyy-MM-dd") ? previous : now;
+    });
+    const timer = window.setInterval(refreshToday, 30_000);
+    window.addEventListener("focus", refreshToday);
+    document.addEventListener("visibilitychange", refreshToday);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshToday);
+      document.removeEventListener("visibilitychange", refreshToday);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +140,7 @@ export default function CycleView() {
     setLoading(true);
     void (async () => {
       const [{ data: rows, error: profilesError }, { data: settings, error: settingsError }] = await Promise.all([
-        firebaseStore.from("cycle_profiles").select("*").order("created_at"),
+        firebaseStore.from("cycle_profiles").select("*").eq("user_id", userId).order("created_at"),
         firebaseStore.from("user_settings")
           .select("cycle_overlay_enabled, active_cycle_profile_id")
           .eq("user_id", userId).maybeSingle(),
@@ -128,13 +183,30 @@ export default function CycleView() {
   }, [activeId, userId]);
 
   useEffect(() => {
-    if (!active) return;
-    setProfileDraft({
-      avg_cycle_length: String(active.avg_cycle_length),
-      avg_period_length: String(active.avg_period_length),
-      luteal_length: String(active.luteal_length),
-    });
-  }, [activeId, active]);
+    if (!active || draftProfileId.current === active.id) return;
+    draftProfileId.current = active.id;
+    const stored = userId ? readDeviceDraft(userId, active.id) : null;
+    const valid = stored && typeof stored === "object" && Object.keys(profileNumberRules).every((field) => typeof (stored as ProfileDraft)[field as ProfileNumberField] === "string");
+    setProfileDraft(valid ? stored as ProfileDraft : numbersFor(active));
+    profileRisk.current = false;
+    setRetentionFailed(labelRisk.current);
+  }, [activeId, active, userId]);
+
+  const editProfileDraft = (field: ProfileNumberField, value: string) => {
+    if (!active || draftProfileId.current !== active.id) return;
+    const next = { ...profileDraft, [field]: value };
+    setProfileDraft(next);
+    const dirty = Object.keys(profileNumberRules).some((key) => next[key as ProfileNumberField] !== String(active[key as ProfileNumberField]));
+    profileRisk.current = dirty && !retainDeviceDraft(userId, active.id, next);
+    if (!dirty) clearDeviceDraft(userId, active.id);
+    setRetentionFailed(profileRisk.current || labelRisk.current);
+  };
+  const editNewLabel = (value: string) => {
+    setNewLabel(value);
+    labelRisk.current = Boolean(value) && !retainDeviceDraft(userId, "new-profile", value);
+    if (!value) clearDeviceDraft(userId, "new-profile");
+    setRetentionFailed(profileRisk.current || labelRisk.current);
+  };
 
   const phaseToday = useMemo(() => active ? computePhase(today, logs, active) : null, [active, logs, today]);
   const nextPeriod = useMemo(() => active ? predictNextPeriod(logs, active, today) : null, [active, logs, today]);
@@ -174,6 +246,7 @@ export default function CycleView() {
 
   const createProfile = async () => {
     if (!user || !newLabel.trim()) return;
+    if (profileRisk.current && !window.confirm(exitMessage)) return;
     const { data, error } = await firebaseStore.from("cycle_profiles")
       .insert({
         ...DEFAULT_CYCLE_PROFILE,
@@ -187,7 +260,7 @@ export default function CycleView() {
     const created = normalizeProfile(data as CycleProfile);
     setProfiles((current) => [...current, created]);
     setActiveId(created.id);
-    setNewLabel("");
+    editNewLabel("");
     setCreating(false);
     const { error: settingsError } = await persistActiveCycleProfile(user.id, created.id);
     if (settingsError) toast.error(T("پروفایل ساخته شد، اما انتخاب آن ذخیره نشد", "Profile created, but its selection could not be saved"));
@@ -223,13 +296,22 @@ export default function CycleView() {
     const value = Number(profileDraft[field]);
     const { min, max } = profileNumberRules[field];
     if (!profileDraft[field].trim() || !Number.isInteger(value) || value < min || value > max) {
-      setProfileDraft((current) => ({ ...current, [field]: String(active[field]) }));
+      editProfileDraft(field, String(active[field]));
       toast.error(T(`مقدار باید عددی بین ${toPersianDigits(min)} و ${toPersianDigits(max)} باشد.`, `Enter a whole number from ${min} to ${max}.`));
       return;
     }
     if (value === active[field]) return;
     const saved = await updateProfile({ [field]: value });
-    if (saved) setProfileDraft((current) => ({ ...current, [field]: String(value) }));
+    if (saved && draftProfileId.current === active.id) {
+      const next = { ...latestProfileDraft.current };
+      // Edits made while the explicit save was in flight remain a separate draft.
+      if (next[field] === profileDraft[field]) next[field] = String(value);
+      setProfileDraft(next);
+      const remaining = Object.keys(profileNumberRules).some((key) => next[key as ProfileNumberField] !== String(key === field ? value : active[key as ProfileNumberField]));
+      profileRisk.current = remaining && !retainDeviceDraft(userId, active.id, next);
+      if (!remaining) clearDeviceDraft(userId, active.id);
+      setRetentionFailed(profileRisk.current || labelRisk.current);
+    }
   };
 
   const deleteProfile = async () => {
@@ -242,6 +324,7 @@ export default function CycleView() {
     const { error } = await deleteCycleProfileAndLogs(active.id);
     if (error) return toast.error(T("حذف کامل نشد؛ پروفایل باقی مانده است. ثبت‌ها را بررسی و دوباره تلاش کنید.", "Deletion did not complete; the profile remains. Review its logs and retry."));
 
+    clearDeviceDraft(userId, active.id);
     const remaining = profiles.filter((profile) => profile.id !== active.id);
     const nextId = remaining[0]?.id || null;
     setProfiles(remaining);
@@ -322,6 +405,7 @@ export default function CycleView() {
 
   const requestSetActive = (id: string) => {
     if (id === activeId) return;
+    if ((profileRisk.current || labelRisk.current) && !window.confirm(exitMessage)) return;
     if (checkinDirty) { setPendingGuard({ kind: "switch", id }); return; }
     void setActive(id);
   };
@@ -392,6 +476,7 @@ export default function CycleView() {
       </Card>
 
       <Card className="space-y-4 p-4 md:p-5">
+        {retentionFailed && <p role="status" data-testid="cycle-draft-retention-failed" className="text-sm text-destructive">{T("پیش‌نویس روی دستگاه نگه‌داری نشد. پیش از خروج تغییرات را ذخیره کنید.", "Draft could not be retained on this device. Save changes before leaving.")}</p>}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold">{T("پروفایل‌ها", "Profiles")}</h2>
@@ -407,9 +492,9 @@ export default function CycleView() {
         {creating && (
           <form className="flex flex-col gap-2 rounded-xl border border-dashed p-3 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void createProfile(); }}>
             <Input autoFocus aria-label={T("نام پروفایل", "Profile name")} placeholder={T("مثلاً: خودم", "E.g. Me")} value={newLabel}
-              onChange={(event) => setNewLabel(event.target.value)} />
+              onChange={(event) => editNewLabel(event.target.value)} />
             <Button type="submit" disabled={!newLabel.trim()} size="sm">{T("افزودن", "Add")}</Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => { setCreating(false); setNewLabel(""); }}>{T("لغو", "Cancel")}</Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setCreating(false); editNewLabel(""); }}>{T("لغو", "Cancel")}</Button>
           </form>
         )}
 
@@ -596,7 +681,7 @@ export default function CycleView() {
                     <Label htmlFor={`cycle-${field}`} className="text-xs">{label}</Label>
                     <div className="relative">
                       <Input id={`cycle-${field}`} type="number" inputMode="numeric" min={min} max={max} step={1}
-                        value={profileDraft[field]} onChange={(event) => setProfileDraft((current) => ({ ...current, [field]: event.target.value }))}
+                        value={profileDraft[field]} onChange={(event) => editProfileDraft(field, event.target.value)}
                         onBlur={() => void commitProfileNumber(field)} className="pe-12" />
                       <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-[10px] text-muted-foreground">{unit}</span>
                     </div>

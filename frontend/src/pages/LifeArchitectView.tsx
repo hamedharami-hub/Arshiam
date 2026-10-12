@@ -44,6 +44,7 @@ import {
   enhanceBlueprintWithAI,
   auditExistingSystem,
   deployLifeBlueprint,
+  previewLifeBlueprint,
   type UserAnswers,
   type LifeBlueprint,
   type SystemAuditResult,
@@ -106,6 +107,13 @@ export default function LifeArchitectView() {
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [selectedHabitNames, setSelectedHabitNames] = useState<Set<string>>(new Set());
   const [selectedTaskTitles, setSelectedTaskTitles] = useState<Set<string>>(new Set());
+  const [selectedGoalIds, setSelectedGoalIds] = useState<Set<string>>(new Set());
+  const [selectedValueKeys, setSelectedValueKeys] = useState<Set<string>>(new Set());
+  const deploymentPreview = blueprint ? previewLifeBlueprint(blueprint, {
+    folderIds: selectedFolderIds, habitNames: selectedHabitNames,
+    taskTitles: selectedTaskTitles, goalIds: selectedGoalIds, valueKeys: selectedValueKeys,
+  }) : null;
+  const mutationCount = deploymentPreview ? Object.values(deploymentPreview).reduce((sum, count) => sum + count, 0) : 0;
 
   const currentStage = WIZARD_STAGES[stageIdx];
   const isLastStage = stageIdx === WIZARD_STAGES.length - 1;
@@ -152,6 +160,9 @@ export default function LifeArchitectView() {
       setSelectedFolderIds(new Set(finalBp.folders.map((f) => f.id)));
       setSelectedHabitNames(new Set(finalBp.habits.map((h) => h.name)));
       setSelectedTaskTitles(new Set(finalBp.tasks.map((t) => t.title)));
+      // Goals and values require explicit opt-in in the review, not hidden defaults.
+      setSelectedGoalIds(new Set());
+      setSelectedValueKeys(new Set());
 
       setMode("review");
     }
@@ -217,18 +228,25 @@ export default function LifeArchitectView() {
     if (!user || !blueprint) return;
     setIsDeploying(true);
     try {
-      const { foldersCount, habitsCount, tasksCount } = await deployLifeBlueprint(
+      const result = await deployLifeBlueprint(
         blueprint,
         user.id,
         selectedFolderIds,
         selectedHabitNames,
-        selectedTaskTitles
+        selectedTaskTitles,
+        selectedGoalIds,
+        selectedValueKeys
       );
+      const { foldersCount, goalsCount, habitsCount, tasksCount, valuesCount } = result;
+      if (deploymentPreview && Object.entries(deploymentPreview).some(([key, count]) => result[key as keyof typeof result] !== count)) {
+        toast.error(T("بخشی از تغییرات ذخیره نشد. قبل از تلاش مجدد موارد ایجادشده را بررسی کنید.", "Some changes were not saved. Check created items before retrying to avoid duplicates."));
+        return;
+      }
 
       toast.success(
         T(
-          `معماری زندگی با موفقیت مستقر شد! (${foldersCount} پوشه، ${habitsCount} عادت، ${tasksCount} تسک)`,
-          `Life Blueprint deployed! (${foldersCount} folders, ${habitsCount} habits, ${tasksCount} tasks)`
+          `معماری زندگی مستقر شد (${foldersCount} پوشه، ${goalsCount} هدف، ${habitsCount} عادت، ${tasksCount} تسک، ${valuesCount} ارزش)`,
+          `Life Blueprint deployed! (${foldersCount} folders, ${goalsCount} goals, ${habitsCount} habits, ${tasksCount} tasks, ${valuesCount} values)`
         )
       );
 
@@ -240,10 +258,8 @@ export default function LifeArchitectView() {
     }
   };
 
-  const handleDeployAuditRecommendations = async () => {
+  const handleDeployAuditRecommendations = () => {
     if (!user || !auditResult) return;
-    setIsDeploying(true);
-    try {
       const auditBp: LifeBlueprint = {
         title: "پچ‌های بهینه‌سازی سیستم",
         summary: "ارتقای توازن زندگی و سازمان‌دهی اینباکس",
@@ -255,19 +271,13 @@ export default function LifeArchitectView() {
         recommendedWorkflow: "list",
       };
 
-      const res = await deployLifeBlueprint(auditBp, user.id);
-      toast.success(
-        T(
-          `بهینه‌سازی با موفقیت اعمال شد (${res.foldersCount} پوشه جدید، ${res.habitsCount} عادت)`,
-          `Optimizations applied (${res.foldersCount} new folders, ${res.habitsCount} habits)`
-        )
-      );
-      setTimeout(() => navigate("/app/today"), 1200);
-    } catch (err: any) {
-      toast.error(err.message || T("خطا در اعمال تغییرات", "Error applying changes"));
-    } finally {
-      setIsDeploying(false);
-    }
+    setBlueprint(auditBp);
+    setSelectedFolderIds(new Set(auditBp.folders.map((f) => f.id)));
+    setSelectedHabitNames(new Set(auditBp.habits.map((h) => h.name)));
+    setSelectedTaskTitles(new Set());
+    setSelectedGoalIds(new Set());
+    setSelectedValueKeys(new Set());
+    setMode("review");
   };
 
   // Wheel statistics
@@ -360,7 +370,7 @@ export default function LifeArchitectView() {
             <Card
               role="button"
               tabIndex={0}
-              aria-label={T("تنظیم ریتم و ضرب‌آهنگ", "Quick Pace Tuning")}
+              aria-label={T("ساخت طرح تازه با ریتم دلخواه", "New plan at your pace")}
               onClick={() => startWizard(5)}
               onKeyDown={keyActivate(() => startWizard(5))}
               className="p-5 cursor-pointer hover:border-emerald-500/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -369,13 +379,13 @@ export default function LifeArchitectView() {
                 <Gauge className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-sm sm:text-base mb-1 text-foreground flex items-center gap-1.5">
-                {T("تنظیم ریتم و ضرب‌آهنگ", "Quick Pace Tuning")}
+                {T("ساخت طرح تازه با ریتم دلخواه", "New plan at your pace")}
                 <ChevronRight className="w-4 h-4 ms-auto text-muted-foreground group-hover:translate-x-[-4px] transition-transform rtl:rotate-180" />
               </h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {T(
-                  "تنظیم مجدد ظرفیت انرژی (بازیابی، تعادل یا اسپرینت) برای زمان‌های تغییر شرایط یا احساس خستگی.",
-                  "Quickly adjust energy mode (recovery, steady, sprint) to match your current bandwidth."
+                  "یک طرح تازه با ریتم بازیابی، متعادل یا سریع بساز؛ برنامهٔ فعلی تغییر نمی‌کند. افزودن موارد فقط پس از بررسی و تأیید تو انجام می‌شود.",
+                  "Create a new recovery, steady, or sprint plan. Your current plan is not retimed; additions require your review and approval."
                 )}
               </p>
             </Card>
@@ -1137,7 +1147,7 @@ export default function LifeArchitectView() {
                 </Card>
               </div>
 
-              {(auditResult.recommendations.addFolders.length > 0 || auditResult.recommendations.addHabits.length > 0) && (
+              {(auditResult.recommendations.addFolders.length > 0 || auditResult.recommendations.addHabits.length > 0 || auditResult.recommendations.addGoals.length > 0) && (
                 <Card className="p-4 rounded-2xl border-primary/30 bg-primary/5 space-y-3">
                   <h3 className="text-sm font-bold text-primary flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4" />
@@ -1161,7 +1171,7 @@ export default function LifeArchitectView() {
                     className="w-full sm:w-auto gap-2 rounded-xl mt-2 shadow-md shadow-primary/20 font-bold"
                   >
                     <Check className="w-4 h-4" />
-                    {T("اعمال بسته‌ی بهینه‌سازی به سیستم من", "Apply Recommendations to My System")}
+                    {T("بررسی و انتخاب تغییرات پیشنهادی", "Review and select recommendations")}
                   </Button>
                 </Card>
               )}
@@ -1206,10 +1216,11 @@ export default function LifeArchitectView() {
                 {blueprint.coreValues.map((vKey) => {
                   const meta = CORE_VALUES_LIST.find((v) => v.key === vKey);
                   return (
-                    <Badge key={vKey} variant="outline" className="text-xs gap-1 border-primary/30">
+                    <label key={vKey} className="flex items-center gap-2 rounded-md border border-primary/30 p-2 text-xs">
+                      <Checkbox aria-label={isEn ? meta?.labelEn || vKey : meta?.labelFa || vKey} checked={selectedValueKeys.has(vKey)} onCheckedChange={(checked) => setSelectedValueKeys((current) => { const next = new Set(current); if (checked === true) next.add(vKey); else next.delete(vKey); return next; })} />
                       <span>{meta?.icon}</span>
                       <span>{isEn ? meta?.labelEn : meta?.labelFa}</span>
-                    </Badge>
+                    </label>
                   );
                 })}
               </div>
@@ -1223,6 +1234,18 @@ export default function LifeArchitectView() {
 
           {/* Sections */}
           <div className="space-y-5">
+            <p className="text-xs text-muted-foreground">{T("اهداف و ارزش‌ها فقط با انتخاب شما اضافه می‌شوند. امتیازها و یادداشت‌های ارزش‌های قبلی حفظ می‌شوند.", "Goals and values are added only when selected. Existing value ratings and reflections are preserved.")}</p>
+            <section className="space-y-2" aria-label={T("اهداف پیشنهادی", "Proposed goals")}>
+              <h3 className="text-sm font-bold">{T("اهداف پیشنهادی", "Proposed goals")}</h3>
+              {blueprint.goals.map((goal) => {
+                const folder = blueprint.folders.find((item) => item.id === goal.folderId);
+                const enabled = Boolean(folder && selectedFolderIds.has(goal.folderId));
+                return <label key={goal.id} className="flex items-start gap-2 rounded-lg border p-3 text-sm">
+                  <Checkbox aria-label={goal.title} disabled={!enabled} checked={enabled && selectedGoalIds.has(goal.id)} onCheckedChange={(checked) => setSelectedGoalIds((current) => { const next = new Set(current); if (checked === true) next.add(goal.id); else next.delete(goal.id); return next; })} />
+                  <span><span className="block font-medium">{goal.title}</span><span className="block text-xs text-muted-foreground">{goal.description}</span><span className="block text-xs text-muted-foreground">{folder?.name || T("پوشه موجود نیست", "Missing folder")} · {goal.timeHorizon} · {goal.priority}{!enabled && ` · ${T("ابتدا پوشه را انتخاب کنید", "Select its folder first")}`}</span></span>
+                </label>;
+              })}
+            </section>
             {/* 1. Folders */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-muted-foreground flex items-center gap-1.5 uppercase tracking-wider">
@@ -1342,7 +1365,7 @@ export default function LifeArchitectView() {
                         onClick={(e) => e.stopPropagation()}
                         aria-label={t.title}
                       />
-                      <span className="text-xs font-medium text-foreground flex-1 truncate">{t.title}</span>
+                       <span className="flex-1 text-xs"><span className="block font-medium text-foreground">{t.title}</span><span className="block text-muted-foreground">{t.description}</span><span className="block text-muted-foreground">{(t.folderId && selectedFolderIds.has(t.folderId) && blueprint.folders.find((f) => f.id === t.folderId)?.name) || T("اینباکس", "Inbox")} · {T("موعد: امروز +", "Due: today +")} {t.dueDaysOffset || 0}</span></span>
                       {t.priority && (
                         <Badge
                           variant={t.priority === "urgent" ? "destructive" : "outline"}
@@ -1361,6 +1384,7 @@ export default function LifeArchitectView() {
           {/* Sticky Deploy Action Bar */}
           <div className="pt-4 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 sticky bottom-0 bg-background/95 backdrop-blur py-3">
             <div className="text-xs text-muted-foreground">
+              {deploymentPreview && <p role="status" className="font-medium text-foreground">{T(`${deploymentPreview.foldersCount} پوشه، ${deploymentPreview.goalsCount} هدف، ${deploymentPreview.habitsCount} عادت، ${deploymentPreview.tasksCount} تسک، ${deploymentPreview.valuesCount} ارزش`, `${deploymentPreview.foldersCount} folders, ${deploymentPreview.goalsCount} goals, ${deploymentPreview.habitsCount} habits, ${deploymentPreview.tasksCount} tasks, ${deploymentPreview.valuesCount} values`)}</p>}
               {T(
                 "آیتم‌های تیک‌خورده به صورت خودکار در ساختار برنامه شما مستقر می‌شوند.",
                 "Selected items will be automatically created in your app workspace."
@@ -1369,7 +1393,7 @@ export default function LifeArchitectView() {
             <Button
               size="lg"
               onClick={handleDeploy}
-              disabled={isDeploying}
+              disabled={isDeploying || mutationCount === 0}
               className="w-full sm:w-auto gap-2 px-8 rounded-2xl bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/30 font-bold"
             >
               <Sparkles className="w-5 h-5" />

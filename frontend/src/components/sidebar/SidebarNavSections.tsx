@@ -1,11 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { isPathAllowed, useModules, type ModulesState } from "@/lib/appModules";
+import { FEATURES, findFeature, getFeatureNavigation, isFeatureAvailable } from "@/lib/featureRegistry";
 import {
-  Moon, Inbox, Calendar as CalIcon, CalendarDays, Filter, Tag, FileText,
-  Target, Timer, Calendar, ChevronDown, Sparkles, LayoutGrid,
-  TrendingUp, Activity, Heart, HeartPulse, ShieldAlert, BookOpen, Sun,
-  ListTodo, BrainCircuit, GripVertical, User, Shield,
-  BarChart3, Sprout, Wind, Compass, Users, Gamepad2, Hourglass, PlayCircle, Blocks, Layers,
+  ChevronDown, TrendingUp, HeartPulse, BookOpen,
+  ListTodo, BrainCircuit, GripVertical, User, type LucideIcon,
 } from "lucide-react";
 import { toPersianDigits } from "@/lib/persianDigits";
 import {
@@ -25,37 +23,23 @@ export const EN_LABELS: Record<string, string> = {
   "انجام دادن": "Do",
   "انجام": "Do",
   "کانبان": "Kanban",
-  "لیست‌های هوشمند": "Smart Lists",
   "رشد": "Grow",
   "ذهن": "Mind",
-  "خواب و آرامش": "Sleep & Relaxation",
   "خودِ من": "Me",
-  "امروز": "Today",
-  "فردا": "Tomorrow",
   "۷ روز آینده": "Next 7 Days",
-  "تقویم": "Calendar",
   "اهداف": "Goals",
   "عادت‌ها": "Habits",
-  "نوت‌ها": "Notes",
   "خاطرات روزانه": "Daily Diary",
-  "مرور (SR)": "Review (SR)",
-  "خودشناسی": "Self-Knowledge",
-  "داشبورد ذهن": "Mind Dashboard",
   "بینش هفتگی": "Weekly Insights",
   "بازنگری هفتگی": "Weekly Review",
   "Check-in روزانه": "Daily Check-in",
-  "چک‌این روزانه": "Daily Check-in",
   "ژورنال تصمیم": "Decision Journal",
   "ثبت افکار (CBT)": "Thought Records (CBT)",
   "مدل ABC": "ABC Model",
   "بررسی فکر": "Think it through",
   "حال امروز": "Today's mood",
-  "آرام‌شدن": "Calm down",
-  "ارزش‌ها و اهداف": "Values & Goals",
   "سلامت": "Health",
-  "درباره من": "About Me",
   "تنظیمات": "Settings",
-  "پنل مدیریت": "Admin Panel",
   "جابجا کن": "Drag",
   "فولدرها": "Folders",
   "تگ‌ها": "Tags",
@@ -64,18 +48,9 @@ export const EN_LABELS: Record<string, string> = {
   "Smart Lists": "Smart Lists",
   "آمار و خلاصه": "Stats & Summary",
   "بازه‌های کلی": "Time Buckets",
-  "برنامه‌ریزی": "Planning",
-  "سیکل پریود": "Period Cycle",
   "تمرین تنفس ۳بعدی": "3D Breathing",
-  "معمار زندگی": "Life Architect",
   "صندوق ورودی": "Inbox",
-  "ویجت‌ها": "Widgets",
   "مخزن کد": "Code Vault",
-  "باغ رشد": "Garden",
-  "افراد": "Contacts",
-  "کتابخانه دانش": "Knowledge Base",
-  "استودیوی مطالعه تعاملی": "Interactive Study Studio",
-  "ادامهٔ یادگیری": "Continue learning",
   "پشتیبانی بحران (SOS)": "Crisis support (SOS)",
   "فهرست محصولات دارویی": "Pharmacy Products",
   "تمرین سناریوهای دارویی": "Pharmacy Scenario Practice",
@@ -86,19 +61,15 @@ export const EN_LABELS: Record<string, string> = {
   "مرور": "Review",
   "باز کردن": "Expand",
   "جمع کردن": "Collapse",
+  ...Object.fromEntries(FEATURES.map((feature) => [feature.nameFa, feature.nameEn])),
 };
 
 export const FA_LABELS: Record<string, string> = {
-  "Inbox": "صندوق ورودی",
-  "Pomodoro": "پومودورو",
-  "Smart Lists": "لیست‌های هوشمند",
-  "Contacts": "افراد",
-  "Knowledge Base": "کتابخانه دانش",
-  "Review (SR)": "مرور (SR)",
   "Pharmacy Products": "فهرست محصولات دارویی",
   "Pharmacy Scenario Practice": "تمرین سناریوهای دارویی",
   "FRED Practice": "تمرین نسخه FRED",
   "CYP Matrix & Interactions": "ماتریس CYP و تداخل",
+  ...Object.fromEntries(FEATURES.map((feature) => [feature.nameEn, feature.nameFa])),
 };
 
 export function useLabel() {
@@ -110,38 +81,26 @@ export function useLabel() {
   };
 }
 
-export type NavItem = { url?: string; icon: any; label: string; children?: NavItem[] };
-export type Section = { id: string; title: string; icon: any; defaultOpen: boolean; items: NavItem[] };
+export type NavItem = { url?: string; icon: LucideIcon; label: string; children?: NavItem[] };
+export type Section = { id: string; title: string; icon: LucideIcon; defaultOpen: boolean; items: NavItem[] };
 
 export const SECTIONS: Section[] = [
   {
     id: "do", title: "انجام", icon: ListTodo, defaultOpen: false,
     items: [
-      { url: "/app/tomorrow", icon: Sun, label: "فردا" },
-      { url: "/app/next7", icon: CalendarDays, label: "۷ روز آینده" },
-      { url: "/app/diary", icon: BookOpen, label: "خاطرات روزانه" },
-      { url: "/app/contacts", icon: Users, label: "افراد" },
-      { url: "/app/widgets", icon: LayoutGrid, label: "ویجت‌ها" },
-      { url: "/app/tools", icon: Blocks, label: "مخزن کد" },
-      { url: "/app/pomodoro", icon: Timer, label: "Pomodoro" },
-      { url: "/app/stats", icon: BarChart3, label: "آمار و خلاصه" },
+      ...["tomorrow", "next7", "diary", "contacts", "widgets", "tools", "pomodoro", "stats"]
+        .map((route) => getFeatureNavigation(`/app/${route}`)),
     ],
   },
   {
     id: "grow", title: "رشد", icon: TrendingUp, defaultOpen: false,
     items: [
-      { url: "/app/values", icon: Heart, label: "ارزش‌ها و اهداف" },
-      { url: "/app/life-architect", icon: Compass, label: "معمار زندگی" },
-      { url: "/app/garden", icon: Sprout, label: "باغ رشد" },
-      { url: "/app/notes", icon: FileText, label: "نوت‌ها" },
+      ...["values", "life-architect", "garden", "notes"].map((route) => getFeatureNavigation(`/app/${route}`)),
       {
         icon: BookOpen,
         label: "دانش",
         children: [
-          { url: "/app/knowledge", icon: BookOpen, label: "کتابخانه دانش" },
-          { url: "/app/recall", icon: Layers, label: "مرور" },
-          { url: "/app/interactive-study", icon: Gamepad2, label: "استودیوی مطالعه تعاملی" },
-          { url: "/app/continue", icon: PlayCircle, label: "ادامهٔ یادگیری" },
+          ...["knowledge", "recall", "interactive-study", "continue"].map((route) => getFeatureNavigation(`/app/${route}`)),
         ],
       },
     ],
@@ -149,36 +108,28 @@ export const SECTIONS: Section[] = [
   {
     id: "health", title: "سلامت", icon: HeartPulse, defaultOpen: false,
     items: [
-      { url: "/app/cycle", icon: Calendar, label: "سیکل پریود" },
+      getFeatureNavigation("/app/cycle"),
     ],
   },
   {
     id: "mind", title: "ذهن", icon: BrainCircuit, defaultOpen: false,
     items: [
-      { url: "/app/mind", icon: BrainCircuit, label: "داشبورد ذهن" },
-      { url: "/app/checkin", icon: Activity, label: "حال امروز" },
-      { url: "/app/thoughts", icon: BookOpen, label: "بررسی فکر" },
-      { url: "/app/calm", icon: Wind, label: "آرام‌شدن" },
-      { url: "/app/crisis", icon: ShieldAlert, label: "پشتیبانی بحران (SOS)" },
+      ...["mind", "checkin", "thoughts", "calm", "crisis"].map((route) => getFeatureNavigation(`/app/${route}`)),
     ],
   },
   {
     id: "me", title: "خودِ من", icon: User, defaultOpen: false,
     items: [
-      { url: "/app/about-me", icon: User, label: "درباره من" },
-      { url: "/app/self", icon: Sparkles, label: "خودشناسی" },
+      ...["about-me", "self"].map((route) => getFeatureNavigation(`/app/${route}`)),
     ],
   },
 ];
 
 // Always-visible top navigation (TickTick order), rendered above folders.
 export const PRIMARY_ITEMS: NavItem[] = [
-  { url: "/app/today", icon: CalIcon, label: "امروز" },
-  { url: "/app/inbox", icon: Inbox, label: "صندوق ورودی" },
-  { url: "/app/calendar", icon: Calendar, label: "تقویم" },
-  { url: "/app/planning", icon: Hourglass, label: "برنامه‌ریزی" },
+  ...["today", "inbox", "calendar", "planning"].map((route) => getFeatureNavigation(`/app/${route}`)),
 ];
-export const SMART_ITEM: NavItem = { url: "/app/smart", icon: Filter, label: "Smart Lists" };
+export const SMART_ITEM: NavItem = getFeatureNavigation("/app/smart");
 
 // Task counts keyed by route (e.g. "/app/today") or "folder:<id>".
 export const SidebarCountsContext = createContext<Record<string, number>>({});
@@ -190,10 +141,13 @@ export function NavCount({ countKey }: { countKey?: string }) {
   return <span className="ms-auto shrink-0 ps-2 text-[11px] tabular-nums text-muted-foreground">{toPersianDigits(n)}</span>;
 }
 
-function filterNavByModules(items: NavItem[], modules: ModulesState): NavItem[] {
+export function filterNavByModules(items: NavItem[], modules: ModulesState, isAdmin = modules.isAdmin): NavItem[] {
   return items.flatMap((item) => {
-    if (item.url) return isPathAllowed(item.url, modules) ? [item] : [];
-    const children = filterNavByModules(item.children || [], modules);
+    if (item.url) {
+      const feature = findFeature(item.url);
+      return (feature ? isFeatureAvailable(feature, modules, isAdmin) : isPathAllowed(item.url, modules)) ? [item] : [];
+    }
+    const children = filterNavByModules(item.children || [], modules, isAdmin);
     return children.length ? [{ ...item, children }] : [];
   });
 }
@@ -403,10 +357,10 @@ export function SidebarSectionCollapsible({
 }: SidebarSectionCollapsibleProps) {
   const sectionItems =
     section.id === "me" && isAdmin
-      ? [...section.items, { url: "/app/admin", icon: Shield, label: "پنل مدیریت" }]
+      ? [...section.items, getFeatureNavigation("/app/admin")]
       : section.items;
   const modules = useModules();
-  const items = filterNavByModules(sectionItems.filter((item) => item.url !== "/app/widgets" || isAndroid()), modules);
+  const items = filterNavByModules(sectionItems.filter((item) => item.url !== "/app/widgets" || isAndroid()), modules, isAdmin);
   if (items.length === 0) return null;
 
   if (collapsed) {

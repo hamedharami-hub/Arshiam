@@ -11,10 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Sparkles, Save, RefreshCw, ChevronLeft, ChevronRight, Loader2, FolderPlus, Tag as TagIcon, ListTodo, Bot, Eye, ChevronDown, ChevronUp, Zap } from "lucide-react";
 import { ABOUT_SECTIONS, loadAboutMe, saveAboutMe, formatAboutMeForAI, type AboutMeRow, type AboutAnswer } from "@/lib/aboutMe";
-import { isAIPersonalizationOptedIn, setAIPersonalizationOptedIn } from "@/lib/aiSettings";
+import { getOpConfig, PROVIDER_INFO, isAIPersonalizationOptedIn, setAIPersonalizationOptedIn } from "@/lib/aiSettings";
 import { useBilingual } from "@/hooks/useBilingual";
 import { getFeatureCapability, isFeatureEnabled } from "@/lib/capabilities";
 import { callAI } from "@/lib/ai";
@@ -27,6 +28,15 @@ type AboutMeAnalysisResult = {
     tags: string[];
     tasks: { title: string; folder?: string; priority: "none" | "low" | "medium" | "high" }[];
   };
+};
+
+type AnalysisSnapshot = {
+  uid: string;
+  input: { answers: Record<string, AboutAnswer>; free_text: string };
+  fingerprint: string;
+  revision: number;
+  configFingerprint: string;
+  providerLabel: string;
 };
 
 function parseStructuredAboutMeResponse(response: { text?: unknown; data?: unknown }): unknown {
@@ -98,6 +108,13 @@ export default function AboutMeView() {
   const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
   const [testFeedback, setTestFeedback] = useState<string | null>(null);
   const [testingAI, setTestingAI] = useState(false);
+  const [analysisPreview, setAnalysisPreview] = useState<AnalysisSnapshot | null>(null);
+  const [proposal, setProposal] = useState<{ snapshot: AnalysisSnapshot; result: AboutMeAnalysisResult } | null>(null);
+  const inputFingerprint = JSON.stringify({ answers, free_text: freeText });
+  const inputFingerprintRef = useRef(inputFingerprint);
+  const inputRevisionRef = useRef(0);
+  if (inputFingerprintRef.current !== inputFingerprint) inputRevisionRef.current += 1;
+  inputFingerprintRef.current = inputFingerprint;
   const activeUserIdRef = useRef<string | null>(user?.id || null);
   const activeAIRequestRef = useRef<AbortController | null>(null);
   activeUserIdRef.current = user?.id || null;
@@ -122,6 +139,8 @@ export default function AboutMeView() {
     setTestFeedback(null);
     setBusy(false);
     setTestingAI(false);
+    setAnalysisPreview(null);
+    setProposal(null);
     if (!uid) return () => { active = false; };
 
     loadAboutMe(uid).then((r) => {
@@ -146,6 +165,34 @@ export default function AboutMeView() {
       activeAIRequestRef.current = null;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    activeAIRequestRef.current?.abort();
+    activeAIRequestRef.current = null;
+    setBusy(false);
+    setTestingAI(false);
+    setAnalysisPreview(null);
+    setProposal(null);
+  }, [inputFingerprint]);
+
+  const isCurrentSnapshot = (snapshot: AnalysisSnapshot) =>
+    isCurrentProfile(snapshot.uid) && inputFingerprintRef.current === snapshot.fingerprint &&
+    inputRevisionRef.current === snapshot.revision &&
+    JSON.stringify(getOpConfig("about_me_analysis")) === snapshot.configFingerprint;
+
+  const previewAnalysis = () => {
+    const uid = user?.id;
+    if (!uid || !isCurrentProfile(uid)) return;
+    const config = getOpConfig("about_me_analysis");
+    setAnalysisPreview({
+      uid,
+      input: JSON.parse(inputFingerprint),
+      fingerprint: inputFingerprint,
+      revision: inputRevisionRef.current,
+      configFingerprint: JSON.stringify(config),
+      providerLabel: `${PROVIDER_INFO[config.provider].label} · ${config.model}${config.provider === "custom" ? ` · ${config.baseUrl || ""}` : ""}`,
+    });
+  };
 
   const setAns = (k: string, v: AboutAnswer) => {
     if (!user?.id || !isCurrentProfile(user.id)) return;
@@ -178,10 +225,12 @@ export default function AboutMeView() {
   };
 
   const analyze = async () => {
-    const uid = user?.id;
-    if (!uid || !isCurrentProfile(uid)) return;
-    const answerSnapshot = answers;
-    const freeTextSnapshot = freeText;
+    const snapshot = analysisPreview;
+    setAnalysisPreview(null);
+    if (!snapshot || !isCurrentSnapshot(snapshot)) return;
+    const { uid } = snapshot;
+    const answerSnapshot = snapshot.input.answers;
+    const freeTextSnapshot = snapshot.input.free_text;
     const controller = new AbortController();
     activeAIRequestRef.current?.abort();
     activeAIRequestRef.current = controller;
@@ -189,17 +238,14 @@ export default function AboutMeView() {
     try {
       // 1. Always persist manual answers first so they are never lost
       const saved = await persistProfile(uid, answerSnapshot, freeTextSnapshot);
-      if (!saved || !isCurrentProfile(uid)) return;
+      if (!saved || !isCurrentSnapshot(snapshot) || controller.signal.aborted) return;
       const fresh = await loadAboutMe(uid);
-      if (!isCurrentProfile(uid)) return;
+      if (!isCurrentSnapshot(snapshot) || controller.signal.aborted) return;
       if (fresh) setRow(fresh);
       toast.success(T("پاسخ‌ها ذخیره شدند ✓", "Answers saved successfully ✓"));
 
       // 2. Call configured client-side AI provider (BYOK)
-      const formattedInput = {
-        answers: answerSnapshot,
-        free_text: freeTextSnapshot,
-      };
+      const formattedInput = snapshot.input;
 
       const aiRes = await callAI(
         "about_me_analysis",
@@ -209,26 +255,17 @@ export default function AboutMeView() {
         isEn ? "en" : "fa",
         { signal: controller.signal, skipPersonalization: true },
       );
-      if (!isCurrentProfile(uid)) return;
+      if (!isCurrentSnapshot(snapshot) || controller.signal.aborted) return;
 
       const structured = validateAboutMeAnalysis(parseStructuredAboutMeResponse(aiRes || {}));
       if (structured) {
-        const patch = {
-          ai_analysis: structured.ai_analysis,
-          ai_suggestions: structured.ai_suggestions,
-          analyzed_at: new Date().toISOString(),
-        };
-        await saveAboutMe(uid, patch);
-        if (!isCurrentProfile(uid)) return;
-        setRow((prev) => (prev ? { ...prev, ...patch } : null));
-        setMode("review");
-        toast.success(T("تحلیل هوشمند با موفقیت تکمیل شد ✓", "AI analysis completed successfully ✓"));
+        setProposal({ snapshot, result: structured });
       } else {
         toast.info(T("پاسخ‌ها ذخیره شدند، اما تحلیل هوش مصنوعی فرمت معتبری بازنگرداند.", "Answers saved, but AI did not produce structured output."));
       }
     } catch (e: any) {
       // Manual answers remain preserved by persist()
-      if (isCurrentProfile(uid) && e?.name !== "AbortError") {
+      if (isCurrentSnapshot(snapshot) && !controller.signal.aborted && e?.name !== "AbortError") {
         toast.error(
           e.message || T("خطا در اجرای تحلیل هوش مصنوعی. پاسخ‌های شما ذخیره شده‌اند.", "Error running AI analysis. Your answers are saved.")
         );
@@ -240,6 +277,60 @@ export default function AboutMeView() {
       }
     }
   };
+
+  const applyAnalysis = async () => {
+    if (!proposal || !isCurrentSnapshot(proposal.snapshot)) {
+      setProposal(null);
+      return;
+    }
+    const current = proposal;
+    setBusy(true);
+    try {
+      const patch = { ...current.result, analyzed_at: new Date().toISOString() };
+      await saveAboutMe(current.snapshot.uid, patch);
+      if (!isCurrentSnapshot(current.snapshot)) return;
+      setRow((prev) => ({ ...prev, ...patch } as AboutMeRow));
+      setProposal(null);
+      setMode("review");
+      toast.success(T("تحلیل ذخیره شد", "Analysis saved"));
+    } catch (e: any) {
+      if (isCurrentSnapshot(current.snapshot)) toast.error(e.message);
+    } finally {
+      if (isCurrentSnapshot(current.snapshot)) setBusy(false);
+    }
+  };
+
+  const analysisDialogs = <>
+    <Dialog open={Boolean(analysisPreview)} onOpenChange={(open) => { if (!open) setAnalysisPreview(null); }}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{T("بررسی داده‌های تحلیل", "Review analysis payload")}</DialogTitle>
+          <DialogDescription>
+            {T("فقط پاسخ‌ها و متن زیر ارسال می‌شود؛ داده‌های شخصی دیگری اضافه نمی‌شود.", "Only the answers and text below will be sent; no other personal context is added.")}
+          </DialogDescription>
+        </DialogHeader>
+        <p className="text-sm break-all">{analysisPreview?.providerLabel}</p>
+        <pre className="text-xs whitespace-pre-wrap break-all rounded-lg bg-muted p-3">{analysisPreview ? JSON.stringify(analysisPreview.input, null, 2) : ""}</pre>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAnalysisPreview(null)}>{T("لغو", "Cancel")}</Button>
+          <Button onClick={analyze}>{T("تأیید و ارسال برای تحلیل", "Approve & Send for Analysis")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={Boolean(proposal)} onOpenChange={(open) => { if (!open && !busy) setProposal(null); }}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{T("بررسی پیشنهاد تحلیل", "Review proposed analysis")}</DialogTitle>
+          <DialogDescription>{T("هنوز ذخیره نشده است. ذخیره تحلیل هیچ تسک، تگ یا فولدری ایجاد نمی‌کند.", "Not saved yet. Saving the analysis does not create tasks, tags, or folders.")}</DialogDescription>
+        </DialogHeader>
+        <pre className="text-xs whitespace-pre-wrap break-all rounded-lg bg-muted p-3">{proposal ? JSON.stringify(proposal.result, null, 2) : ""}</pre>
+        <DialogFooter>
+          <Button variant="outline" disabled={busy} onClick={() => setProposal(null)}>{T("رد پیشنهاد", "Reject Proposal")}</Button>
+          <Button disabled={busy} onClick={applyAnalysis}>{T("تأیید و ذخیره تحلیل", "Approve & Save Analysis")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>;
 
   const createFolder = async (name: string) => {
     if (!user || !isCurrentProfile(user.id)) return;
@@ -328,13 +419,14 @@ export default function AboutMeView() {
     const s = row?.ai_suggestions;
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--narrow space-y-5 page-enter">
+        {analysisDialogs}
         <div className="flex items-center justify-between">
           <HeaderTitlePortal title={T("درباره من", "About Me")} />
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => { setMode("wizard"); setStep(0); }}>
               ✏️ {T("ویرایش پاسخ‌ها", "Edit Answers")}
             </Button>
-            <Button size="sm" onClick={analyze} disabled={busy} className="gap-1">
+            <Button size="sm" onClick={previewAnalysis} disabled={busy} className="gap-1">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
               {T("تحلیل مجدد", "Re-analyze")}
             </Button>
@@ -558,11 +650,11 @@ export default function AboutMeView() {
           <Card className="p-5 text-center space-y-3 border-dashed border-primary/30">
             <p className="text-sm text-muted-foreground">
               {T(
-                "پاسخ‌های شما ذخیره شده‌اند و هوش مصنوعی هم‌اکنون به آن‌ها متصل است! برای دریافت ساختار تم‌ها، نقاط قوت و پیشنهادهای تسک/فولدر، تحلیل هوشمند را اجرا کنید:",
-                "Your answers are saved and the AI is connected! To generate structured themes, strengths, and starter tasks, run AI analysis:"
+                "پاسخ‌های شما ذخیره شده‌اند. برای دریافت تحلیل، ابتدا داده‌های ارسالی را بررسی و تأیید کنید:",
+                "Your answers are saved. To generate themes, strengths, and starter tasks, review and approve the analysis payload first:"
               )}
             </p>
-            <Button onClick={analyze} disabled={busy} className="gap-1.5">
+            <Button onClick={previewAnalysis} disabled={busy} className="gap-1.5">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {T("شروع تحلیل هوشمند با هوش مصنوعی", "Generate AI Themes & Suggestions")}
             </Button>
@@ -584,6 +676,7 @@ export default function AboutMeView() {
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="p-4 md:p-6 max-w-2xl mx-auto space-y-5 page-enter">
+      {analysisDialogs}
       <div className="flex items-center justify-between">
         <HeaderTitlePortal title={T("درباره من", "About Me")} />
         <div className="flex items-center gap-2">
@@ -687,7 +780,7 @@ export default function AboutMeView() {
               <Save className="w-4 h-4" />
               {T("ذخیره و پایان", "Save & Finish")}
             </Button>
-            <Button onClick={analyze} disabled={busy} className="gap-1">
+            <Button onClick={previewAnalysis} disabled={busy} className="gap-1">
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               {T("تحلیل هوشمند", "Run AI Analysis")}
             </Button>

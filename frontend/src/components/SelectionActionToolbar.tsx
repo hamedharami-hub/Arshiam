@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Sparkles, Share2, Loader2, Bold, Italic, Underline, Languages, Wand2, ListTree, FileText, Quote } from "lucide-react";
 import { toast } from "sonner";
@@ -110,6 +110,25 @@ export function SelectionActionToolbar() {
   const targetRef = useRef<SelectionTarget | null>(null);
   const [portal, setPortal] = useState<Element>(document.body);
   const busyRef = useRef(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [measured, setMeasured] = useState({ width: 296, height: 52 });
+  const [portalOffset, setPortalOffset] = useState({ left: 0, top: 0 });
+  useLayoutEffect(() => {
+    const element = toolbarRef.current;
+    if (!element) return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      setMeasured(previous => previous.width === rect.width && previous.height === rect.height ? previous : { width: rect.width, height: rect.height });
+      const parentRect = portal !== document.body ? portal.getBoundingClientRect() : null;
+      const left = parentRect ? parentRect.left - portal.scrollLeft : 0;
+      const top = parentRect ? parentRect.top - portal.scrollTop : 0;
+      setPortalOffset(previous => previous.left === left && previous.top === top ? previous : { left, top });
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(element);
+    return () => observer?.disconnect();
+  }, [pos, canFormat, portal]);
 
   useEffect(() => {
     let raf = 0;
@@ -128,18 +147,22 @@ export function SelectionActionToolbar() {
         const r = info.rect;
         targetRef.current = captureSelection();
         setPortal(info.container.closest('[role="dialog"]') ?? document.body);
-        const top = Math.max(8, r.top - 52);
-        const left = Math.min(window.innerWidth - 148, Math.max(148, r.left + r.width / 2));
+        const top = r.top;
+        const left = r.left + r.width / 2;
         setPos({ top, left, width: r.width });
       });
     };
     document.addEventListener("selectionchange", update);
     window.addEventListener("scroll", update, true);
     window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
     return () => {
       document.removeEventListener("selectionchange", update);
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -194,11 +217,23 @@ export function SelectionActionToolbar() {
     }
   };
 
-  const modalRect = portal !== document.body ? portal.getBoundingClientRect() : null;
+  const inModal = portal !== document.body;
+  const viewport = window.visualViewport;
+  const viewportLeft = viewport?.offsetLeft ?? 0;
+  const viewportTop = viewport?.offsetTop ?? 0;
+  const viewportWidth = viewport?.width ?? window.innerWidth;
+  const viewportHeight = viewport?.height ?? window.innerHeight;
+  const availableWidth = Math.max(1, viewportWidth - 16);
+  const halfWidth = Math.min(measured.width, availableWidth) / 2;
+  const left = Math.max(viewportLeft + 8 + halfWidth, Math.min(pos.left, viewportLeft + viewportWidth - 8 - halfWidth));
+  const top = Math.max(viewportTop + 8, Math.min(pos.top - measured.height - 8, viewportTop + viewportHeight - measured.height - 8));
   return createPortal(
     <div
-      style={{ position: modalRect ? "absolute" : "fixed", top: pos.top - (modalRect?.top ?? 0) + (modalRect ? portal.scrollTop : 0), left: pos.left - (modalRect?.left ?? 0) + (modalRect ? portal.scrollLeft : 0), transform: "translateX(-50%)" }}
-      className="fixed z-[2147483646] flex items-center gap-1 rounded-md border bg-popover shadow-md px-1.5 py-1 animate-in fade-in slide-in-from-bottom-2"
+      ref={toolbarRef}
+      role="toolbar"
+      aria-label="Selected text actions"
+      style={{ position: inModal ? "absolute" : "fixed", maxWidth: availableWidth, top: top - portalOffset.top, left: left - portalOffset.left, transform: "translateX(-50%)" }}
+      className="fixed z-[2147483646] flex flex-wrap items-center justify-center gap-1 rounded-md border bg-popover shadow-md px-1.5 py-1 animate-in fade-in slide-in-from-bottom-2"
       onMouseDown={(e) => e.preventDefault()}
       onTouchStart={(e) => e.stopPropagation()}
     >

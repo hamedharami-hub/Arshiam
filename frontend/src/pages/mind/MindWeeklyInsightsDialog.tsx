@@ -36,8 +36,8 @@ export function MindWeeklyInsightsDialog({
           </DialogTitle>
           <DialogDescription className="text-xs">
             {T(
-              "این داده‌ها صرفاً شامل خلاصه آمار هفتگی است و هیچ اطلاعات هویتی ارسال نمی‌شود. پس از بررسی می‌توانید ارسال را تایید کنید:",
-              "This payload contains only weekly summary stats without personal identifiers. You can review and confirm:"
+              "همین خلاصهٔ آمار نمایش‌داده‌شده همراه دستور تحلیل به سرویس AI تنظیم‌شده فرستاده می‌شود؛ پروفایل شخصی، یادداشت‌ها و داده‌های دیگر به آن افزوده نمی‌شوند. پس از بررسی ارسال را تأیید کنید:",
+              "This exact summary, with analysis instructions, is sent to your configured AI service. No personal profile, notes, or other data are added. Review before confirming:"
             )}
           </DialogDescription>
         </DialogHeader>
@@ -49,6 +49,7 @@ export function MindWeeklyInsightsDialog({
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
+            disabled={loading}
           >
             {T("انصراف", "Cancel")}
           </Button>

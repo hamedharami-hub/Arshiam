@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { findFeature } from "./featureRegistry";
 import {
   getSidebarQuickLinks,
   normalizeSidebarQuickLinks,
@@ -12,6 +13,16 @@ import {
 } from "./sidebarQuickLinks";
 
 describe("sidebar quick links", () => {
+  it("shares canonical labels with the registry while retaining structural shortcuts and groups", () => {
+    for (const option of SIDEBAR_QUICK_LINK_OPTIONS.filter((option) => option.url.startsWith("/app/"))) {
+      const feature = findFeature(option.url)!;
+      expect(option.labelFa).toBe(feature.nameFa);
+      expect(option.labelEn).toBe(feature.nameEn);
+    }
+    expect(SIDEBAR_QUICK_LINK_OPTIONS.find((option) => option.url === "__folders")?.group).toBe("core");
+    expect(SIDEBAR_QUICK_LINK_OPTIONS.find((option) => option.url === "__tags")?.group).toBe("core");
+    expect(SIDEBAR_QUICK_LINK_OPTIONS.find((option) => option.url === "/app/values")?.group).toBe("grow");
+  });
   beforeEach(() => localStorage.clear());
 
   it("keeps Today available and rejects unknown routes", () => {

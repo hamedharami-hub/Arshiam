@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { streamAI } from "@/lib/aiStream";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useRecoverableExit } from "@/hooks/useRecoverableExit";
 import {
   ArrowRight,
   ArrowLeft,
@@ -34,12 +35,12 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-const DRAFT_KEY = "article-rewrite:draft:v1";
+const draftKey = (uid: string) => `article-rewrite:draft:v2:${uid}`;
 type ArticleDraft = { url: string; text: string; title: string; content: string; updatedAt: number };
 
-function readArticleDraft(): ArticleDraft | null {
+function readArticleDraft(uid: string): ArticleDraft | null {
   try {
-    const parsed = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    const parsed = JSON.parse(localStorage.getItem(draftKey(uid)) || "null");
     if (parsed && typeof parsed.content === "string" && typeof parsed.title === "string") {
       return { url: typeof parsed.url === "string" ? parsed.url : "", text: typeof parsed.text === "string" ? parsed.text : "", title: parsed.title, content: parsed.content, updatedAt: Number(parsed.updatedAt) || 0 };
     }
@@ -47,15 +48,24 @@ function readArticleDraft(): ArticleDraft | null {
   return null;
 }
 
-function writeArticleDraft(draft: ArticleDraft) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* storage can be unavailable */ }
+function writeArticleDraft(uid: string, draft: ArticleDraft): boolean {
+  try {
+    const serialized = JSON.stringify(draft);
+    localStorage.setItem(draftKey(uid), serialized);
+    return localStorage.getItem(draftKey(uid)) === serialized;
+  } catch { return false; }
 }
 
-function clearArticleDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch { /* storage can be unavailable */ }
+function clearArticleDraft(uid: string) {
+  try { localStorage.removeItem(draftKey(uid)); } catch { /* storage can be unavailable */ }
 }
 
 export default function ArticleRewriteView() {
+  const { user } = useAuth();
+  const uid = user?.id ?? "guest";
+  return <ArticleRewrite key={uid} uid={uid} />;
+}
+function ArticleRewrite({ uid }: { uid: string }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -65,7 +75,7 @@ export default function ArticleRewriteView() {
   const initialUrl = params.get("url") || "";
   const initialText = params.get("text") || "";
 
-  const [restored] = useState(() => readArticleDraft());
+  const [restored] = useState(() => readArticleDraft(uid));
   const [url, setUrl] = useState(initialUrl || restored?.url || "");
   const [text, setText] = useState(initialText || restored?.text || "");
   const [title, setTitle] = useState(restored?.title || "");
@@ -73,9 +83,16 @@ export default function ArticleRewriteView() {
   const [streamed, setStreamed] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [retained, setRetained] = useState(true);
+  const [retentionAttempt, setRetentionAttempt] = useState(0);
+  const activeRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
   const titleRef = useRef(title);
   const streamedRef = useRef("");
+  useRecoverableExit(
+    () => (!retained && Boolean(url || text || title || content)) || loading || Boolean(streamed),
+    T("نسخهٔ قابل بازیابی از این تغییرات نداریم. از بازنویسی خارج می‌شوی؟", "These changes have no recoverable copy. Leave the rewrite?"),
+  );
 
   const source = useMemo(() => {
     if (url) return url;
@@ -89,16 +106,24 @@ export default function ArticleRewriteView() {
 
   // Recover the accepted draft after a reload or a failed save.
   useEffect(() => {
-    if (loading) return;
-    if (!content && !title) return;
-    writeArticleDraft({ url, text, title, content, updatedAt: Date.now() });
-  }, [url, text, title, content, loading]);
+    if (!url && !text && !content && !title) return;
+    setRetained(writeArticleDraft(uid, { url, text, title, content, updatedAt: Date.now() }));
+  }, [uid, url, text, title, content, retentionAttempt]);
 
   useEffect(() => {
+    if (retained && !streamed && !loading) return;
+    const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [retained, content, streamed, loading]);
+
+  useEffect(() => {
+    activeRef.current = true;
     if (initialUrl && !content) {
       void rewrite(initialUrl);
     }
     return () => {
+      activeRef.current = false;
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,15 +149,15 @@ export default function ArticleRewriteView() {
         input: { url: targetUrl, text: text || undefined },
         language: isEn ? "en" : "fa",
         signal: ctrl.signal,
-        onDelta: (chunk) => { streamedRef.current += chunk; setStreamed(streamedRef.current); },
+        onDelta: (chunk) => { if (!activeRef.current || ctrl.signal.aborted || abortRef.current !== ctrl) return; streamedRef.current += chunk; setStreamed(streamedRef.current); },
       });
       if (ctrl.signal.aborted) return;
     } catch (e) {
-      if (!isAbortError(e)) {
+      if (activeRef.current && !ctrl.signal.aborted && !isAbortError(e)) {
         toast.error(getErrorMessage(e) || T("خطا در بازنویسی", "Error during rewrite"));
       }
     } finally {
-      if (abortRef.current === ctrl) {
+      if (activeRef.current && abortRef.current === ctrl) {
         abortRef.current = null;
         setLoading(false);
       }
@@ -196,10 +221,12 @@ export default function ArticleRewriteView() {
         content: content.trim(),
       });
       if (error) throw error;
+      if (!activeRef.current) return;
       toast.success(T("نوت ذخیره شد.", "Note saved."));
-      clearArticleDraft();
+      clearArticleDraft(uid);
       navigate("/app/notes");
     } catch (e) {
+      if (!activeRef.current) return;
       toast.error(getErrorMessage(e) || T("خطا در ذخیره", "Error saving"));
     } finally {
       setSaving(false);
@@ -221,17 +248,30 @@ export default function ArticleRewriteView() {
       toast.error(T("کپی نشد.", "Failed to copy."));
     }
   };
+  const downloadDraft = () => {
+    const blob = new Blob([`${title}\n\n${content}${streamed ? `\n\n--- Unaccepted candidate ---\n${streamed}` : ""}`], { type: "text/plain;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a"); link.href = href; link.download = "article-rewrite-draft.txt"; link.click();
+    URL.revokeObjectURL(href);
+  };
+  const leave = () => {
+    if ((!retained && (content || title)) || streamed || loading) {
+      if (!window.confirm(T("متن ذخیره‌نشده از دست می‌رود. ابتدا آن را کپی یا دانلود کن. با این حال خارج می‌شوی؟", "Unretained text or a candidate will be lost. Copy or download it first. Leave anyway?"))) return;
+    }
+    navigate(-1);
+  };
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="min-h-screen bg-background p-4 pb-safe-bottom page-enter">
       <div className="max-w-3xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
+          <Button variant="ghost" size="sm" onClick={leave} className="gap-1">
             <BackIcon className="w-4 h-4" /> {T("برگشت", "Back")}
           </Button>
           <HeaderTitlePortal title={T("بازنویسی خبر/مقاله", "Article / News Rewrite")} />
           <span className="w-12" />
         </div>
+        {!retained && <div role="alert" className="space-y-2 rounded-lg border border-destructive p-3 text-sm"><p>{T("پیش‌نویس در این دستگاه ذخیره نشد. پیش از خروج کپی یا دانلود کن.", "The draft could not be retained on this device. Copy or download it before leaving.")}</p><Button variant="outline" onClick={() => setRetentionAttempt(value => value + 1)}>{T("تلاش دوباره برای ذخیره", "Retry retention")}</Button><Button variant="outline" onClick={downloadDraft}>{T("دانلود پیش‌نویس", "Download draft")}</Button><Button variant="outline" onClick={copy}>{T("کپی", "Copy")}</Button></div>}
 
         <Card className="p-4 space-y-3">
           <div className="space-y-1.5">

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getLastStudy, getStudiedDocIds, recordLastStudy, syncLastStudy, syncStudiedDocs, type LastStudy, type LastStudyRemote } from "./lastStudy";
+import { getLastStudy, getStudiedDocIds, readStudyResumeParams, studyResumeUrl, recordLastStudy, syncLastStudy, syncStudiedDocs, type LastStudy, type LastStudyRemote } from "./lastStudy";
 
 class Cloud implements LastStudyRemote {
   doc = new Map<string, LastStudy>(); down = false;
@@ -15,6 +15,14 @@ const swapDevice = () => localStorage.clear();
 beforeEach(phone);
 
 describe("last study sync across devices (simulated with a shared in-memory account)", () => {
+  it("encodes resume values and excludes stale anchors without changing practice into reading", () => {
+    const url = studyResumeUrl({ docId: "one&two", title: "Lesson", openedAt: 1, practice: true, language: "fa", version: "old", section: "intro", card: "card" }, false);
+    expect(url).toBe("/app/interactive-study?docId=one%26two&sourceLang=fa&version=old");
+    expect(readStudyResumeParams(url.split("?")[1])).toMatchObject({ docId: "one&two", language: "fa", version: "old", section: undefined, card: undefined });
+  });
+  it("bounds resume values and rejects unsupported languages and control characters", () => {
+    expect(readStudyResumeParams(`?docId=${"x".repeat(201)}&lang=javascript&section=%00&card=valid`)).toMatchObject({ docId: undefined, language: undefined, section: undefined, card: "valid" });
+  });
   it("a page read on the phone shows up on the laptop", async () => {
     const cloud = new Cloud();
     await recordLastStudy("u1", { docId: "doc-phone", title: "Phone doc" }, cloud);

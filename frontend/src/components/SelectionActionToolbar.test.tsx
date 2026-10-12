@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SelectionActionToolbar } from "./SelectionActionToolbar";
 vi.mock("@/lib/ai", () => ({ callAI: vi.fn(), getAILanguage: () => "en" }));
+afterEach(() => vi.unstubAllGlobals());
 
 function TaskText() {
   const [text, setText] = useState("Choose this text");
@@ -10,6 +11,17 @@ function TaskText() {
 }
 
 describe("selection toolbar target", () => {
+  it("constrains the toolbar to the visual viewport when the keyboard reduces available space", async () => {
+    vi.stubGlobal("visualViewport", { width: 240, height: 300, offsetLeft: 10, offsetTop: 20, addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    render(<TaskText />);
+    const field = screen.getByLabelText("Text") as HTMLTextAreaElement;
+    field.focus(); field.setSelectionRange(0, 6);
+    fireEvent(document, new Event("selectionchange"));
+    const toolbar = await screen.findByRole("toolbar", { name: "Selected text actions" });
+    expect(toolbar.style.maxWidth).toBe("224px");
+    expect(Number.parseFloat(toolbar.style.top)).toBeGreaterThanOrEqual(28);
+    expect(toolbar).toHaveClass("flex-wrap");
+  });
   it("formats the saved textarea range after focus moves and remains inside its modal", async () => {
     render(<TaskText />);
     const field = screen.getByLabelText("Text") as HTMLTextAreaElement;

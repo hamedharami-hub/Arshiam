@@ -84,6 +84,12 @@ export function useHorizonData(userId: string | undefined, settings: TimeSetting
     if (!userId) return { kind: "failed" };
     const done = !t.completed;
     const result = await setTaskCompletion(userId, t, done, { allKnownTasks: tasks });
+    if (activeUserId.current !== userId) return { kind: "failed" };
+    // Horizon has no inline outcome picker. Hand off to the Tasks completion
+    // entry point, which opens its picker, without completing anything here.
+    if (result.kind === "outcomes") {
+      return { kind: "study", navUrl: `/app/tasks?completeTaskId=${encodeURIComponent(t.id)}` };
+    }
     if (result.kind === "saved" || result.kind === "queued" || result.kind === "advanced") {
       const patch = result.patch;
       setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, ...patch } : x)));

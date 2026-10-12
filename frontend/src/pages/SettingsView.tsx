@@ -167,7 +167,8 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       const queued = await getQueue();
       return uid ? queued.some((op) => canReplayForOwner(op, uid)) : queued.length > 0;
     } catch {
-      return false;
+      // Unknown outbox state is not evidence that reloading is safe.
+      return true;
     }
   }, []);
 
@@ -183,7 +184,11 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
           : "به‌روزرسانی آماده است؛ پس از ذخیرهٔ تغییرات همگام‌نشده اعمال می‌شود.");
         return;
       }
-    } catch { /* fall through to reload */ }
+    } catch {
+      setReloadDeferred(true);
+      pendingReloadAction.current = action ?? null;
+      return;
+    }
     if (action) action();
     else setTimeout(() => window.location.reload(), 300);
   }, [hasPendingOwnedOps, isEn]);
@@ -309,9 +314,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const updateAvailableMessage = () =>
     nativeAndroid
       ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
-      : autoUpdate
-        ? (isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…")
-        : (isEn ? "New version found — choose “Install update” to apply." : "نسخه‌ی جدید پیدا شد — برای اعمال، «نصب به‌روزرسانی» را بزن.");
+      : (isEn ? "New version found — choose “Install update” to apply." : "نسخه‌ی جدید پیدا شد — برای اعمال، «نصب به‌روزرسانی» را بزن.");
 
   const check = async () => {
     setChecking(true);
@@ -326,7 +329,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         setUpdateState("available");
         setLastChecked(Date.now());
         toast.success(updateAvailableMessage());
-        if (!nativeAndroid && autoUpdate) applyUpdate();
         return;
       }
 
@@ -349,7 +351,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
           setUpdateState("available");
           setLastChecked(Date.now());
           toast.success(updateAvailableMessage());
-          if (!nativeAndroid && autoUpdate) applyUpdate();
           return;
         }
       } else {
@@ -366,7 +367,6 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
             setUpdateState("available");
             setLastChecked(Date.now());
             toast.success(updateAvailableMessage());
-            if (!nativeAndroid && autoUpdate) applyUpdate();
             return;
           }
         }
@@ -549,7 +549,15 @@ export default function SettingsView() {
   const location = useLocation();
   const requestedTab = searchParams.get("tab");
   const activeTab = location.hash.startsWith("#ai-") ? "ai" : ["general", "tasks", "notifications", "ai", "data", "about"].includes(requestedTab || "") ? requestedTab! : "general";
-  const setActiveTab = (tab: string) => setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("tab", tab); return next; });
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const setActiveTab = (tab: string) => {
+    // Radix can activate via focus and mouse-down before React renders again.
+    // Treat them as one selection, not two identical browser-history entries.
+    if (activeTabRef.current === tab) return;
+    activeTabRef.current = tab;
+    setSearchParams(previous => { const next = new URLSearchParams(previous); next.set("tab", tab); return next; });
+  };
 
   useEffect(() => {
     setSettings(loadAISettings());

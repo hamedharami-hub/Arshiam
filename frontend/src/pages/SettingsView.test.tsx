@@ -1,12 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter, useNavigate } from "react-router-dom";
+import { MemoryRouter, useNavigate, useLocation } from "react-router-dom";
 import SettingsView from "./SettingsView";
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: null }) }));
 beforeEach(() => { vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }); });
 afterEach(() => vi.unstubAllGlobals());
-function Back() { const navigate = useNavigate(); return <button onClick={() => navigate(-1)}>Go back</button>; }
+function Back() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return <><button onClick={() => navigate(-1)}>Go back</button><button onClick={() => navigate(1)}>Go forward</button><output data-testid="settings-location">{location.search}{location.hash}</output></>;
+}
 describe("settings navigation", () => {
   it("shows general settings for an unknown category and restores category with Back", async () => {
     render(<MemoryRouter initialEntries={["/app/settings?tab=unknown"]}><Back /><SettingsView /></MemoryRouter>);
@@ -16,6 +20,22 @@ describe("settings navigation", () => {
     expect(tabs[1]).toHaveAttribute("data-state", "active");
     fireEvent.click(screen.getByRole("button", { name: "Go back" }));
     await waitFor(() => expect(screen.getAllByRole("tab")[0]).toHaveAttribute("data-state", "active"));
+    expect(screen.getByTestId("settings-location")).toHaveTextContent("?tab=unknown");
+    fireEvent.click(screen.getByRole("button", { name: "Go forward" }));
+    await waitFor(() => expect(screen.getAllByRole("tab")[1]).toHaveAttribute("data-state", "active"));
+    expect(screen.getByTestId("settings-location")).toHaveTextContent("?tab=tasks");
+  });
+
+  it("keeps one history entry per selection and preserves unrelated query parameters", async () => {
+    render(<MemoryRouter initialEntries={["/app/settings?tab=tasks&source=review"]}><Back /><SettingsView /></MemoryRouter>);
+    fireEvent.mouseDown(screen.getAllByRole("tab")[0], { button: 0, ctrlKey: false });
+    expect(screen.getByTestId("settings-location")).toHaveTextContent("?tab=general&source=review");
+    fireEvent.mouseDown(screen.getAllByRole("tab")[1], { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole("button", { name: "Go back" }));
+    await waitFor(() => expect(screen.getAllByRole("tab")[0]).toHaveAttribute("data-state", "active"));
+    fireEvent.click(screen.getByRole("button", { name: "Go back" }));
+    await waitFor(() => expect(screen.getByTestId("settings-location")).toHaveTextContent("?tab=tasks&source=review"));
+    expect(screen.getAllByRole("tab")[1]).toHaveAttribute("data-state", "active");
   });
 
   it("places navigation customization before unrelated system design settings", () => {

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { isPathAllowed, useModules } from "@/lib/appModules";
+import { findFeature, getFeatureNavigation, isFeatureAvailable } from "@/lib/featureRegistry";
 import {
-  CalendarDays, FolderTree, Tag,
-  LogOut, Settings, PanelLeft, PanelRight, Plus,
+  FolderTree, Tag, Search,
+  LogOut, PanelLeft, PanelRight, Plus,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -40,7 +41,6 @@ import { cn } from "@/lib/utils";
 import {
   useLabel,
   SECTIONS,
-  NAV_ITEMS,
   PRIMARY_ITEMS,
   SMART_ITEM,
   SidebarCountsContext,
@@ -53,6 +53,10 @@ import {
 import { Folder, FolderMarker, SidebarFoldersList } from "./sidebar/SidebarFoldersList";
 import { TagT, SidebarTagsList } from "./sidebar/SidebarTagsList";
 
+const TODAY_ITEM = getFeatureNavigation("/app/today");
+const TodayIcon = TODAY_ITEM.icon;
+const SETTINGS_ITEM = getFeatureNavigation("/app/settings");
+const SettingsIcon = SETTINGS_ITEM.icon;
 
 export function AppSidebar({ className, style }: { className?: string; style?: React.CSSProperties } = {}) {
   const modules = useModules();
@@ -373,15 +377,15 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
 
                 {/* 2. Today (Pinned) */}
                 <SidebarMenuItem key="/app/today">
-                  <SidebarMenuButton asChild tooltip={tr("امروز")} className="justify-center h-9 w-9 mx-auto rounded-xl">
+                  <SidebarMenuButton asChild tooltip={tr(TODAY_ITEM.label)} className="justify-center h-9 w-9 mx-auto rounded-xl">
                     <NavLink
-                      to="/app/today"
+                      to={TODAY_ITEM.url}
                       onClick={closeOnMobile}
                       className="flex items-center justify-center w-full h-full"
                       activeClassName="bg-accent text-accent-foreground font-bold"
                     >
-                      <CalendarDays className="w-4 h-4 shrink-0 text-primary" />
-                      <span className="sr-only">{tr("امروز")}</span>
+                      <TodayIcon className="w-4 h-4 shrink-0 text-primary" />
+                      <span className="sr-only">{tr(TODAY_ITEM.label)}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -516,8 +520,9 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
                       );
                     }
 
-                    const item = NAV_ITEMS.find((candidate) => candidate.url === url);
-                    if (!item || !isPathAllowed(item.url!, modules)) return null;
+                    const feature = findFeature(url);
+                    if (!feature || !isFeatureAvailable(feature, modules, isAdmin)) return null;
+                    const item = getFeatureNavigation(feature.to);
                     const Icon = item.icon;
                     return (
                       <SidebarMenuItem key={item.url}>
@@ -542,6 +547,23 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
             </SidebarMenu>
           </SidebarGroup>
         )}
+
+        <SidebarGroup className={collapsed ? "p-1" : "py-0.5"}>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                onClick={() => { closeOnMobile(); window.dispatchEvent(new CustomEvent("arshnaz:open-search")); }}
+                tooltip={isEn ? "Search all features" : "جستجوی همهٔ امکانات"}
+                aria-label={isEn ? "Search all features" : "جستجوی همهٔ امکانات"}
+                className={collapsed ? "justify-center h-9 w-9 mx-auto rounded-xl" : "h-11 px-2.5 text-[13px]"}
+                data-testid="sidebar-search-features"
+              >
+                <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className={collapsed ? "sr-only" : "truncate"}>{isEn ? "Search all features" : "جستجوی همهٔ امکانات"}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
 
         {!collapsed && (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -577,8 +599,8 @@ export function AppSidebar({ className, style }: { className?: string; style?: R
           <DropdownMenuContent side="top" align="start" className="w-56">
             <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground" dir="ltr">{user?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => { closeOnMobile(); navigate("/app/settings"); }} data-testid="sidebar-menu-settings">
-              <Settings className="me-2 h-4 w-4 text-muted-foreground" /> {tr("تنظیمات")}
+            <DropdownMenuItem onClick={() => { closeOnMobile(); navigate(SETTINGS_ITEM.url); }} data-testid="sidebar-menu-settings">
+              <SettingsIcon className="me-2 h-4 w-4 text-muted-foreground" /> {tr(SETTINGS_ITEM.label)}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => { signOut(); toast.success(isEn ? "Signed out successfully" : "خروج موفق"); }}

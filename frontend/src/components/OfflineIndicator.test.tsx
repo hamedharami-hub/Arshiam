@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import OfflineIndicator from "./OfflineIndicator";
 
 const mocks = vi.hoisted(() => ({
   getQueue: vi.fn(),
-  onQueueChange: vi.fn(() => () => {}),
+  onQueueChange: vi.fn((_listener: () => void) => () => {}),
   flushQueue: vi.fn(),
   canReplayForOwner: (item: { ownerId?: string; payload?: unknown; match?: Record<string, unknown> }, userId?: string) => {
     if (!userId) return false;
@@ -54,6 +54,7 @@ const conflict = {
 
 describe("OfflineIndicator conflict review", () => {
   beforeEach(() => {
+    sessionStorage.removeItem("arshnaz_sync_bar_dismissed");
     Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
     localStorage.removeItem("arshnaz_last_sync");
     mocks.getQueue.mockReset().mockResolvedValue([conflict]);
@@ -63,6 +64,16 @@ describe("OfflineIndicator conflict review", () => {
       exists: true,
       data: { id: "task-1", title: "Cloud version" },
     });
+  });
+
+  it("reappears for a different queued mutation even when counts stay the same", async () => {
+    render(<OfflineIndicator />);
+    fireEvent.click(await screen.findByTestId("sync-status-dismiss"));
+    expect(screen.queryByTestId("sync-status-bar")).not.toBeInTheDocument();
+    mocks.getQueue.mockResolvedValue([{ ...conflict, id: 2, createdAt: conflict.createdAt + 1 }]);
+    const update = mocks.onQueueChange.mock.calls[0]?.[0] as (() => void) | undefined;
+    await act(async () => { update?.(); });
+    expect(await screen.findByTestId("sync-status-bar")).toBeInTheDocument();
   });
 
   it("opens a read-only side-by-side comparison and does not replay the queue", async () => {

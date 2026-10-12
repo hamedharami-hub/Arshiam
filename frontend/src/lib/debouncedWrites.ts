@@ -6,6 +6,10 @@ export type NoteDraftRecord = {
   noteId: string;
   md: string;
   html: string;
+  /** Optional for compatibility with body-only drafts written by older builds. */
+  title?: string;
+  revision?: number;
+  base?: { title: string; md: string; updatedAt?: string };
   updatedAt: number;
 };
 
@@ -19,7 +23,7 @@ export async function readNoteDraft(accountId: string, noteId: string): Promise<
   const key = noteDraftKey(accountId, noteId);
   const valid = (value: unknown): NoteDraftRecord | null => {
     const record = value as NoteDraftRecord | undefined;
-    return record && typeof record.md === "string" && typeof record.html === "string" && typeof record.updatedAt === "number" ? record : null;
+    return record && record.accountId === accountId && record.noteId === noteId && typeof record.md === "string" && typeof record.html === "string" && typeof record.updatedAt === "number" && (record.title === undefined || typeof record.title === "string") ? record : null;
   };
   try {
     const db = await getDB();
@@ -41,7 +45,7 @@ export async function writeNoteDraft(record: NoteDraftRecord): Promise<boolean> 
     if (db) {
       await db.put(CACHE_STORE, record, key);
       const stored = (await db.get(CACHE_STORE, key)) as NoteDraftRecord | undefined;
-      if (stored && stored.updatedAt === record.updatedAt && stored.md === record.md) return true;
+      if (stored && JSON.stringify(stored) === JSON.stringify(record)) return true;
     }
   } catch { /* fall through to localStorage */ }
   try {
@@ -60,18 +64,29 @@ export async function clearNoteDraft(accountId: string, noteId: string): Promise
 
 /** Debounce per record, serialize writes and flush before navigation/unmount. */
 export function createDebouncedWrites(delay = 1200) {
-  const pending = new Map<string, { write: () => Promise<unknown>; timer: ReturnType<typeof setTimeout> }>();
+  type Job = { write: () => Promise<unknown>; generation: number; timer?: ReturnType<typeof setTimeout> };
+  const pending = new Map<string, Job>();
+  const generations = new Map<string, number>();
   const running = new Map<string, Promise<unknown>>();
   const cancel = (key: string) => {
     const item = pending.get(key);
     if (item) clearTimeout(item.timer);
     pending.delete(key);
+    generations.set(key, (generations.get(key) ?? 0) + 1);
   };
   const flush = (key: string): Promise<unknown> => {
     const item = pending.get(key);
     if (!item) return running.get(key) ?? Promise.resolve();
-    cancel(key);
-    const operation = (running.get(key) ?? Promise.resolve()).catch(() => undefined).then(item.write);
+    if (item.timer) clearTimeout(item.timer);
+    pending.delete(key);
+    const retainFailure = () => {
+      // A failed old write must never replace a newer edit or revive a cancelled job.
+      if (generations.get(key) === item.generation && !pending.has(key)) pending.set(key, { ...item, timer: undefined });
+    };
+    const operation = (running.get(key) ?? Promise.resolve()).catch(() => undefined).then(item.write).then(result => {
+      if (result === false) retainFailure();
+      return result;
+    }, error => { retainFailure(); throw error; });
     running.set(key, operation);
     void operation.finally(() => { if (running.get(key) === operation) running.delete(key); }).catch(() => undefined);
     return operation;
@@ -79,7 +94,7 @@ export function createDebouncedWrites(delay = 1200) {
   return {
     schedule(key: string, write: () => Promise<unknown>) {
       cancel(key);
-      pending.set(key, { write, timer: setTimeout(() => { void flush(key).catch(() => undefined); }, delay) });
+      pending.set(key, { write, generation: generations.get(key)!, timer: setTimeout(() => { void flush(key).catch(() => undefined); }, delay) });
     },
     flush, cancel,
     flushAll: () => Promise.allSettled([...pending.keys()].map(flush)),

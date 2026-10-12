@@ -78,6 +78,10 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
 
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const generationSequenceRef = useRef(0);
+  const sourceIdentity = JSON.stringify([documentId, documentTitle, documentContent, documentTitleEn, documentContentEn, effectiveLanguage]);
+  const sourceIdentityRef = useRef(sourceIdentity); sourceIdentityRef.current = sourceIdentity;
+  const openRef = useRef(open); openRef.current = open;
+  const previewSourceRef = useRef("");
 
   // A preview belongs to one source lesson and language. Never carry generated
   // content across a source change, and ignore a late AI response for old input.
@@ -92,7 +96,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
   }, [documentContent, documentContentEn, documentId, documentTitle, documentTitleEn, effectiveLanguage]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { generationSequenceRef.current += 1; setIsGenerating(false); return; }
     setActiveTab("presets");
     setReplaceProposed(false);
     onWorkflowStepChange?.(2);
@@ -153,6 +157,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
     }
 
     const generationSequence = ++generationSequenceRef.current;
+    const generatedSource = sourceIdentity;
     setIsGenerating(true);
     try {
       const html = await generateInteractiveContent({
@@ -165,7 +170,8 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         language: effectiveLanguage,
       });
 
-      if (generationSequence !== generationSequenceRef.current) return;
+      if (generationSequence !== generationSequenceRef.current || sourceIdentityRef.current !== generatedSource || !openRef.current) return;
+      previewSourceRef.current = generatedSource;
       setGeneratedHtml(html);
       showPreview();
       toast.success(
@@ -201,6 +207,10 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
 
   const handleApply = async (mode: "append" | "replace") => {
     if (!generatedHtml || isApplying) return;
+    if (previewSourceRef.current !== sourceIdentityRef.current) {
+      toast.error(isEn ? "The lesson changed. Generate a new preview before applying it." : "درس تغییر کرده؛ پیش‌نمایش تازه بساز.");
+      return;
+    }
     setIsApplying(true);
     try {
       await onInsertContent(generatedHtml, mode);
@@ -425,7 +435,7 @@ export const InteractiveLearningModal: React.FC<InteractiveLearningModalProps> =
         {replaceProposed && presentationMode !== "standalone" && (
           <div role="region" aria-label={isEn ? "Replacement proposal" : "پیشنهاد جایگزینی"} className="shrink-0 space-y-2 border-t border-amber-400/40 bg-amber-500/10 p-3 sm:p-4">
             <p className="text-xs font-semibold text-foreground">{isEn ? "Replace the whole lesson text?" : "کل متن درس جایگزین شود؟"}</p>
-            <p className="text-[11px] leading-5 text-muted-foreground">{isEn ? "This overwrites the saved source content. Practice stays separate by default; the previous version is kept so you can restore it." : "این کار محتوای اصلی ذخیره‌شده را بازنویسی می‌کند. تمرین به‌طور پیش‌فرض جدا می‌ماند؛ نسخهٔ قبلی حفظ می‌شود تا بتوانی بازگردانی کنی."}</p>
+            <p className="text-[11px] leading-5 text-muted-foreground">{isEn ? "This overwrites the saved source content. The previous version is kept on this device only so you can restore it." : "متن اصلی بازنویسی می‌شود؛ نسخهٔ قبلی فقط در این دستگاه برای بازیابی حفظ می‌شود."}</p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"

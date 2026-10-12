@@ -11,7 +11,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 
-import { BottomTabItemConfig } from "@/components/bottom-bar/types";
+import { withFeatureMetadata, type BottomTabItemConfig } from "@/components/bottom-bar/types";
 import { isPathAllowed, type ModulesState } from "@/lib/appModules";
 
 export interface MobileTabOption extends BottomTabItemConfig {
@@ -19,7 +19,7 @@ export interface MobileTabOption extends BottomTabItemConfig {
   descriptionEn: string;
 }
 
-export const ALL_MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = {
+const MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = {
   today: {
     key: "today",
     labelFa: "امروز",
@@ -134,6 +134,11 @@ export const ALL_MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = {
 };
 
 export const DEFAULT_MOBILE_BOTTOM_TABS = ["today", "calendar", "notes"];
+
+/** Chooser and live tabs share canonical labels/icons without losing personalization. */
+export const ALL_MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = Object.fromEntries(
+  Object.entries(MOBILE_TAB_OPTIONS).map(([key, option]) => [key, withFeatureMetadata(option)]),
+);
 
 /** Keep inaccessible module routes out of the live bar and fill their slots with core routes. */
 export function getAccessibleMobileTabs(

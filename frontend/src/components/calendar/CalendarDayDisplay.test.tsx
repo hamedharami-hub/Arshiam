@@ -38,7 +38,7 @@ describe("calendar day-level task display", () => {
     render(<MemoryRouter><WeekView date={day} tasks={calendarTasks} holidays={[]} system="gregorian" onDayClick={() => {}} /></MemoryRouter>);
 
     const allDay = screen.getByTestId("calendar-all-day-row");
-    expect(within(allDay).getByRole("button", { name: "Day-only task" })).toBeInTheDocument();
+    expect(within(allDay).getByRole("link", { name: "Day-only task" })).toHaveAttribute("href", "/app/tasks/all-day");
     expect(within(allDay).queryByText("Timed task")).toBeNull();
   });
 });

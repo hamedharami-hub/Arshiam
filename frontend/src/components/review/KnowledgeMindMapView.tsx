@@ -767,6 +767,9 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [cards, setCards] = useState<LeitnerCard[]>([]);
   const [hasLoadedData, setHasLoadedData] = useState(false);
+  const [dataErrors, setDataErrors] = useState<string[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const loadedDatasetsRef = useRef<{ userId: string; folders: KnowledgeFolder[]; documents: KnowledgeDocument[]; cards: LeitnerCard[] }>({ userId: "", folders: [], documents: [], cards: [] });
   const [selectedScopeId, setSelectedScopeId] = useState<string>(() => {
     if (initialFolderId) return `folder-${initialFolderId}`;
     if (initialDocId) return `doc-${initialDocId}`;
@@ -924,16 +927,29 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
     const requestId = loadRequestRef.current + 1;
     loadRequestRef.current = requestId;
     hasInitializedViewRef.current = false;
-    setHasLoadedData(false);
+    setIsLoadingData(true);
+    if (loadedDatasetsRef.current.userId !== userId) {
+      loadedDatasetsRef.current = { userId, folders: [], documents: [], cards: [] };
+      setFolders([]); setDocuments([]); setCards([]); setDataErrors([]); setHasLoadedData(false);
+    }
 
-    try {
-      const [f, d, c] = await Promise.all([
-        getKnowledgeFolders(userId),
-        getKnowledgeDocuments(userId),
-        getLeitnerCards(userId),
+      const [folderResult, documentResult, cardResult] = await Promise.allSettled([
+        Promise.resolve().then(() => getKnowledgeFolders(userId)),
+        Promise.resolve().then(() => getKnowledgeDocuments(userId)),
+        Promise.resolve().then(() => getLeitnerCards(userId)),
       ]);
       if (loadRequestRef.current !== requestId) return;
-
+      const previous = loadedDatasetsRef.current;
+      const f = folderResult.status === "fulfilled" ? folderResult.value : previous.folders;
+      const d = documentResult.status === "fulfilled" ? documentResult.value : previous.documents;
+      const c = cardResult.status === "fulfilled" ? cardResult.value : previous.cards;
+      loadedDatasetsRef.current = { userId, folders: f, documents: d, cards: c };
+      setDataErrors([
+        ...(folderResult.status === "rejected" ? ["folders"] : []),
+        ...(documentResult.status === "rejected" ? ["documents"] : []),
+        ...(cardResult.status === "rejected" ? ["cards"] : []),
+      ]);
+      setIsLoadingData(false);
       const scoped = filterKnowledgeForFolderBranch(f, d, scopeRootFolderId);
       setFolders(scoped.folders);
       setDocuments(scoped.documents);
@@ -952,14 +968,6 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
         }
         return next;
       });
-    } catch (e) {
-      if (loadRequestRef.current !== requestId) return;
-      console.error("Error loading MindMap data", e);
-      setFolders([]);
-      setDocuments([]);
-      setCards([]);
-      setHasLoadedData(true);
-    }
   }, [scopeRootFolderId, userId]);
 
   useEffect(() => {
@@ -1914,6 +1922,7 @@ export const KnowledgeMindMapView: React.FC<KnowledgeMindMapViewProps> = ({
 
   return (
     <div ref={fullscreenRootRef} className="flex-1 flex flex-col h-full w-full bg-background text-foreground overflow-hidden relative select-none font-sans fullscreen:min-h-screen fullscreen:min-w-full">
+      {dataErrors.length > 0 && <div role="alert" data-testid="mindmap-data-error" className="absolute bottom-3 left-3 right-3 z-40 flex flex-wrap items-center gap-2 rounded-xl border border-destructive bg-card p-3 text-sm"><span>{isEn ? "Some data could not be loaded; available data is retained:" : "بخشی از داده‌ها بارگذاری نشد؛ داده‌های موجود حفظ شده‌اند:"} {dataErrors.map(kind => isEn ? kind : kind === "folders" ? "پوشه‌ها" : kind === "documents" ? "درس‌ها" : "کارت‌ها").join("، ")}</span><button type="button" disabled={isLoadingData} onClick={() => { void loadData(); }} className="min-h-11 rounded-lg border px-3 text-primary disabled:opacity-50">{isEn ? "Retry" : "تلاش دوباره"}</button></div>}
       {/* Top Floating Glass Toolbar */}
       <div className="absolute top-3 left-3 right-3 z-30 flex items-center gap-1 rounded-2xl border border-border bg-card/90 p-1 shadow-lg backdrop-blur-xl sm:hidden" data-testid="mindmap-mobile-bar">
         <button type="button" onClick={handleZoomOut} aria-label={isEn ? "Quick zoom out" : "کوچک‌نمایی سریع"} className="rounded-xl p-2 text-muted-foreground hover:bg-muted"><ZoomOut className="h-4 w-4" aria-hidden="true" /></button>

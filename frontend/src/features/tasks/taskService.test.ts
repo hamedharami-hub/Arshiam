@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   taskKnowledgeLinks: [] as Array<{ id: string; user_id: string; task_id: string }>,
   noteTaskLinks: [] as Array<{ id: string; user_id: string; task_id: string; note_id: string }>,
   taskKnowledgeLinkReadError: false,
+  relationFromCache: false,
+  taskTags: [] as Array<Record<string, unknown>>,
+  select: vi.fn(),
   getPendingOps: vi.fn().mockResolvedValue([]),
   subscribeTasks: vi.fn(),
 }));
@@ -37,16 +40,17 @@ vi.mock("@/lib/firebase", () => ({ db: {} }));
 vi.mock("@/lib/firebaseStore", () => ({
   firebaseStore: {
     from: vi.fn((table: string) => ({
-      select: () => ({
+      select: (...args: unknown[]) => { mocks.select(...args); return ({
         eq: () => ({
           in: async () => ({
             data: mocks.taskKnowledgeLinkReadError ? null :
               table === "task_knowledge_links" ? mocks.taskKnowledgeLinks :
-                table === "note_task_links" ? mocks.noteTaskLinks : [],
+                table === "note_task_links" ? mocks.noteTaskLinks : mocks.taskTags,
             error: mocks.taskKnowledgeLinkReadError ? new Error("read failed") : null,
+            fromCache: mocks.relationFromCache,
           }),
         }),
-      }),
+      }); },
       delete: () => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) }),
     })),
   },
@@ -118,6 +122,8 @@ describe("taskService cascade deletion persistence", () => {
     mocks.taskKnowledgeLinks = [];
     mocks.noteTaskLinks = [];
     mocks.taskKnowledgeLinkReadError = false;
+    mocks.relationFromCache = false;
+    mocks.taskTags = [];
     mocks.getPendingOps.mockResolvedValue([]);
     mocks.syncAndroidWidget.mockResolvedValue(undefined);
     mocks.writeBatch.mockReturnValue({
@@ -149,6 +155,49 @@ describe("taskService cascade deletion persistence", () => {
     ]);
     expect(taskMemoryCache.get("task-owner")).toEqual(originalTasks);
     expect(mocks.cacheSet).not.toHaveBeenCalled();
+  });
+
+  it("refuses recoverable deletion offline instead of promising a partial cached graph", async () => {
+    expect(await deleteTaskCascade("task-owner", "root", originalTasks, { recoverable: true }))
+      .toEqual({ success: false, deletedIds: [] });
+    expect(mocks.enqueueOps).not.toHaveBeenCalled();
+    expect(mocks.cacheSet).not.toHaveBeenCalled();
+  });
+
+  it.each(["error", "cache"])("aborts recoverable deletion on a relation snapshot %s", async (failure) => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(originalTasks) as any);
+    mocks.taskKnowledgeLinkReadError = failure === "error";
+    mocks.relationFromCache = failure === "cache";
+    expect(await deleteTaskCascade("task-owner", "root", originalTasks, { recoverable: true }))
+      .toEqual({ success: false, deletedIds: [] });
+    expect(mocks.enqueueOps).not.toHaveBeenCalled();
+    expect(mocks.writeBatch).not.toHaveBeenCalled();
+    expect(mocks.cacheSet).not.toHaveBeenCalled();
+    expect(taskMemoryCache.get("task-owner")).toEqual(originalTasks);
+  });
+
+  it("retains every relation field and requests server-only snapshots for recovery", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(originalTasks) as any);
+    mocks.taskTags = [{ id: "tag-link", user_id: "task-owner", task_id: "root", tag_id: "tag", custom: "keep" }];
+    mocks.taskKnowledgeLinks = [{ id: "knowledge-link", user_id: "task-owner", task_id: "root", knowledge_id: "knowledge", relation_type: "reference", created_at: "date" } as any];
+    mocks.noteTaskLinks = [{ id: "note-link", user_id: "task-owner", task_id: "root", note_id: "note", created_at: "date", custom: "keep" } as any];
+    const result = await deleteTaskCascade("task-owner", "root", originalTasks, { recoverable: true });
+    expect(result.recovery).toEqual({ tasks: originalTasks.slice(0, 2), tagLinks: mocks.taskTags, knowledgeLinks: mocks.taskKnowledgeLinks, noteTaskLinks: mocks.noteTaskLinks });
+    expect(mocks.select).toHaveBeenCalledWith("*", { source: "server" });
+  });
+
+  it("refuses an incomplete recovery snapshot when affected relations have unsynced writes", async () => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    vi.mocked(getDocs).mockResolvedValueOnce(serverSnapshot(originalTasks) as any);
+    mocks.getPendingOps.mockImplementation(async (table: string) => table === "task_tags"
+      ? [{ ownerId: "task-owner", table, op: "insert", payload: { id: "local-link", task_id: "root" } }]
+      : []);
+    expect(await deleteTaskCascade("task-owner", "root", originalTasks, { recoverable: true }))
+      .toEqual({ success: false, deletedIds: [] });
+    expect(mocks.writeBatch).not.toHaveBeenCalled();
+    expect(mocks.enqueueOps).not.toHaveBeenCalled();
   });
 
   it("reloads a recently edited task from durable cache instead of stale memory", async () => {

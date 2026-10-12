@@ -63,6 +63,15 @@ vi.mock("@/components/knowledge/StudyTaskScheduleModal", () => ({
 }));
 
 describe("KnowledgeMindMapView outline mode", () => {
+  it("retains successful folders and lessons when cards fail, and exposes a working Retry", async () => {
+    vi.mocked(getLeitnerCards).mockRejectedValueOnce(new Error("offline"));
+    render(<KnowledgeMindMapView userId="user-1" cardLanguage="en" />);
+    expect(await screen.findByTestId("mindmap-data-error")).toHaveTextContent("cards");
+    expect(await screen.findByText("Study Folder")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.queryByTestId("mindmap-data-error")).not.toBeInTheDocument());
+    expect(screen.getByText("Study Folder")).toBeInTheDocument();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();

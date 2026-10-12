@@ -14,7 +14,10 @@ vi.mock("@/features/tasks/taskService", () => ({
     { id: "t2", title: "تسک آزمایشی دوم", completed: true, status: "done", priority: "low", due_date: new Date().toISOString().split("T")[0] },
   ]),
   saveTask: vi.fn().mockResolvedValue({}),
+  deleteTask: vi.fn().mockResolvedValue(true),
+  hasServerAuthoritativeTasks: () => true,
 }));
+vi.mock("@/features/tasks/taskCompletion", () => ({ setTaskCompletion: vi.fn().mockResolvedValue({ kind: "failed" }) }));
 
 vi.mock("@/lib/androidWidget", () => ({
   refreshAndroidWidgets: vi.fn().mockResolvedValue({ agendaWidgets: 1, dashboardWidgets: 1 }),
@@ -52,6 +55,7 @@ describe("WidgetsView Studio", () => {
       </MemoryRouter>
     );
 
+    await waitFor(() => expect(screen.getByTestId("widgets-task-source")).toHaveAttribute("data-source", "real"));
     expect(screen.getByText("استودیوی ویجت‌ها و نمای تعاملی")).toBeInTheDocument();
     expect(screen.getByText("ARSHNAZ WIDGET STUDIO")).toBeInTheDocument();
     expect(screen.getByText("همگام‌سازی فوری ویجت‌ها")).toBeInTheDocument();
@@ -64,6 +68,7 @@ describe("WidgetsView Studio", () => {
       </MemoryRouter>
     );
 
+    await waitFor(() => expect(screen.getByTestId("widgets-task-source")).toHaveAttribute("data-source", "real"));
     expect(screen.getByText("Agenda (دستور کار روز)")).toBeInTheDocument();
     expect(screen.getByText("Compact (تک تسک متمرکز)")).toBeInTheDocument();
     expect(screen.getByText("Focus Timer (تایمر تمرکز)")).toBeInTheDocument();
@@ -79,6 +84,7 @@ describe("WidgetsView Studio", () => {
       </MemoryRouter>
     );
 
+    await waitFor(() => expect(screen.getByTestId("widgets-task-source")).toHaveAttribute("data-source", "real"));
     const focusBtn = screen.getByText("Focus Timer (تایمر تمرکز)");
     fireEvent.click(focusBtn);
 

@@ -17,7 +17,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useBilingual } from "@/hooks/useBilingual";
 import { useLongPress } from "@/lib/useLongPress";
 import type { KnowledgeFolder, KnowledgeDocument, KnowledgeFolderNode } from "@/lib/knowledgeTypes";
@@ -42,7 +42,7 @@ function countDocumentsInSubtree(node: KnowledgeFolderNode): number {
 function getTreeItems(el: HTMLElement): HTMLElement[] {
   const root = el.closest('[role="tree"]');
   if (!root) return [];
-  return Array.from(root.querySelectorAll<HTMLElement>('[role="treeitem"]'));
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-tree-primary]'));
 }
 
 /** Move focus to the sibling tree item `delta` positions away. */
@@ -102,7 +102,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
     delay: 500,
   });
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     // Ignore keys bubbling from the nested toggle / action buttons.
     if (e.target !== e.currentTarget) return;
     switch (e.key) {
@@ -136,18 +136,6 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
 
   return (
     <div
-      {...longPress.handlers}
-      role="treeitem"
-      aria-level={depth + 1}
-      aria-selected={isSelected}
-      aria-expanded={isExpanded}
-      aria-label={isEn ? `Folder: ${node.name}` : `پوشه: ${node.name}`}
-      tabIndex={0}
-      onClick={() => {
-        if (longPress.didFire()) return;
-        onSelect();
-      }}
-      onKeyDown={handleKeyDown}
       className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl cursor-pointer transition text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
         isSelected
           ? "bg-primary/10 text-primary border border-primary/25 font-semibold"
@@ -155,7 +143,6 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
       }`}
       style={{ paddingInlineStart: `${Math.max(8, depth * 14 + 8)}px` }}
     >
-      <div className="flex min-w-0 flex-1 items-start gap-1.5">
         <button
           type="button"
           aria-expanded={isExpanded}
@@ -169,7 +156,10 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
             <ChevronRight className="w-3.5 h-3.5 rtl:rotate-180" />
           )}
         </button>
-
+      <button type="button" {...longPress.handlers} role="treeitem" data-tree-primary aria-level={depth + 1} aria-selected={isSelected} aria-expanded={isExpanded}
+        aria-label={isEn ? `Folder: ${node.name}` : `پوشه: ${node.name}`}
+        onClick={() => { if (!longPress.didFire()) onSelect(); }} onKeyDown={handleKeyDown}
+        className="flex min-w-0 flex-1 items-start gap-1.5 text-start rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         {isExpanded ? (
           <FolderOpen
             className="w-4 h-4 shrink-0 transition"
@@ -183,7 +173,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
         )}
 
         <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }}>{node.name}</span>
-      </div>
+      </button>
 
       <div className="flex items-center gap-1 shrink-0">
         <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground font-mono">
@@ -271,11 +261,10 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
     delay: 500,
   });
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLAnchorElement>) => {
     // Ignore keys bubbling from the nested action buttons.
     if (e.target !== e.currentTarget) return;
     switch (e.key) {
-      case "Enter":
       case " ":
         e.preventDefault();
         if (longPress.didFire()) return;
@@ -298,17 +287,10 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
 
   return (
     <div
-      {...longPress.handlers}
       role="treeitem"
       aria-level={depth + 1}
       aria-selected={isSelected}
       aria-label={isEn ? `Lesson: ${doc.title_en || doc.title}` : `درس: ${doc.title}`}
-      tabIndex={0}
-      onClick={() => {
-        if (longPress.didFire()) return;
-        onSelect();
-      }}
-      onKeyDown={handleKeyDown}
       className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
         isSelected
           ? "bg-primary/15 text-primary font-semibold border border-primary/30"
@@ -318,10 +300,16 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
         paddingInlineStart: `${Math.max(16, depth * 14 + 12)}px`,
       }}
     >
-      <div className="flex min-w-0 flex-1 items-start gap-1.5">
+      <Link {...longPress.handlers} data-tree-primary aria-level={depth + 1} aria-current={isSelected ? "page" : undefined}
+        to={`/app/knowledge?${new URLSearchParams({ docId: doc.id })}`}
+        onClick={event => {
+          if (longPress.didFire()) { event.preventDefault(); return; }
+          if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          event.preventDefault(); onSelect();
+        }} onKeyDown={handleKeyDown} className="flex min-w-0 flex-1 items-start gap-1.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
         <span className="min-w-0 flex-1 whitespace-normal break-words leading-5" style={{ overflowWrap: "anywhere" }} dir="auto">{isEn ? doc.title_en || doc.title : doc.title}</span>
-      </div>
+      </Link>
 
       <div className="flex items-center gap-0.5 shrink-0">
         {onScheduleStudy && (

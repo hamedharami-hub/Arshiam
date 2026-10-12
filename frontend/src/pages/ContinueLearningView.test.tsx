@@ -16,6 +16,11 @@ beforeEach(() => {
   docs.mockResolvedValue({ id: "doc-1" }); sync.mockImplementation((uid: string) => Promise.resolve(getLastStudy(uid)));
 });
 describe("Continue Knowledge learning after old modules retire", () => {
+  it("routes Continue practice to the practice runtime rather than reading", async () => {
+    await recordLastStudy("guest", { docId: "doc-1", title: "Doc", language: "fa", practice: true, section: "intro", card: "one" });
+    renderPage();
+    expect(await screen.findByRole("link", { name: "Continue practice" })).toHaveAttribute("href", "/app/interactive-study?docId=doc-1&sourceLang=fa&section=intro&card=one");
+  });
   it("keeps the library and excludes retired entrypoints in the empty state", async () => {
     renderPage();
     expect(await screen.findByTestId("continue-empty")).toBeInTheDocument();
@@ -47,5 +52,13 @@ describe("Continue Knowledge learning after old modules retire", () => {
     fireEvent.click(await screen.findByTestId("continue-retry"));
     await waitFor(() => expect(screen.queryByTestId("continue-error")).not.toBeInTheDocument());
     expect(sync).toHaveBeenCalledTimes(2);
+  });
+  it("reports and retries a source lookup failure instead of claiming the source is missing", async () => {
+    await recordLastStudy("guest", { docId: "doc-1", title: "Doc" });
+    docs.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({ id: "doc-1" });
+    renderPage();
+    fireEvent.click(await screen.findByTestId("continue-retry"));
+    await waitFor(() => expect(docs).toHaveBeenCalledTimes(2));
+    expect(screen.queryByTestId("continue-last-missing")).not.toBeInTheDocument();
   });
 });

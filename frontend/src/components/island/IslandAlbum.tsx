@@ -8,6 +8,7 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { toPersianDigits } from "@/lib/jalali";
 import { ALBUM_EVENT, listAlbum, removeFromAlbum, type AlbumEntry } from "@/lib/islandAlbum";
 import { downloadBlob, shareBlob } from "@/lib/islandSnapshot";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 type Shown = AlbumEntry & { thumbUrl: string };
 
@@ -16,6 +17,8 @@ export function IslandAlbum({ onCapture, capturing }: { onCapture: () => void; c
   const [entries, setEntries] = useState<Shown[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [fullUrl, setFullUrl] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AlbumEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -51,9 +54,20 @@ export function IslandAlbum({ onCapture, capturing }: { onCapture: () => void; c
   const fileName = (e: AlbumEntry) => `arshnaz-island-${e.createdAt.slice(0, 10)}.png`;
 
   const handleDelete = async (e: AlbumEntry) => {
-    await removeFromAlbum(e.id);
-    setOpenId(null);
-    toast.success(T("عکس از آلبوم حذف شد", "Snapshot removed from album"));
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const removed = await removeFromAlbum(e.id);
+      if (!removed) throw new Error("Snapshot removal failed");
+      setEntries((prev) => prev?.filter((row) => row.id !== e.id) ?? null);
+      setOpenId(null);
+      setDeleteTarget(null);
+      toast.success(T("عکس از آلبوم حذف شد", "Snapshot removed from album"));
+    } catch {
+      toast.error(T("حذف عکس انجام نشد؛ دوباره تلاش کن.", "Could not delete snapshot. Please retry."));
+    } finally {
+      setDeleting(false);
+    }
   };
   const handleShare = async (e: AlbumEntry) => {
     const ok = await shareBlob(e.image, fileName(e), T("جزیرهٔ من", "My Island"));
@@ -93,7 +107,7 @@ export function IslandAlbum({ onCapture, capturing }: { onCapture: () => void; c
             <div className="mt-auto grid grid-cols-3 gap-2 md:grid-cols-1">
               <Button size="sm" onClick={() => downloadBlob(open.image, fileName(open))} data-testid="island-album-download"><Download className="size-4" />{T("ذخیره", "Save")}</Button>
               <Button size="sm" variant="outline" onClick={() => handleShare(open)} data-testid="island-album-share"><Share2 className="size-4" />{T("اشتراک", "Share")}</Button>
-              <Button size="sm" variant="ghost" onClick={() => handleDelete(open)} data-testid="island-album-delete"><Trash2 className="size-4" />{T("حذف", "Delete")}</Button>
+               <Button size="sm" variant="ghost" onClick={() => setDeleteTarget(open)} data-testid="island-album-delete"><Trash2 className="size-4" />{T("حذف", "Delete")}</Button>
             </div>
           </div>
         </div>
@@ -126,6 +140,18 @@ export function IslandAlbum({ onCapture, capturing }: { onCapture: () => void; c
           </ol>
         )}
       </div>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(value) => { if (!value && !deleting) setDeleteTarget(null); }}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("حذف این عکس؟", "Delete this snapshot?")}</AlertDialogTitle>
+            <AlertDialogDescription>{T("این عکس از آلبوم حذف می‌شود و قابل بازگردانی نیست.", "This snapshot will be removed from the album and cannot be restored.")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <Button variant="destructive" disabled={deleting} onClick={() => deleteTarget && void handleDelete(deleteTarget)}>{deleting ? T("در حال حذف…", "Deleting…") : T("تأیید حذف", "Confirm delete")}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

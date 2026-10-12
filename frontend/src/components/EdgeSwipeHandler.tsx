@@ -1,81 +1,58 @@
 import { useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { haptic } from "@/lib/haptics";
+import { navigationInteractionBlocked } from "@/lib/appNavigation";
 
-/**
- * Detects edge drag/swipe gestures to open the mobile sidebar like TickTick.
- * - Swipe from left edge → right
- * - Swipe from right edge → left
- * The drawer is revealed while dragging (commit happens as soon as the
- * horizontal threshold is crossed) so it follows the finger.
- */
+const ROOTS = new Set(["/app/today", "/app/tomorrow", "/app/next7", "/app/inbox", "/app/notes", "/app/calendar", "/app/habits"]);
+
+/** One web edge owner: sidebar edge opens the drawer; opposite edge goes back. */
 export default function EdgeSwipeHandler() {
   const { isMobile, setOpenMobile, openMobile, side } = useSidebar();
-
+  const loc = useLocation();
+  const navigate = useNavigate();
   useEffect(() => {
-    if (!isMobile) return;
-
-    const EDGE_PX = 32;
-    const COMMIT_DELTA = 56;     // open once the finger has moved this far inward
-    const MAX_VERTICAL = 90;
-
-    let startX = 0;
-    let startY = 0;
-    let fromLeft = false;
-    let fromRight = false;
-    let tracking = false;
-
-    const reset = () => {
-      tracking = false;
-      fromLeft = false;
-      fromRight = false;
-    };
-
-    const tryOpen = () => {
-      if (openMobile) return;
-      haptic("light");
-      setOpenMobile(true);
+    if (!isMobile || Capacitor.isNativePlatform()) return;
+    let start: { x: number; y: number; id: number; left: boolean; sidebar: boolean } | null = null;
+    const reset = () => { start = null; };
+    const onStart = (e: TouchEvent) => {
       reset();
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (openMobile) return;
+      if (openMobile || e.touches.length !== 1 || navigationInteractionBlocked(e.target)) return;
       const t = e.touches[0];
-      if (!t) return;
-      const w = window.innerWidth;
-      fromLeft = side === "left" && t.clientX <= EDGE_PX;
-      fromRight = side === "right" && t.clientX >= w - EDGE_PX;
-      if (!fromLeft && !fromRight) return;
-      tracking = true;
-      startX = t.clientX;
-      startY = t.clientY;
+      const left = t.clientX <= 28;
+      if (!left && t.clientX < window.innerWidth - 28) return;
+      const sidebar = left === (side === "left");
+      if (!sidebar && (ROOTS.has(loc.pathname) || !(window.history.state?.idx > 0))) return;
+      start = { x: t.clientX, y: t.clientY, id: t.identifier, left, sidebar };
     };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!tracking || openMobile) return;
+    const onMove = (e: TouchEvent) => {
+      if (!start) return;
       const t = e.touches[0];
-      if (!t) return;
-      const dx = t.clientX - startX;
-      const dy = Math.abs(t.clientY - startY);
-      if (dy > MAX_VERTICAL) { reset(); return; }
-      if (fromLeft && dx > COMMIT_DELTA) tryOpen();
-      else if (fromRight && dx < -COMMIT_DELTA) tryOpen();
+      if (e.touches.length !== 1 || !t || t.identifier !== start.id || Math.abs(t.clientY - start.y) > 60 || navigationInteractionBlocked(e.target)) reset();
     };
-
-    const onTouchEnd = () => { reset(); };
-    const onTouchCancel = () => { reset(); };
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    const onEnd = (e: TouchEvent) => {
+      const gesture = start;
+      reset();
+      if (!gesture || e.touches.length || openMobile || navigationInteractionBlocked(e.target)) return;
+      const t = Array.from(e.changedTouches).find((touch) => touch.identifier === gesture.id);
+      if (!t) return;
+      const dx = (t.clientX - gesture.x) * (gesture.left ? 1 : -1);
+      if (dx < (gesture.sidebar ? 56 : 80) || Math.abs(t.clientY - gesture.y) > 60) return;
+      haptic(gesture.sidebar ? "light" : "medium");
+      if (gesture.sidebar) setOpenMobile(true);
+      else navigate(-1);
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchmove", onMove, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    window.addEventListener("touchcancel", reset, { passive: true });
     return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      window.removeEventListener("touchcancel", onTouchCancel);
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", reset);
     };
-  }, [isMobile, openMobile, setOpenMobile]);
-
+  }, [isMobile, openMobile, side, setOpenMobile, loc.pathname, navigate]);
   return null;
 }

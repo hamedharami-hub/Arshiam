@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { getFeatureNavigation, findFeature } from "./featureRegistry";
 
 export type SidebarQuickLinkGroup = "core" | "do" | "grow" | "mind" | "me";
 
@@ -22,41 +23,31 @@ export const SIDEBAR_QUICK_LINKS_KEY = "arshnaz_sidebar_quick_links_v1";
 export const SIDEBAR_QUICK_LINKS_EVENT = "arshnaz:sidebar-quick-links-changed";
 
 // Today and Menu remain permanently pinned at the top of the compact rail.
+function featureQuickLink(route: string, group: SidebarQuickLinkGroup, required?: boolean): SidebarQuickLink {
+  const { url, label } = getFeatureNavigation(`/app/${route}`);
+  return { url, labelFa: label, labelEn: findFeature(url)!.nameEn, group, ...(required ? { required } : {}) };
+}
+
 export const SIDEBAR_QUICK_LINK_OPTIONS: SidebarQuickLink[] = [
   // 1. Core / Structure
-  { url: "/app/today", labelFa: "امروز", labelEn: "Today", group: "core", required: true },
+  featureQuickLink("today", "core", true),
   { url: "__folders", labelFa: "فولدرها", labelEn: "Folders", group: "core" },
   { url: "__tags", labelFa: "تگ‌ها", labelEn: "Tags", group: "core" },
 
   // 2. Do (انجام دادن)
-  { url: "/app/inbox", labelFa: "صندوق ورودی", labelEn: "Inbox", group: "do" },
-  { url: "/app/tomorrow", labelFa: "فردا", labelEn: "Tomorrow", group: "do" },
-  { url: "/app/next7", labelFa: "۷ روز آینده", labelEn: "Next 7 Days", group: "do" },
-  { url: "/app/calendar", labelFa: "تقویم", labelEn: "Calendar", group: "do" },
-  { url: "/app/widgets", labelFa: "ویجت‌ها", labelEn: "Widgets", group: "do" },
-  { url: "/app/tools", labelFa: "مخزن کد", labelEn: "Code Vault", group: "do" },
-  { url: "/app/smart", labelFa: "لیست‌های هوشمند", labelEn: "Smart Lists", group: "do" },
-  { url: "/app/pomodoro", labelFa: "پومودورو", labelEn: "Pomodoro", group: "do" },
-  { url: "/app/stats", labelFa: "آمار و خلاصه", labelEn: "Stats & Summary", group: "do" },
+  ...["inbox", "tomorrow", "next7", "calendar", "widgets", "tools", "smart", "pomodoro", "stats"]
+    .map((route) => featureQuickLink(route, "do")),
 
   // 3. Grow (رشد)
-  { url: "/app/life-architect", labelFa: "معمار زندگی", labelEn: "Life Architect", group: "grow" },
-  { url: "/app/garden", labelFa: "باغ رشد", labelEn: "Garden", group: "grow" },
-
-  { url: "/app/notes", labelFa: "نوت‌ها", labelEn: "Notes", group: "grow" },
-  { url: "/app/interactive-study", labelFa: "استودیوی مطالعه تعاملی", labelEn: "Interactive Study Studio", group: "grow" },
-  { url: "/app/cycle", labelFa: "سیکل پریود", labelEn: "Period Cycle", group: "grow" },
+  ...["life-architect", "garden", "notes", "interactive-study", "cycle"]
+    .map((route) => featureQuickLink(route, "grow")),
 
   // 4. Mind (ذهن)
-  { url: "/app/mind", labelFa: "داشبورد ذهن", labelEn: "Mind Dashboard", group: "mind" },
-  { url: "/app/checkin", labelFa: "چک‌این روزانه", labelEn: "Daily Check-in", group: "mind" },
-  { url: "/app/thoughts", labelFa: "بررسی فکر", labelEn: "Think it through", group: "mind" },
-  { url: "/app/calm", labelFa: "آرام‌شدن", labelEn: "Calm down", group: "mind" },
-  { url: "/app/values", labelFa: "ارزش‌ها و اهداف", labelEn: "Values & Goals", group: "grow" },
+  ...["mind", "checkin", "thoughts", "calm"].map((route) => featureQuickLink(route, "mind")),
+  featureQuickLink("values", "grow"),
 
   // 5. Me (خودِ من)
-  { url: "/app/about-me", labelFa: "درباره من", labelEn: "About Me", group: "me" },
-  { url: "/app/self", labelFa: "خودشناسی", labelEn: "Self-Knowledge", group: "me" },
+  ...["about-me", "self"].map((route) => featureQuickLink(route, "me")),
 ];
 
 export const DEFAULT_QUICK_LINKS: string[] = [

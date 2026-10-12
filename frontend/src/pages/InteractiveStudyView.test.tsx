@@ -3,6 +3,9 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import InteractiveStudyView, { extractStudyFlipCards } from "./InteractiveStudyView";
+import { studyResumeUrl } from "@/lib/lastStudy";
+import { learningVersion } from "@/lib/learningWorkspace";
+vi.mock("@/lib/lastStudy", async () => ({ ...(await vi.importActual<object>("@/lib/lastStudy")), recordLastStudy: vi.fn() }));
 
 const {
   mockGetKnowledgeDocuments,
@@ -141,6 +144,42 @@ const actEvent = async (event: () => void, settleMs = 0) => {
 };
 
 describe("InteractiveStudyView", () => {
+  it("follows the Continue practice URL into the existing saved runtime and saves a flip", async () => {
+    const html = '<div id="card-1" class="interactive-flip-card"><div class="flip-card-front"><p class="flip-text">Resume question</p></div><div class="flip-card-back"><p class="flip-text">Resume answer</p></div></div>';
+    mockLoadStudyDraft.mockResolvedValue({ ok: true, source: "cache", session: { id: "resume-session", user_id: "study-user", document_id: "doc-1", document_title: "Sample guide", language: "fa", content_html: html, status: "in_progress", created_at: studyDocuments[0].created_at, updated_at: studyDocuments[0].updated_at } });
+    const url = studyResumeUrl({ docId: "doc-1", title: "Sample guide", openedAt: 1, practice: true, language: "fa", version: learningVersion(studyDocuments[0].content_html), card: "card-1" });
+    const { container } = render(<MemoryRouter initialEntries={[url]}><InteractiveStudyView /></MemoryRouter>);
+    await screen.findByText("Resume question");
+    expect(mockLoadStudyDraft).toHaveBeenCalledWith("study-user", "doc-1", "fa");
+    expect(mockCreateStudyDraft).not.toHaveBeenCalled();
+    // Advance the actual 650ms save debounce deterministically, rather than
+    // relying on wall-clock scheduling during the full suite.
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        fireEvent.click(container.querySelector(".interactive-flip-card")!);
+      });
+      expect(container.querySelector(".interactive-flip-card")).toHaveClass("is-flipped");
+      expect(mockPersistStudySession).not.toHaveBeenCalled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(650); });
+      expect(mockPersistStudySession).toHaveBeenCalledWith(expect.objectContaining({ id: "resume-session", content_html: expect.stringContaining("is-flipped") }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("reports stale source versions and never auto-generates missing practice", async () => {
+    render(<MemoryRouter initialEntries={["/app/interactive-study?docId=doc-1&lang=en&version=obsolete&card=old"]}><InteractiveStudyView /></MemoryRouter>);
+    expect(await screen.findByTestId("practice-resume-notice")).toHaveTextContent("نسخهٔ منبع تغییر کرده");
+    await waitFor(() => expect(mockLoadStudyDraft).toHaveBeenCalledWith("study-user", "doc-1", "en"));
+    expect(await screen.findByText(/تمرین ذخیره‌شده‌ای برای این درس و زبان نیست/)).toBeInTheDocument();
+    expect(mockCreateStudyDraft).not.toHaveBeenCalled();
+  });
+  it("does not open or generate practice for unavailable lessons", async () => {
+    render(<MemoryRouter initialEntries={["/app/interactive-study?docId=gone&lang=en"]}><InteractiveStudyView /></MemoryRouter>);
+    expect(await screen.findByTestId("practice-resume-notice")).toHaveTextContent("این درس در دسترس نیست");
+    expect(mockLoadStudyDraft).not.toHaveBeenCalled();
+    expect(mockCreateStudyDraft).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     mockGetKnowledgeDocuments.mockReset();
     mockGetKnowledgeFolders.mockReset();

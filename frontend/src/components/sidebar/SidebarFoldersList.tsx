@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import {
-  FolderTree, Plus, ChevronRight, ChevronDown, Folder as FolderIcon, GripVertical,
+  FolderTree, Plus, ChevronRight, ChevronDown, Folder as FolderIcon, GripVertical, MoreHorizontal,
 } from "lucide-react";
 import { NavCount, SECTION_CHEVRON_CLASS, SECTION_HEADER_CLASS, SECTION_TRIGGER_CLASS } from "./SidebarNavSections";
 import {
@@ -8,7 +8,7 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
@@ -154,6 +154,9 @@ export function FolderRow({
             )}
             {!collapsed && <NavCount countKey={`folder:${f.id}`} />}
           </NavLink>
+          <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={isEn ? `Manage folder ${f.name}` : `مدیریت فولدر ${f.name}`} onClick={(e) => { e.stopPropagation(); onLongPress(); }}>
+            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -200,6 +203,15 @@ export function SidebarFoldersList({
   createFolder,
 }: SidebarFoldersListProps) {
   const { childrenByParent, foldersWithChildren } = useMemo(() => buildFolderTreeIndex(folders), [folders]);
+  const creationDialog = (
+    <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{isEn ? "New Folder" : "فولدر جدید"}</DialogTitle></DialogHeader>
+        <Input aria-label={isEn ? "Folder name" : "نام فولدر"} placeholder={isEn ? "Folder name" : "نام فولدر"} value={newFolder} onChange={(e) => setNewFolder(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); createFolder(); } }} />
+        <DialogFooter><Button onClick={createFolder}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   const renderTree = (parentId: string | null, depth = 0): React.ReactNode => {
     if (depth > 12) return null;
@@ -228,7 +240,7 @@ export function SidebarFoldersList({
 
   if (collapsed) {
     return (
-      <SidebarGroup className="p-0.5">
+      <>{creationDialog}<SidebarGroup className="p-0.5">
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -259,9 +271,9 @@ export function SidebarFoldersList({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 rounded-md hover:bg-accent cursor-pointer"
+                      className="h-11 w-11 rounded-md hover:bg-accent cursor-pointer"
                       onClick={() => setOpenFolderDlg(true)}
-                      title={isEn ? "New Folder" : "فولدر جدید"}
+                      aria-label={isEn ? "New Folder" : "فولدر جدید"}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
@@ -291,12 +303,12 @@ export function SidebarFoldersList({
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
-      </SidebarGroup>
+      </SidebarGroup></>
     );
   }
 
   return (
-    <SidebarGroup className="py-0.5">
+    <>{creationDialog}<SidebarGroup className="py-0.5">
       <Collapsible open={isOpen || collapsed} onOpenChange={onToggleOpen}>
         {!collapsed && (
           <SidebarGroupLabel className={SECTION_HEADER_CLASS} data-testid="sidebar-section-folders">
@@ -312,30 +324,14 @@ export function SidebarFoldersList({
               <span className="min-w-0 flex-1 truncate text-start">{tr("فولدرها")}</span>
               <ChevronDown className={`${SECTION_CHEVRON_CLASS} ${isOpen ? "" : "-rotate-90"}`} />
             </CollapsibleTrigger>
-            <Dialog open={openFolderDlg} onOpenChange={setOpenFolderDlg}>
-              <DialogTrigger asChild>
                 <button
-                  className="grid h-10 w-10 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100"
-                  title={isEn ? "New Folder" : "فولدر جدید"}
+                  type="button"
+                  onClick={() => setOpenFolderDlg(true)}
+                  className="grid h-11 w-11 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={isEn ? "New Folder" : "فولدر جدید"}
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{isEn ? "New Folder" : "فولدر جدید"}</DialogTitle>
-                </DialogHeader>
-                <Input
-                  placeholder={isEn ? "Folder name" : "نام فولدر"}
-                  value={newFolder}
-                  onChange={(e) => setNewFolder(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createFolder()}
-                />
-                <DialogFooter>
-                  <Button onClick={createFolder}>{isEn ? "Create" : "ایجاد"}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </SidebarGroupLabel>
         )}
         <CollapsibleContent forceMount={collapsed ? true : undefined}>
@@ -344,6 +340,6 @@ export function SidebarFoldersList({
           </SidebarGroupContent>
         </CollapsibleContent>
       </Collapsible>
-    </SidebarGroup>
+    </SidebarGroup></>
   );
 }

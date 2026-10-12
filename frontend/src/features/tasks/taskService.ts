@@ -30,8 +30,8 @@ import { normalizeTaskPriority } from "@/lib/priority";
 export type TaskCascadeRecovery = {
   tasks: Task[];
   tagLinks: Array<Record<string, unknown>>;
-  knowledgeLinks: Array<{ id: string }>;
-  noteTaskLinks: Array<Pick<NoteTaskLink, "id" | "user_id" | "task_id" | "note_id">>;
+  knowledgeLinks: Array<Record<string, unknown> & { id: string }>;
+  noteTaskLinks: Array<NoteTaskLink & Record<string, unknown>>;
 };
 
 export type DeleteTaskCascadeResult = {
@@ -204,6 +204,8 @@ export async function deleteTaskCascade(
   if (!userId || !rootTaskId) return { success: false, deletedIds: [] };
 
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  // A local list cannot certify the full graph needed for recovery.
+  if (isOffline && options.recoverable) return { success: false, deletedIds: [] };
   let tasks: Task[];
   if (isOffline) {
     // Offline deletion can only use the latest local list. Online deletion
@@ -233,21 +235,40 @@ export async function deleteTaskCascade(
     tagLinks: [], knowledgeLinks: [], noteTaskLinks: [],
   };
   if (options.recoverable) {
+    if (!taskById.has(rootTaskId)) return { success: false, deletedIds: [] };
     try {
       const [tagResult, knowledgeResult, noteTaskResult] = await Promise.all([
-        firebaseStore.from("task_tags").select("id,user_id,task_id,tag_id").eq("user_id", userId).in("task_id", idsToDelete),
-        firebaseStore.from("task_knowledge_links").select("id,task_id,user_id").eq("user_id", userId).in("task_id", idsToDelete),
-        firebaseStore.from("note_task_links").select("id,user_id,task_id,note_id").eq("user_id", userId).in("task_id", idsToDelete),
+        firebaseStore.from("task_tags").select("*", { source: "server" }).eq("user_id", userId).in("task_id", idsToDelete),
+        firebaseStore.from("task_knowledge_links").select("*", { source: "server" }).eq("user_id", userId).in("task_id", idsToDelete),
+        firebaseStore.from("note_task_links").select("*", { source: "server" }).eq("user_id", userId).in("task_id", idsToDelete),
       ]);
+      for (const result of [tagResult, knowledgeResult, noteTaskResult]) {
+        if (result.error || result.fromCache || !Array.isArray(result.data)) {
+          throw result.error || new Error("The recovery graph could not be verified.");
+        }
+      }
+      // Pending relation writes are not included in the server snapshot. Refuse
+      // recovery rather than deleting a graph with an incomplete local bundle.
+      const pendingRelations = await Promise.all([
+        getPendingOps("task_tags"), getPendingOps("task_knowledge_links"), getPendingOps("note_task_links"),
+      ]);
+      if (pendingRelations.flat().some((operation) => {
+        if (!canReplayForOwner(operation, userId)) return false;
+        const payload = operation.payload as Record<string, unknown> | undefined;
+        const taskId = payload?.task_id ?? operation.match?.task_id;
+        const relationId = payload?.id ?? operation.match?.id;
+        return (typeof taskId === "string" && idsToDelete.includes(taskId)) ||
+          [tagResult, knowledgeResult, noteTaskResult].some((result) =>
+            result.data!.some((row) => row.id === relationId));
+      })) throw new Error("Related changes must sync before a recoverable deletion.");
       recoveryRelations = {
-        tagLinks: Array.isArray(tagResult.data) ? tagResult.data as Array<Record<string, unknown>> : [],
-        knowledgeLinks: Array.isArray(knowledgeResult.data) ? knowledgeResult.data as Array<{ id: string }> : [],
-        noteTaskLinks: Array.isArray(noteTaskResult.data)
-          ? noteTaskResult.data as Array<Pick<NoteTaskLink, "id" | "user_id" | "task_id" | "note_id">>
-          : [],
+        tagLinks: tagResult.data as TaskCascadeRecovery["tagLinks"],
+        knowledgeLinks: knowledgeResult.data as TaskCascadeRecovery["knowledgeLinks"],
+        noteTaskLinks: noteTaskResult.data as TaskCascadeRecovery["noteTaskLinks"],
       };
     } catch (error) {
       console.warn("[TaskService] Could not snapshot related rows for a recoverable delete:", error);
+      return { success: false, deletedIds: [] };
     }
   }
   const successResult = (): DeleteTaskCascadeResult => options.recoverable

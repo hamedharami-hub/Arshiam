@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
+import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>;
@@ -45,19 +46,21 @@ export default function InstallPrompt() {
   const [evt, setEvt] = useState<BIPEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [iosHint, setIosHint] = useState(false);
+  const [installed, setInstalled] = useState(false);
+  const [installError, setInstallError] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
-    if (dismissedThisSession()) return;
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       // @ts-ignore
       window.navigator.standalone === true;
-    if (isStandalone) return;
+    if (isStandalone) { setInstalled(true); return; }
 
     const handler = (e: Event) => {
       e.preventDefault();
       setEvt(e as BIPEvent);
-      setVisible(true);
+      if (!dismissedThisSession()) setVisible(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
@@ -66,13 +69,26 @@ export default function InstallPrompt() {
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
     if (isIOS) {
       setIosHint(true);
-      setVisible(true);
+      setVisible(!dismissedThisSession());
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    const installedHandler = () => { setInstalled(true); setVisible(false); setEvt(null); };
+    const open = () => setVisible(true);
+    window.addEventListener("appinstalled", installedHandler);
+    window.addEventListener("arshnaz:open-install", open);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+      window.removeEventListener("arshnaz:open-install", open);
+    };
   }, []);
 
-  if (!visible) return null;
+  if (installed) return null;
+  if (!visible) return (
+    <HeaderActionsPortal><Button size="icon" variant="ghost" onClick={() => setVisible(true)} aria-label={isEn ? "Install app or view instructions" : "نصب برنامه یا راهنمای نصب"} title={isEn ? "Install app" : "نصب برنامه"}>
+      <Download className="h-4 w-4" aria-hidden="true" />
+    </Button></HeaderActionsPortal>
+  );
 
   const dismiss = () => {
     const id = sessionId();
@@ -83,7 +99,7 @@ export default function InstallPrompt() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:max-w-sm z-50 rounded-xl border bg-card p-4 shadow-xl">
+    <div role="region" aria-label={isEn ? "App installation" : "نصب برنامه"} className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 left-4 sm:left-auto sm:max-w-sm z-50 max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain rounded-xl border bg-card p-4 shadow-xl">
       <div className="flex items-start gap-3">
         <div className="rounded-lg bg-primary/10 p-2">
           <Download className="h-5 w-5 text-primary" />
@@ -93,17 +109,28 @@ export default function InstallPrompt() {
           <p className="mt-1 text-xs text-muted-foreground">
             {iosHint
               ? (isEn ? "Tap Share in Safari, then choose Add to Home Screen." : "روی دکمه Share در سافاری بزنید و «Add to Home Screen» را انتخاب کنید.")
-              : (isEn ? "Works offline. Long-press the icon for Today, Check-in, Pomodoro, and SOS shortcuts." : "آفلاین کار می‌کند + با نگه‌داشتن آیکون، میانبر «امروز / Check-in / Pomodoro / SOS» داری.")}
+              : evt
+                ? (isEn ? "Works offline. Long-press the icon for Today, Check-in, Pomodoro, and SOS shortcuts." : "آفلاین کار می‌کند + با نگه‌داشتن آیکون، میانبر «امروز / Check-in / Pomodoro / SOS» داری.")
+                : (isEn ? "Open your browser menu and choose Install app or Add to Home Screen. If unavailable, try Chrome or Edge; on iPhone use Safari → Share → Add to Home Screen." : "از منوی مرورگر «نصب برنامه» یا «افزودن به صفحه اصلی» را انتخاب کنید. اگر موجود نیست، از کروم یا اج استفاده کنید؛ در آیفون: سافاری ← اشتراک‌گذاری ← افزودن به صفحه اصلی.")}
           </p>
-          {!iosHint && (
+          {installError && <p role="alert" className="mt-2 text-xs text-destructive">{isEn ? "Installation failed. Try again or use your browser's install menu." : "نصب انجام نشد. دوباره تلاش کنید یا از منوی نصب مرورگر استفاده کنید."}</p>}
+          {!iosHint && evt && (
             <div className="mt-3 flex gap-2">
               <Button
                 size="sm"
+                disabled={installing}
                 onClick={async () => {
                   if (!evt) return;
-                  await evt.prompt();
-                  await evt.userChoice;
-                  dismiss();
+                  setInstalling(true);
+                  setInstallError(false);
+                  try {
+                    await evt.prompt();
+                    const choice = await evt.userChoice;
+                    setEvt(null); // browser install events are single-use
+                    if (choice.outcome === "accepted") setInstalled(true);
+                    dismiss();
+                  } catch { setInstallError(true); setEvt(null); }
+                  finally { setInstalling(false); }
                 }}
               >
                 {isEn ? "Install" : "نصب"}
@@ -114,7 +141,7 @@ export default function InstallPrompt() {
             </div>
           )}
         </div>
-        <button type="button" onClick={dismiss} aria-label={isEn ? "Dismiss install prompt" : "بستن پیشنهاد نصب"} className="text-muted-foreground hover:text-foreground">
+        <button type="button" onClick={dismiss} aria-label={isEn ? "Dismiss install prompt" : "بستن پیشنهاد نصب"} className="grid h-11 w-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <X className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>

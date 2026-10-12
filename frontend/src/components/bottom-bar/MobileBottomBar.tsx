@@ -33,8 +33,10 @@ export function MobileBottomBar({
     <button
       key="bottom-bar-menu-toggle"
       type="button"
-      className="group relative z-10 h-full flex-1 flex flex-col items-center justify-center gap-0.5 select-none active:scale-95 transition-transform duration-150 min-w-0"
+      className="group relative z-10 h-full min-h-11 min-w-11 flex-1 flex flex-col items-center justify-center gap-0.5 select-none rounded-full touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       aria-label={t("nav.menu", "منو")}
+      aria-expanded={openMobile}
+      aria-haspopup="dialog"
       onClick={() => {
         haptic("light");
         toggleSidebar();
@@ -49,6 +51,7 @@ export function MobileBottomBar({
         }`}
       >
         <MenuIcon
+          aria-hidden="true"
           className={`w-5 h-5 transition-all duration-200 ${
             openMobile
               ? "scale-105 text-primary stroke-[2.2]"
@@ -113,7 +116,7 @@ export function MobileBottomBar({
       aria-label={t("nav.bottomBar", "ناوبری پایین صفحه")}
     >
 
-      {/* 5 Symmetric, Balanced Slots: [Menu] [Tab 1] [Center +] [Tab 2] [Tab 3] */}
+      {/* Five slots; the center reserves two disjoint 44px targets, including at 320px. */}
       {menuButton}
       {tab1}
       <BottomQuickAddButton mode="mobile" />

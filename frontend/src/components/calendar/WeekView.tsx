@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, format } from "date-fns";
 import { getWeekStart, weekStartsOn as weekStartsOnFor } from "@/lib/timeHorizon";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { formatDate, toPersianDigits, type CalendarSystem } from "@/lib/jalali";
 import { isHoliday, dominantKind, HOLIDAY_TONE, type Holiday } from "@/lib/holidays";
 import { useTapGestures } from "@/lib/useTapGestures";
@@ -11,6 +11,8 @@ import { parseTaskDueDate } from "@/lib/taskDate";
 import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
 import { useBilingual } from "@/hooks/useBilingual";
+import { Button } from "@/components/ui/button";
+import { PRIORITY_META, normalizeTaskPriority } from "@/lib/priority";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_ROW = 36;
@@ -20,7 +22,7 @@ function Slot({
 }: {
   d: Date; h: number; slotTasks: CalendarTask[]; onClick: () => void; onDouble: () => void; height: number; label: string;
 }) {
-  const navigate = useNavigate();
+  const { T } = useBilingual();
   const { handlers } = useTapGestures({ onSingleTap: onClick, onDoubleTap: onDouble });
   return (
     <div
@@ -38,18 +40,19 @@ function Slot({
       />
       <div className="relative z-10 flex flex-col">
         {slotTasks.map((t) => (
-          <button
+          <Link
             key={t.id}
-            type="button"
-            onClick={(e) => { e.stopPropagation(); navigate(`/app/tasks/${t.id}`); }}
+            to={`/app/tasks/${t.id}`}
+            onClick={(e) => e.stopPropagation()}
             aria-label={t.title}
             className="bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer text-end hover:bg-accent/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <span className="inline-flex max-w-full items-center gap-1">
               <span className="truncate">{t.title}</span>
+              <span className={`shrink-0 ${PRIORITY_META[normalizeTaskPriority(t.priority)].textClass}`}>{T(PRIORITY_META[normalizeTaskPriority(t.priority)].label, PRIORITY_META[normalizeTaskPriority(t.priority)].labelEn)}</span>
               <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
             </span>
-          </button>
+          </Link>
         ))}
       </div>
     </div>
@@ -70,10 +73,12 @@ export default function WeekView({
   const { T } = useBilingual();
   const weekStartsOn: 1 | 6 = weekStartsOnFor(getWeekStart());
   const days = eachDayOfInterval({ start: startOfWeek(date, { weekStartsOn }), end: endOfWeek(date, { weekStartsOn }) });
-  const { scale, handlers: pinchHandlers } = usePinchZoom({ initial: 1, min: 0.6, max: 2.4 });
+  const { scale, setScale, handlers: pinchHandlers } = usePinchZoom({ initial: 1, min: 0.6, max: 2.4 });
   const [hint, setHint] = useState(false);
   const hintTimer = useRef<number | null>(null);
   const ROW_H = BASE_ROW * scale;
+  const zoom = (delta: number) => setScale((value) => Math.max(0.6, Math.min(2.4, Math.round((value + delta) * 10) / 10)));
+  useEffect(() => () => { if (hintTimer.current) window.clearTimeout(hintTimer.current); }, []);
 
   const onPinchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -98,10 +103,25 @@ export default function WeekView({
   return (
     <div
       className="overflow-x-auto relative"
+      tabIndex={0}
+      role="region"
+      aria-label={T("تقویم هفتگی؛ زوم با +، - و 0", "Weekly calendar; zoom with +, - and 0")}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget || event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.key === "+" || event.key === "=") { event.preventDefault(); zoom(0.2); }
+        else if (event.key === "-") { event.preventDefault(); zoom(-0.2); }
+        else if (event.key === "0") { event.preventDefault(); setScale(1); }
+      }}
       onTouchStart={onPinchStart}
       onTouchMove={pinchHandlers.onTouchMove}
       onTouchEnd={pinchHandlers.onTouchEnd}
     >
+      <div className="mb-2 flex items-center gap-2" role="group" aria-label={T("زوم تقویم", "Calendar zoom")}>
+        <Button type="button" size="sm" variant="outline" aria-label={T("کوچک‌نمایی", "Zoom out")} disabled={scale <= 0.6} onClick={() => zoom(-0.2)}>−</Button>
+        <output className="text-xs tabular-nums" aria-live="polite">{Math.round(scale * 100)}%</output>
+        <Button type="button" size="sm" variant="outline" aria-label={T("بزرگ‌نمایی", "Zoom in")} disabled={scale >= 2.4} onClick={() => zoom(0.2)}>+</Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setScale(1)}>{T("بازنشانی زوم", "Reset zoom")}</Button>
+      </div>
       {hint && (
         <div className="absolute top-2 left-2 z-20 bg-background/90 backdrop-blur border rounded-full px-2 py-1 text-[10px] flex items-center gap-1 shadow">
           <ZoomIn className="w-3 h-3" /> {Math.round(scale * 100)}%
@@ -142,12 +162,13 @@ export default function WeekView({
               return (
                 <div key={`all-day-${d.toISOString()}`} className="min-h-9 bg-card p-0.5">
                   {allDayTasks.map((task) => (
-                    <button key={task.id} type="button" onClick={() => navigate(`/app/tasks/${task.id}`)}
+                    <Link key={task.id} to={`/app/tasks/${task.id}`}
                       aria-label={task.title}
                       className="mb-0.5 flex max-w-full items-center gap-1 rounded-md border border-border/60 bg-muted px-1.5 py-1 text-start text-[10px] text-foreground/80 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                       <span className="truncate">{task.title}</span>
+                      <span className={`shrink-0 ${PRIORITY_META[normalizeTaskPriority(task.priority)].textClass}`}>{T(PRIORITY_META[normalizeTaskPriority(task.priority)].label, PRIORITY_META[normalizeTaskPriority(task.priority)].labelEn)}</span>
                       <DeadlineMarker deadlineDate={task.deadline_date} completed={task.completed} status={task.status} recurrence={task.recurrence} recurrence_rule={task.recurrence_rule} />
-                    </button>
+                    </Link>
                   ))}
                 </div>
               );

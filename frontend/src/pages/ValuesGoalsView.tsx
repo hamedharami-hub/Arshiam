@@ -102,6 +102,7 @@ export default function ValuesGoalsView() {
   ownerRef.current = uid;
   const valuesLatestRef = useRef<Record<string, DomainState> | null>(null);
   const valuesDirtyRef = useRef(false);
+  const valuesLocalRef = useRef(false);
   const valuesSyncTimer = useRef<number | null>(null);
   const valuesQueueRef = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -110,6 +111,8 @@ export default function ValuesGoalsView() {
     const ownerId = user?.id ?? null;
     valuesLatestRef.current = null;
     valuesDirtyRef.current = false;
+    valuesLocalRef.current = false;
+    setEditingDomain(null);
     setValuesEntry({ uid: ownerId, values: {} });
     setGoalsEntry({ uid: ownerId, goals: [] });
     setLoadState({ uid: ownerId, values: ownerId ? "loading" : "ready", goals: ownerId ? "loading" : "ready" });
@@ -133,6 +136,7 @@ export default function ValuesGoalsView() {
 
     // 2. Subscribe to Firestore Values
     const unsubValues = subscribeMindValues(ownerId, (cloudValues, meta) => {
+      if (ownerRef.current !== ownerId || valuesDirtyRef.current) return;
       setValuesEntry({ uid: ownerId, values: cloudValues as Record<string, DomainState> });
       try { localStorage.setItem(STORAGE(ownerId), JSON.stringify(cloudValues)); } catch {}
       if (meta.source === "server") setLoadState((current) => current.uid === ownerId ? { ...current, values: "ready" } : current);
@@ -141,6 +145,7 @@ export default function ValuesGoalsView() {
 
     // 3. Subscribe to Firestore Goals
     const unsubGoals = subscribeMindGoals(ownerId, (cloudGoals, meta) => {
+      if (ownerRef.current !== ownerId) return;
       // An empty server answer is real: clear the screen and the local copy as well.
       setGoalsEntry({ uid: ownerId, goals: cloudGoals as Goal[] });
       try { localStorage.setItem(GOALS_STORAGE(ownerId), JSON.stringify(cloudGoals)); } catch {}
@@ -150,6 +155,15 @@ export default function ValuesGoalsView() {
     }, () => setLoadState((current) => current.uid === ownerId ? { ...current, goals: "error" } : current));
 
     return () => {
+      if (valuesSyncTimer.current) { clearTimeout(valuesSyncTimer.current); valuesSyncTimer.current = null; }
+      if (valuesDirtyRef.current && valuesLatestRef.current) {
+        const pending = valuesLatestRef.current;
+        // Serialize the final write after in-flight writes; never label a fire-and-forget save as durable.
+        valuesQueueRef.current = valuesQueueRef.current.catch(() => undefined).then(async () => {
+          const ok = await Promise.resolve().then(() => saveMindValues(ownerId, pending)).catch(() => false);
+          if (!ok) console.warn("Values save did not complete; only a verified local copy can survive leaving.");
+        });
+      }
       unsubValues();
       unsubGoals();
     };
@@ -171,7 +185,7 @@ export default function ValuesGoalsView() {
     if (!owner || !next) return;
     setValuesSync({ uid: owner, status: "syncing" });
     const run = valuesQueueRef.current.catch(() => undefined).then(async () => {
-      const ok = await saveMindValues(owner, next);
+      const ok = await Promise.resolve().then(() => saveMindValues(owner, next)).catch(() => false);
       if (ownerRef.current !== owner) return;
       if (ok) {
         // Only claim "Synced" if no newer edit is waiting.
@@ -179,7 +193,7 @@ export default function ValuesGoalsView() {
           valuesDirtyRef.current = false;
           setValuesSync({ uid: owner, status: "synced" });
         }
-      } else {
+      } else if (valuesLatestRef.current === next) {
         setValuesSync({ uid: owner, status: "error" });
       }
     });
@@ -188,6 +202,7 @@ export default function ValuesGoalsView() {
 
   function retryValuesSync() {
     if (!valuesLatestRef.current) return;
+    valuesLocalRef.current = retainValues(ownerRef.current, valuesLatestRef.current);
     valuesDirtyRef.current = true;
     void flushValues();
   }
@@ -197,25 +212,20 @@ export default function ValuesGoalsView() {
     valuesLatestRef.current = next;
     const owner = ownerRef.current;
     if (!owner) return;
-    try {
-      localStorage.setItem(STORAGE(owner), JSON.stringify(next));
-    } catch {}
+    valuesLocalRef.current = retainValues(owner, next);
     valuesDirtyRef.current = true;
-    setValuesSync({ uid: owner, status: "device" });
+    setValuesSync({ uid: owner, status: valuesLocalRef.current ? "device" : "error" });
     scheduleValuesSync();
   }
 
-  // Flush any debounced edit when the account changes or the page unmounts.
-  useEffect(() => {
-    const owner = uid;
-    return () => {
-      if (valuesSyncTimer.current) { clearTimeout(valuesSyncTimer.current); valuesSyncTimer.current = null; }
-      if (owner && valuesDirtyRef.current && valuesLatestRef.current) {
-        valuesDirtyRef.current = false;
-        void saveMindValues(owner, valuesLatestRef.current);
-      }
-    };
-  }, [uid]);
+  function retainValues(owner: string | null, next: Record<string, DomainState>): boolean {
+    if (!owner) return false;
+    try {
+      const serialized = JSON.stringify(next);
+      localStorage.setItem(STORAGE(owner), serialized);
+      return localStorage.getItem(STORAGE(owner)) === serialized;
+    } catch { return false; }
+  }
 
   function update(key: string, patch: Partial<DomainState>) {
     const cur = state[key] || { importance: null, consistency: null, value: "", constraints: "" };
@@ -402,7 +412,9 @@ export default function ValuesGoalsView() {
             <span className={valuesSyncStatus === "error" ? "text-destructive" : undefined}>
               {valuesSyncStatus === "syncing" ? T("در حال همگام‌سازی…", "Syncing…")
                 : valuesSyncStatus === "synced" ? T("همگام‌سازی شد", "Synced")
-                : valuesSyncStatus === "error" ? T("همگام‌سازی نشد؛ تغییرات روی همین دستگاه محفوظ است.", "Not synced; your edits are kept on this device.")
+                : valuesSyncStatus === "error" ? (valuesLocalRef.current
+                  ? T("همگام‌سازی نشد؛ تغییرات روی همین دستگاه محفوظ است.", "Not synced; your edits are kept on this device.")
+                  : T("ذخیره تأیید نشد؛ تغییرات فقط در این صفحه است. پیش از خروج دوباره تلاش کنید.", "Save not verified; edits are only on this page. Retry before leaving."))
                 : T("روی این دستگاه ذخیره شد", "Saved on this device")}
             </span>
             {valuesSyncStatus === "error" && (

@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,7 +43,7 @@ import { toast } from "sonner";
 import { subscribeSocraticSession } from "@/lib/firestoreDataService";
 import { MindWeeklyInsightsDialog } from "./mind/MindWeeklyInsightsDialog";
 import { MindScreenersGrid } from "./mind/MindScreenersGrid";
-import { MindTrendCharts } from "./mind/MindTrendCharts";
+import { MindTrendCharts, MindMetricTable, heatmapScore, metricSegments, type MindHeatmapDay } from "./mind/MindTrendCharts";
 
 const MIND_SOURCES = ["cbt_thought", "abc_model", "worry_tree"];
 
@@ -86,11 +86,25 @@ export default function MindTrendsView() {
   const [aiPayloadPreview, setAiPayloadPreview] = useState("");
   const [aiAnalysisRunning, setAiAnalysisRunning] = useState(false);
   const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
+  const approvedContextRef = useRef<{ owner: string; context: ReturnType<typeof createMindAIContext> } | null>(null);
+  const ownerRef = useRef(user?.id);
+  ownerRef.current = user?.id;
+  const analysisRequestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    approvedContextRef.current = null;
+    analysisRequestRef.current?.abort();
+    analysisRequestRef.current = null;
+    setAiPreviewOpen(false);
+    setAiAnalysisRunning(false);
+    setAiAnalysisResult(null);
+    return () => analysisRequestRef.current?.abort();
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
     return subscribeSocraticSession(user.id, (sess) => setLegacySession(sess && sess.messages?.length ? (sess as never) : null));
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -100,10 +114,15 @@ export default function MindTrendsView() {
         setShowStreak(s.streak_enabled);
       }
     });
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+    setCheckins([]);
+    setTopDistortions([]);
+    setWeeklyTasksCompleted(0);
+    setWeeklyFeedbackStats({ helpful: 0, somewhat: 0, notHelpful: 0, totalWithFeedback: 0 });
     (async () => {
       const since90 = getLocalDateString(new Date(Date.now() - 90 * 86400000));
       const since30iso = new Date(Date.now() - 30 * 86400000).toISOString();
@@ -145,6 +164,7 @@ export default function MindTrendsView() {
           .eq("completed", true),
       ]);
 
+      if (cancelled) return;
       setCheckins((ck || []) as Checkin[]);
       setThoughtCount((tr || []).length);
       setAbcCount(ac || 0);
@@ -213,7 +233,8 @@ export default function MindTrendsView() {
         totalWithFeedback: tot,
       });
     })();
-  }, [user]);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const todayStr = getLocalDateString(new Date());
   const today =
@@ -251,26 +272,22 @@ export default function MindTrendsView() {
 
   // 90-day heatmap aligned to weeks
   const heatmap = useMemo(() => {
-    const map = new Map<string, number>();
-    checkins.forEach((c) => {
-      const avg = [c.mood, c.energy, c.focus].filter((x): x is number => x != null);
-      const v = avg.length ? avg.reduce((a, b) => a + b, 0) / avg.length / 10 : 0.4;
-      map.set(c.checkin_date, v);
-    });
-    const days: { date: string; jalaliDate: string; intensity: number }[] = [];
+    const map = new Map(checkins.map((checkin) => [checkin.checkin_date, checkin]));
+    const days: MindHeatmapDay[] = [];
     for (let i = 89; i >= 0; i--) {
       const dStr = getLocalDateString(new Date(Date.now() - i * 86400000));
       const dObj = new Date(dStr);
       days.push({
         date: dStr,
         jalaliDate: formatDate(dObj, "EEEE d MMMM"),
-        intensity: map.get(dStr) ?? 0,
+        ...heatmapScore(map.get(dStr)),
       });
     }
     return days;
   }, [checkins]);
 
   function prepareAiPayload() {
+    if (!user || aiAnalysisRunning) return;
     const ctx = createMindAIContext({
       operation: "weekly_insight",
       promptVersion: "weekly_insight_v1.0",
@@ -286,7 +303,7 @@ export default function MindTrendsView() {
           provenance: "deterministic_calculation",
         },
         feedback: {
-          value: weeklyFeedbackStats,
+          value: { ...weeklyFeedbackStats },
           provenance: "deterministic_calculation",
         },
         topDistortions: {
@@ -295,55 +312,42 @@ export default function MindTrendsView() {
         },
       },
     });
+    approvedContextRef.current = { owner: user.id, context: ctx };
     setAiPayloadPreview(formatContextForPrompt(ctx));
     setAiPreviewOpen(true);
   }
 
   async function executeAiAnalysis() {
+    const approved = approvedContextRef.current;
+    if (!approved || approved.owner !== ownerRef.current || analysisRequestRef.current) return;
+    const controller = new AbortController();
+    analysisRequestRef.current = controller;
     setAiAnalysisRunning(true);
     try {
-      const ctx = createMindAIContext({
-        operation: "weekly_insight",
-        promptVersion: "weekly_insight_v1.0",
-        language: isEn ? "en" : "fa",
-        tool: "mind_weekly_review",
-        fields: {
-          loggedDaysPastWeek: {
-            value: `${past7DaysLoggedCount} / 7`,
-            provenance: "deterministic_calculation",
-          },
-          mindTasksCompleted: {
-            value: weeklyTasksCompleted,
-            provenance: "deterministic_calculation",
-          },
-          feedback: {
-            value: weeklyFeedbackStats,
-            provenance: "deterministic_calculation",
-          },
-          topDistortions: {
-            value: topDistortions.map((d) => d.key),
-            provenance: "deterministic_calculation",
-          },
-        },
-      });
-
-      const res = await executeMindAI<WeeklyInsightOutput>(ctx);
+      const res = await executeMindAI<WeeklyInsightOutput>(approved.context, { signal: controller.signal, cacheScope: approved.owner });
+      if (controller.signal.aborted || approved.owner !== ownerRef.current) return;
       const d = res.data;
       const formatted = `${d.logged_days_summary}\n\n${d.cautious_observation}\n\n• ${d.suggested_reflection_question}`;
       setAiAnalysisResult(formatted);
       setAiPreviewOpen(false);
       toast.success(T("تحلیل هفتگی آماده شد", "Weekly analysis ready"));
     } catch (e: any) {
-      toast.error(e.message || T("خطا در ارتباط", "Error"));
+      if (!controller.signal.aborted && approved.owner === ownerRef.current) toast.error(e.message || T("خطا در ارتباط", "Error"));
     } finally {
-      setAiAnalysisRunning(false);
+      if (analysisRequestRef.current === controller) {
+        analysisRequestRef.current = null;
+        if (approved.owner === ownerRef.current) setAiAnalysisRunning(false);
+      }
     }
   }
 
   const metricLabels = { mood: T("خلق", "Mood"), energy: T("انرژی", "Energy"), focus: T("تمرکز", "Focus"), stress: T("استرس", "Stress") } as const;
-  const points = trend.map((p) => p[metric]).map((v, i) => ({ v, i })).filter((p): p is { v: number; i: number } => typeof p.v === "number");
+  const segments = metricSegments(trend, metric);
+  const points = segments.flat();
   const W = 320, H = 110;
-  const xy = (p: { v: number; i: number }) => `${trend.length > 1 ? (p.i / (trend.length - 1)) * W : W / 2},${H - ((p.v - 1) / 9) * (H - 10) - 5}`;
+  const firstDate = trend.length ? Math.min(...trend.map((point) => Date.parse(point.rawDate))) : 0;
+  const lastDate = trend.length ? Math.max(...trend.map((point) => Date.parse(point.rawDate))) : 0;
+  const xy = (p: { timestamp: number; value: number }) => `${lastDate > firstDate ? ((p.timestamp - firstDate) / (lastDate - firstDate)) * W : W / 2},${H - ((p.value - 1) / 9) * (H - 10) - 5}`;
   const num = (n: number) => (isEn ? String(n) : toPersianDigits(n));
   const fmt = (iso?: string) => (iso ? formatDate(new Date(iso), "d MMM yyyy") : "");
   const reviewed = weeklyFeedbackStats.totalWithFeedback;
@@ -368,15 +372,17 @@ export default function MindTrendsView() {
           </div>
         </div>
         {points.length > 1 ? (
-          <svg viewBox={`0 0 ${W} ${H}`} className="h-32 w-full" role="img" aria-label={metricLabels[metric]} preserveAspectRatio="none">
-            <polyline fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinejoin="round" points={points.map(xy).join(" ")} />
-            {points.map((p) => { const [x, y] = xy(p).split(","); return <circle key={p.i} cx={x} cy={y} r="2.5" fill="hsl(var(--primary))" />; })}
+          <svg viewBox={`0 0 ${W} ${H}`} className="h-32 w-full" aria-hidden="true" preserveAspectRatio="none" data-testid="mind-metric-chart">
+            {segments.filter((segment) => segment.length > 1).map((segment) => <polyline key={segment[0].timestamp} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinejoin="round" points={segment.map(xy).join(" ")} />)}
+            {points.map((p) => { const [x, y] = xy(p).split(","); return <circle key={p.timestamp} cx={x} cy={y} r="2.5" fill="hsl(var(--primary))" />; })}
           </svg>
         ) : (
           <p className="py-6 text-center text-sm text-muted-foreground" data-testid="mind-trend-empty">
             {T("برای نمایش روند، دست‌کم دو ثبت لازم است.", "At least two entries are needed to show a trend.")}
           </p>
         )}
+        <div className="flex justify-between text-[11px] text-muted-foreground"><span>{trend[0]?.date}</span><span>{trend[trend.length - 1]?.date}</span></div>
+        <MindMetricTable trend={trend} metrics={[metric]} isEn={isEn} T={T} />
         <p className="text-[11px] leading-5 text-muted-foreground">{T("این نمودار فقط داده‌های ثبت‌شدهٔ شما را نشان می‌دهد؛ تعداد ثبت‌ها به‌معنای بهتر شدن حال نیست.", "This chart only shows what you logged; more entries do not mean you are doing better.")}</p>
       </Card>
 
@@ -438,7 +444,11 @@ export default function MindTrendsView() {
         </details>
       )}
 
-      <MindWeeklyInsightsDialog open={aiPreviewOpen} onOpenChange={setAiPreviewOpen} payloadPreview={aiPayloadPreview} onConfirm={executeAiAnalysis} loading={aiAnalysisRunning} T={T} />
+      <MindWeeklyInsightsDialog open={aiPreviewOpen} onOpenChange={(open) => {
+        if (aiAnalysisRunning) return;
+        setAiPreviewOpen(open);
+        if (!open) approvedContextRef.current = null;
+      }} payloadPreview={aiPayloadPreview} onConfirm={executeAiAnalysis} loading={aiAnalysisRunning} T={T} />
     </div>
   );
 }

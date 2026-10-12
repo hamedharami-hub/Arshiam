@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import React from "react";
-import { render as renderBase, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render as renderBase, screen, fireEvent, waitFor } from "@testing-library/react";
 import { KnowledgeDocumentReader } from "./KnowledgeDocumentReader";
 import { MemoryRouter } from "react-router-dom";
 const render = (ui: React.ReactNode, options?: import("@testing-library/react").RenderOptions) => renderBase(ui, { wrapper: MemoryRouter, ...options });
@@ -8,7 +8,16 @@ import type { KnowledgeDocument, KnowledgeFolder } from "@/lib/knowledgeTypes";
 
 const mockCreateLeitnerCard = vi.hoisted(() => vi.fn());
 const mockUpdateKnowledgeDocument = vi.hoisted(() => vi.fn());
+const mockGetKnowledgeDocument = vi.hoisted(() => vi.fn());
 const mockInteractiveLearningModal = vi.hoisted(() => vi.fn());
+const mockTranslate = vi.hoisted(() => vi.fn());
+const mockPersistPractice = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/interactiveStudyService", () => ({
+  createInteractiveStudySessionDraft: (user_id: string, document_id: string, document_title: string, language: string, content_html: string) => ({ id: "practice", user_id, document_id, document_title, language, content_html }),
+  persistInteractiveStudySession: mockPersistPractice,
+}));
+vi.mock("@/lib/lastStudy", () => ({ recordLastStudy: vi.fn() }));
+vi.mock("@/lib/bilingualHelper", async () => ({ ...(await vi.importActual<object>("@/lib/bilingualHelper")), generateBilingualLesson: mockTranslate }));
 
 vi.mock("@/lib/leitnerService", () => ({
   createLeitnerCard: mockCreateLeitnerCard,
@@ -19,6 +28,7 @@ vi.mock("@/lib/knowledgeService", async () => {
   return {
     ...actual,
     updateKnowledgeDocument: mockUpdateKnowledgeDocument,
+    getKnowledgeDocument: mockGetKnowledgeDocument,
   };
 });
 
@@ -50,6 +60,13 @@ vi.mock("@/hooks/useBilingual", () => ({
 describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
   beforeEach(() => {
     mockIsEn = false;
+    localStorage.clear();
+    mockTranslate.mockReset();
+    mockPersistPractice.mockReset().mockImplementation(async session => ({ status: "saved", session }));
+    mockGetKnowledgeDocument.mockReset().mockImplementation(async () => {
+      const props = mockInteractiveLearningModal.mock.calls.at(-1)?.[0];
+      return { ...dummyDoc, content_en: props?.documentContentEn || undefined, title_en: props?.documentTitleEn || undefined };
+    });
     mockCreateLeitnerCard.mockReset().mockResolvedValue(undefined);
     mockUpdateKnowledgeDocument.mockReset().mockImplementation(async (_u, _id, patch) => ({
       ...dummyDoc,
@@ -79,6 +96,39 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
+  it("ignores a late translation after switching documents", async () => {
+    mockIsEn = true;
+    let resolve!: (value: { title_en: string; content_en: string }) => void;
+    mockTranslate.mockReturnValue(new Promise(r => { resolve = r; }));
+    const props = { userId: "user-1", folder: null, onEdit: () => {}, onDelete: () => {} };
+    const { rerender } = render(<KnowledgeDocumentReader {...props} document={dummyDoc} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate English Version" }));
+    rerender(<KnowledgeDocumentReader {...props} document={{ ...dummyDoc, id: "doc-2", title: "Next lesson" }} />);
+    await act(async () => { resolve({ title_en: "Stale translation", content_en: "<p>Old response</p>" }); });
+    expect(screen.queryByRole("region", { name: "Proposed translation" })).not.toBeInTheDocument();
+    expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
+  });
+  it("discards a translation proposal when the current source changes", async () => {
+    mockIsEn = true;
+    mockTranslate.mockResolvedValue({ title_en: "Proposed", content_en: "<p>Translation</p>" });
+    const props = { userId: "user-1", folder: null, onEdit: () => {}, onDelete: () => {} };
+    const { rerender } = render(<KnowledgeDocumentReader {...props} document={dummyDoc} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate English Version" }));
+    await screen.findByRole("button", { name: "Apply translation" });
+    rerender(<KnowledgeDocumentReader {...props} document={{ ...dummyDoc, content_html: "<p>New source</p>", updated_at: "2099-01-01T00:00:00Z" }} />);
+    expect(screen.queryByRole("button", { name: "Apply translation" })).not.toBeInTheDocument();
+    expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
+  });
+  it("rejects applying a translation when the persisted lesson changed without a reader refresh", async () => {
+    mockIsEn = true;
+    mockTranslate.mockResolvedValue({ title_en: "Proposed", content_en: "<p>Translation</p>" });
+    mockGetKnowledgeDocument.mockResolvedValue({ ...dummyDoc, content_html: "Newer cached source", updated_at: "v2" });
+    render(<KnowledgeDocumentReader userId="user-1" document={dummyDoc} folder={null} onEdit={() => {}} onDelete={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Generate English Version" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Apply translation" }));
+    await waitFor(() => expect(mockGetKnowledgeDocument).toHaveBeenCalledWith("user-1", "doc-1"));
+    expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
+  });
 
   it("1. renders empty state when no document is selected", () => {
     render(
@@ -618,8 +668,9 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       content_en: "<p>English Fluoxetine text</p>",
       preferred_language: "bilingual",
     };
+    beforeEach(() => { mockGetKnowledgeDocument.mockResolvedValue(bilingualDoc); });
 
-    it("passes English content to modal in English reading mode and saves to content_en only", async () => {
+    it("defaults reader practice to standalone mode and saves an English session without editing the source", async () => {
       render(
         <KnowledgeDocumentReader
           userId="user-1"
@@ -638,6 +689,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
         expect(mockInteractiveLearningModal).toHaveBeenCalledWith(
           expect.objectContaining({
             open: true,
+            presentationMode: "standalone",
             languageOverride: "en",
             documentTitle: "Fluoxetine Guide",
             documentContent: "<p>English Fluoxetine text</p>",
@@ -652,21 +704,14 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       fireEvent.click(insertBtn);
 
       await waitFor(() => {
-        expect(mockUpdateKnowledgeDocument).toHaveBeenCalledWith(
-          "user-1",
-          "doc-1",
-          expect.objectContaining({
-            content_en: expect.stringContaining("Generated widget"),
-          })
-        );
+        expect(mockPersistPractice).toHaveBeenCalledWith(expect.objectContaining({ user_id: "user-1", document_id: "doc-1", language: "en", content_html: expect.stringContaining("Generated widget") }));
       });
 
       // Crucial: content_html must NOT be in the patch
-      const patch = mockUpdateKnowledgeDocument.mock.calls[0][2];
-      expect(patch.content_html).toBeUndefined();
+      expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
     });
 
-    it("passes Persian content to modal in Persian reading mode and saves to content_html only", async () => {
+    it("passes Persian content to standalone practice and saves a Persian session", async () => {
       render(
         <KnowledgeDocumentReader
           userId="user-1"
@@ -699,21 +744,14 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       fireEvent.click(insertBtn);
 
       await waitFor(() => {
-        expect(mockUpdateKnowledgeDocument).toHaveBeenCalledWith(
-          "user-1",
-          "doc-1",
-          expect.objectContaining({
-            content_html: expect.stringContaining("Generated widget"),
-          })
-        );
+        expect(mockPersistPractice).toHaveBeenCalledWith(expect.objectContaining({ document_id: "doc-1", language: "fa", content_html: expect.stringContaining("Generated widget") }));
       });
 
       // Crucial: content_en must NOT be in the patch
-      const patch = mockUpdateKnowledgeDocument.mock.calls[0][2];
-      expect(patch.content_en).toBeUndefined();
+      expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
     });
 
-    it("passes both languages to modal in bilingual mode and writes to both content_html and content_en with shared block ID", async () => {
+    it("keeps bilingual generation in a separate supported session without mirroring into source fields", async () => {
       render(
         <KnowledgeDocumentReader
           userId="user-1"
@@ -749,22 +787,10 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       fireEvent.click(insertBtn);
 
       await waitFor(() => {
-        expect(mockUpdateKnowledgeDocument).toHaveBeenCalledWith(
-          "user-1",
-          "doc-1",
-          expect.objectContaining({
-            content_html: expect.stringContaining("Generated widget"),
-            content_en: expect.stringContaining('data-bilingual-mirror="true"'),
-          })
-        );
+        expect(mockPersistPractice).toHaveBeenCalledWith(expect.objectContaining({ document_id: "doc-1", language: "en", content_html: expect.stringContaining("Generated widget") }));
       });
 
-      const patch = mockUpdateKnowledgeDocument.mock.calls[0][2];
-      const htmlBlockIdMatch = patch.content_html.match(/data-bilingual-block-id="([^"]+)"/);
-      const enBlockIdMatch = patch.content_en.match(/data-bilingual-block-id="([^"]+)"/);
-      expect(htmlBlockIdMatch).not.toBeNull();
-      expect(enBlockIdMatch).not.toBeNull();
-      expect(htmlBlockIdMatch![1]).toBe(enBlockIdMatch![1]);
+      expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
     });
 
     it("renders mirror interactive widget in single English view, but suppresses it in bilingual side-by-side view to avoid duplication", () => {
@@ -872,8 +898,8 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       expect(colEn?.textContent).toContain("English Standalone Module");
     });
 
-    it("propagates save rejection from updateKnowledgeDocument to caller without swallowing", async () => {
-      mockUpdateKnowledgeDocument.mockRejectedValueOnce(new Error("Database disconnected"));
+    it("propagates failed practice retention to the modal without editing the source", async () => {
+      mockPersistPractice.mockResolvedValueOnce({ status: "failed", error: "Database disconnected" });
 
       render(
         <KnowledgeDocumentReader
@@ -896,6 +922,7 @@ describe("KnowledgeDocumentReader", { timeout: 15000 }, () => {
       await expect(
         modalProps.onInsertContent('<div class="interactive-learning-block"><p>Widget</p></div>', "append")
       ).rejects.toThrow("Database disconnected");
+      expect(mockUpdateKnowledgeDocument).not.toHaveBeenCalled();
     });
   });
 });

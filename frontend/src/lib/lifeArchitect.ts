@@ -1108,7 +1108,7 @@ export function previewLifeBlueprint(
   blueprint: LifeBlueprint,
   selection: LifeBlueprintSelection = {},
 ): LifeBlueprintDeploymentCounts {
-  const folderSelected = (folderId: string) => !selection.folderIds || selection.folderIds.has(folderId);
+  const folderSelected = (folderId: string) => blueprint.folders.some((f) => f.id === folderId) && (!selection.folderIds || selection.folderIds.has(folderId));
   return {
     foldersCount: blueprint.folders.filter((f) => folderSelected(f.id)).length,
     // A goal can only be created inside a folder that is actually being deployed.
@@ -1198,15 +1198,19 @@ export async function deployLifeBlueprint(
 
     // Store in kanban storage
     const storageKey = `arshnaz_kanban_goals_v3_${realFolderId}`;
+    let locallySaved = false;
     try {
       const raw = localStorage.getItem(storageKey);
       const existing: GoalKanban[] = raw ? JSON.parse(raw) : [];
-      localStorage.setItem(storageKey, JSON.stringify([...existing, newGoal]));
+      const serialized = JSON.stringify([...existing, newGoal]);
+      localStorage.setItem(storageKey, serialized);
+      locallySaved = localStorage.getItem(storageKey) === serialized;
     } catch {}
 
     // Also sync to Mind Goals (ACT)
+    let mindSaved = false;
     try {
-      await upsertMindGoal(userId, {
+      mindSaved = await upsertMindGoal(userId, {
         id: goalId,
         user_id: userId,
         domain: g.folderId,
@@ -1215,7 +1219,8 @@ export async function deployLifeBlueprint(
         created_at: new Date().toISOString(),
       });
     } catch {}
-    goalsCount++;
+    // Both surfaces are promised by this mutation. Never report a failed write as success.
+    if (locallySaved && mindSaved) goalsCount++;
   }
 
   // 3. Sync Mind Values (ACT) — merge into the existing document so ratings/reflections
@@ -1225,11 +1230,10 @@ export async function deployLifeBlueprint(
     if (valueKeys.length > 0) {
       try {
         let existing: Record<string, any> = {};
-        try {
-          const snap = await getDoc(doc(db, "users", userId, "mind_settings", "values"));
-          const raw = snap.exists() ? snap.data()?.values : null;
-          if (raw && typeof raw === "object" && !Array.isArray(raw)) existing = raw as Record<string, any>;
-        } catch {}
+        // A failed read is not an empty document: do not erase unknown existing ratings.
+        const snap = await getDoc(doc(db, "users", userId, "mind_settings", "values"));
+        const raw = snap.exists() ? snap.data()?.values : null;
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) existing = raw as Record<string, any>;
         const merged = mergeMindValues(existing, valueKeys);
         if (await saveMindValues(userId, merged)) valuesCount = valueKeys.length;
       } catch {}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSettings } from "@/lib/reminders";
+import { readLastRoute } from "@/lib/appNavigation";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -15,10 +16,10 @@ const Index = () => {
       try {
         const s = await loadSettings(user.id);
         if (cancelled) return;
-        const lastPath = localStorage.getItem("last_route");
+        const lastPath = readLastRoute(user.id);
         if (s?.default_landing === "today") {
           setTarget({ uid: user.id, path: "/app/today" });
-        } else if (s?.default_landing === "last" && lastPath && lastPath.startsWith("/app/")) {
+        } else if (s?.default_landing === "last" && lastPath) {
           setTarget({ uid: user.id, path: lastPath });
         } else {
           setTarget({ uid: user.id, path: "/app/today" });

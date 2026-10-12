@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { FEATURES, FEATURE_CENTERS, findFeature, getFeatureLabel, featureSearchText } from "./featureRegistry";
+import { FEATURES, FEATURE_CENTERS, findFeature, getFeatureLabel, featureSearchText, getFeatureNavigation, isFeatureAvailable } from "./featureRegistry";
+import type { ModulesState } from "./appModules";
 
 /**
  * Every navigable `/app/*` feature declared in `src/App.tsx`, excluding
@@ -61,6 +62,28 @@ const NAVIGABLE_FEATURES = [
 ];
 
 describe("featureRegistry", () => {
+  it("maps canonical navigation and rejects unknown routes rather than inventing destinations", () => {
+    const feature = findFeature("/app/tools")!;
+    expect(getFeatureNavigation(feature.to)).toEqual({ url: feature.to, label: feature.nameFa, icon: feature.icon });
+    expect(() => getFeatureNavigation("/app/not-a-route")).toThrow("Unregistered navigation feature");
+  });
+
+  it("retains understandable aliases in feature search", () => {
+    expect(featureSearchText(findFeature("/app/tools")!)).toContain("code vault");
+    expect(featureSearchText(findFeature("/app/thoughts")!)).toContain("think it through");
+    expect(featureSearchText(findFeature("/app/thoughts")!)).toContain("بررسی فکر");
+    expect(featureSearchText(findFeature("/app/checkin")!)).toContain("حال امروز");
+  });
+
+  it("uses existing module access rules and keeps admin access separate", () => {
+    const locked: ModulesState = { ready: true, installed: [], unlocked: ["mind", "study"], isAdmin: false, isOwner: false };
+    expect(isFeatureAvailable(findFeature("/app/knowledge")!, locked)).toBe(false);
+    expect(isFeatureAvailable(findFeature("/app/mind/trends")!, locked)).toBe(false);
+    expect(isFeatureAvailable(findFeature("/app/crisis")!, locked)).toBe(true);
+    expect(isFeatureAvailable(findFeature("/app/admin")!, locked)).toBe(false);
+    expect(isFeatureAvailable(findFeature("/app/admin")!, locked, true)).toBe(true);
+    expect(isFeatureAvailable(findFeature("/app/knowledge")!, { ...locked, installed: ["study"] })).toBe(true);
+  });
   it("covers every navigable feature with a registry entry (no orphans)", () => {
     const registered = new Set(FEATURES.map((feature) => feature.to));
     const orphans = NAVIGABLE_FEATURES.filter((to) => !registered.has(to));

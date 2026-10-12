@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Tag, Plus, ChevronDown, GripVertical,
+  Tag, Plus, ChevronDown, GripVertical, MoreHorizontal,
 } from "lucide-react";
 import { SECTION_CHEVRON_CLASS, SECTION_HEADER_CLASS, SECTION_TRIGGER_CLASS } from "./SidebarNavSections";
 import {
@@ -8,7 +8,7 @@ import {
   SidebarMenu, SidebarMenuButton, SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,9 @@ export function TagRow({
             {!collapsed && <span className="truncate" title={tagItem.name}>{tagItem.name}</span>}
           </NavLink>
         </SidebarMenuButton>
+        <button type="button" className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Manage tag / مدیریت تگ: ${tagItem.name}`} onClick={(e) => { e.stopPropagation(); onLongPress(); }}>
+          <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+        </button>
       </div>
     </SidebarMenuItem>
   );
@@ -102,10 +105,18 @@ export function SidebarTagsList({
   setNewTag,
   createTag,
 }: SidebarTagsListProps) {
+  const creationDialog = (
+    <Dialog open={openTagDlg} onOpenChange={setOpenTagDlg}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{isEn ? "New Tag" : "تگ جدید"}</DialogTitle></DialogHeader>
+        <Input aria-label={isEn ? "Tag name" : "نام تگ"} placeholder={isEn ? "Tag name" : "نام تگ"} value={newTag} onChange={(e) => setNewTag(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); createTag(); } }} />
+        <DialogFooter><Button onClick={createTag}>{isEn ? "Create" : "ایجاد"}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
   if (collapsed) {
-    if (tags.length === 0) return null;
     return (
-      <SidebarGroup className="p-0.5">
+      <>{creationDialog}<SidebarGroup className="p-0.5">
         <SidebarGroupContent>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -133,9 +144,9 @@ export function SidebarTagsList({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 rounded-md hover:bg-accent cursor-pointer"
+                      className="h-11 w-11 rounded-md hover:bg-accent cursor-pointer"
                       onClick={() => setOpenTagDlg(true)}
-                      title={isEn ? "New Tag" : "تگ جدید"}
+                      aria-label={isEn ? "New Tag" : "تگ جدید"}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </Button>
@@ -159,12 +170,12 @@ export function SidebarTagsList({
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>
-      </SidebarGroup>
+      </SidebarGroup></>
     );
   }
 
   return (
-    <SidebarGroup className="py-0.5">
+    <>{creationDialog}<SidebarGroup className="py-0.5">
       <Collapsible open={isOpen || collapsed} onOpenChange={onToggleOpen}>
         {!collapsed && (
           <SidebarGroupLabel className={SECTION_HEADER_CLASS} data-testid="sidebar-section-tags">
@@ -181,30 +192,14 @@ export function SidebarTagsList({
               <span className="min-w-0 flex-1 truncate text-start">{tr("تگ‌ها")}</span>
               <ChevronDown className={`${SECTION_CHEVRON_CLASS} ${isOpen ? "" : "-rotate-90"}`} />
             </CollapsibleTrigger>
-            <Dialog open={openTagDlg} onOpenChange={setOpenTagDlg}>
-              <DialogTrigger asChild>
                 <button
-                  className="grid h-10 w-10 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100"
-                  title={isEn ? "New Tag" : "تگ جدید"}
+                  type="button"
+                  onClick={() => setOpenTagDlg(true)}
+                  className="grid h-11 w-11 place-items-center rounded-md text-muted-foreground opacity-70 transition-colors hover:bg-sidebar-accent hover:text-foreground hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={isEn ? "New Tag" : "تگ جدید"}
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{isEn ? "New Tag" : "تگ جدید"}</DialogTitle>
-                </DialogHeader>
-                <Input
-                  placeholder={isEn ? "Tag name" : "نام تگ"}
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createTag()}
-                />
-                <DialogFooter>
-                  <Button onClick={createTag}>{isEn ? "Create" : "ایجاد"}</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </SidebarGroupLabel>
         )}
         <CollapsibleContent forceMount={collapsed ? true : undefined}>
@@ -223,6 +218,6 @@ export function SidebarTagsList({
           </SidebarGroupContent>
         </CollapsibleContent>
       </Collapsible>
-    </SidebarGroup>
+    </SidebarGroup></>
   );
 }

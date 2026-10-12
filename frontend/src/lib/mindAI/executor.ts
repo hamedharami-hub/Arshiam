@@ -24,12 +24,7 @@ const debounceCache = new Map<string, CacheEntry>();
 const DEBOUNCE_MS = 2000;
 
 function computeCacheKey(ctx: MindAIContext): string {
-  const fields = ctx.currentRecord?.fields || {};
-  const fieldsStr = Object.keys(fields)
-    .sort()
-    .map((k) => `${k}:${JSON.stringify(fields[k]?.value)}`)
-    .join("|");
-  return `${ctx.operation}:${ctx.language}:${fieldsStr}`;
+  return `${ctx.promptVersion}:${formatContextForPrompt(ctx)}`;
 }
 
 export async function executeMindAI<T = any>(
@@ -37,9 +32,10 @@ export async function executeMindAI<T = any>(
   options?: {
     signal?: AbortSignal;
     timeoutMs?: number;
+    cacheScope?: string;
   }
 ): Promise<MindAIResult<T>> {
-  const cacheKey = computeCacheKey(ctx);
+  const cacheKey = `${options?.cacheScope || ""}:${computeCacheKey(ctx)}`;
   const now = Date.now();
   const cached = debounceCache.get(cacheKey);
 
@@ -51,8 +47,10 @@ export async function executeMindAI<T = any>(
   const controller = new AbortController();
 
   // If external signal fires, abort controller
+  const abort = () => controller.abort();
   if (options?.signal) {
-    options.signal.addEventListener("abort", () => controller.abort());
+    if (options.signal.aborted) controller.abort();
+    else options.signal.addEventListener("abort", abort, { once: true });
   }
 
   const timeoutTimer = setTimeout(() => {
@@ -80,6 +78,7 @@ export async function executeMindAI<T = any>(
         {
           systemPromptOverride: systemPrompt,
           signal: controller.signal,
+          skipPersonalization: true,
         }
       );
       const duration = Date.now() - startTime;
@@ -116,6 +115,7 @@ export async function executeMindAI<T = any>(
       };
     } finally {
       clearTimeout(timeoutTimer);
+      options?.signal?.removeEventListener("abort", abort);
     }
   })();
 

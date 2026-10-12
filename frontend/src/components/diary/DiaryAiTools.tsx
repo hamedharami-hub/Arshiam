@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { useBilingual } from "@/hooks/useBilingual";
 import { callAI, getAILanguage } from "@/lib/ai";
 import { plainTextOf } from "@/lib/diary";
+import { useAuth } from "@/hooks/useAuth";
 
 type Props = {
   /** Identity of the entry the tools are operating on. Requests are scoped to it. */
@@ -18,7 +19,7 @@ type Props = {
   onApplyTitle: (title: string) => void;
 };
 
-type RequestScope = { entryId: string; revision: number; content: string };
+type RequestScope = { ownerId: string | null; entryId: string; revision: number; content: string; title: string };
 
 const TEXT_ACTIONS = [
   { key: "improve", fa: "بهبود نگارش با حفظ لحن شخصی", en: "Polish the writing, keep my voice" },
@@ -32,24 +33,35 @@ const TEXT_ACTIONS = [
 
 export function DiaryAiTools({ entryId, revision, content, title, onApplyContent, onApplyTitle }: Props) {
   const { T, isEn } = useBilingual();
+  const { user } = useAuth();
+  const ownerId = user?.id ?? null;
   const [busy, setBusy] = useState<string | null>(null);
   // Undo is scoped to the entry (and the exact AI-produced text it reverts), so it
   // can never be applied to a different entry or clobber newer edits.
-  const [previous, setPrevious] = useState<{ entryId: string; applied: string; base: string } | null>(null);
+  const [previous, setPrevious] = useState<{ ownerId: string | null; entryId: string; target: "content" | "title"; applied: string; base: string } | null>(null);
   // A reviewable proposal replaces the old "apply immediately" behaviour.
-  const [proposal, setProposal] = useState<{ scope: RequestScope; text: string } | null>(null);
-  const scopeRef = useRef<RequestScope>({ entryId, revision, content });
-  scopeRef.current = { entryId, revision, content };
+  const [proposal, setProposal] = useState<{ scope: RequestScope; text: string; target: "content" | "title" } | null>(null);
+  const scopeRef = useRef<RequestScope>({ ownerId, entryId, revision, content, title });
+  scopeRef.current = { ownerId, entryId, revision, content, title };
+  const requestRef = useRef(0);
+  const matchesScope = (scope: RequestScope) => {
+    const current = scopeRef.current;
+    return current.ownerId === scope.ownerId && current.entryId === scope.entryId && current.revision === scope.revision && current.content === scope.content && current.title === scope.title;
+  };
 
   // Reset transient AI state when the open entry changes.
   useEffect(() => {
     setBusy(null);
     setProposal(null);
-  }, [entryId]);
+    setPrevious(null);
+    requestRef.current += 1;
+    return () => { requestRef.current += 1; };
+  }, [entryId, ownerId]);
 
   const run = async (key: string, instruction: string, target: "content" | "title") => {
     if (!plainTextOf(content)) { toast.error(T("اول چند خط از روزت را بنویس", "Write a few lines about your day first")); return; }
-    const request: RequestScope = { entryId, revision, content };
+    const request: RequestScope = { ownerId, entryId, revision, content, title };
+    const requestId = ++requestRef.current;
     setBusy(key);
     try {
       const context = target === "title"
@@ -59,18 +71,12 @@ export function DiaryAiTools({ entryId, revision, content, title, onApplyContent
       const text = (result.text || "").trim();
       if (!text) throw new Error(T("پاسخ خالی بود", "Empty response"));
       // Ignore a result that is no longer about the entry/revision that requested it.
-      const current = scopeRef.current;
-      if (current.entryId !== request.entryId || current.revision !== request.revision || current.content !== request.content) return;
-      if (target === "title") {
-        onApplyTitle(text.replace(/^["'«»#\s]+|["'«»\s]+$/g, "").slice(0, 120));
-        toast.success(T("اعمال شد ✨", "Applied ✨"));
-      } else {
-        setProposal({ scope: request, text });
-      }
+      if (requestRef.current !== requestId || !matchesScope(request)) return;
+      setProposal({ scope: request, target, text: target === "title" ? text.replace(/^["'«»#\s]+|["'«»\s]+$/g, "").slice(0, 120) : text });
     } catch (error: any) {
-      toast.error(error?.message || T("هوش مصنوعی در دسترس نیست", "AI is not available"));
+      if (requestRef.current === requestId && matchesScope(request)) toast.error(error?.message || T("هوش مصنوعی در دسترس نیست", "AI is not available"));
     } finally {
-      setBusy(null);
+      if (requestRef.current === requestId) setBusy(null);
     }
   };
 
@@ -78,31 +84,33 @@ export function DiaryAiTools({ entryId, revision, content, title, onApplyContent
 
   const applyProposal = () => {
     if (!proposal) return;
-    const { scope, text } = proposal;
+    const { scope, text, target } = proposal;
     // The proposal is only valid while we are still on the same entry/revision.
-    if (scope.entryId !== entryId || scope.revision !== revision || scope.content !== content) {
+    if (!matchesScope(scope)) {
       setProposal(null);
       return;
     }
-    setPrevious({ entryId: scope.entryId, applied: text, base: scope.content });
+    setPrevious({ ownerId, entryId: scope.entryId, target, applied: text, base: target === "title" ? scope.title : scope.content });
     setProposal(null);
-    onApplyContent(text);
+    if (target === "title") onApplyTitle(text);
+    else onApplyContent(text);
     toast.success(T("اعمال شد ✨", "Applied ✨"));
   };
 
   const undo = () => {
     if (!previous) return;
-    if (previous.entryId !== entryId || content !== previous.applied) {
+    if (previous.ownerId !== ownerId || previous.entryId !== entryId || (previous.target === "title" ? title : content) !== previous.applied) {
       setPrevious(null);
       return;
     }
     const base = previous.base;
     setPrevious(null);
-    onApplyContent(base);
+    if (previous.target === "title") onApplyTitle(base);
+    else onApplyContent(base);
   };
 
-  const canUndo = Boolean(previous && previous.entryId === entryId && content === previous.applied);
-  const visibleProposal = proposal && proposal.scope.entryId === entryId && proposal.scope.revision === revision && proposal.scope.content === content ? proposal : null;
+  const canUndo = Boolean(previous && previous.ownerId === ownerId && previous.entryId === entryId && (previous.target === "title" ? title : content) === previous.applied);
+  const visibleProposal = proposal && matchesScope(proposal.scope) ? proposal : null;
 
   return (
     <div className="flex flex-col items-start gap-1" data-testid="diary-ai-tools">

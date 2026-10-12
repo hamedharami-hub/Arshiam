@@ -1,4 +1,25 @@
 export type LastStudyLanguage = "fa" | "en" | "bilingual";
+/** Bound untrusted URL values; never interpolate them into selectors or paths. */
+export function readStudyResumeParams(search: string) {
+  const params = new URLSearchParams(search);
+  const value = (name: string) => {
+    const raw = params.get(name);
+    return raw && raw.length <= 200 && !/[\u0000-\u001f\u007f]/.test(raw) ? raw : undefined;
+  };
+  const language = params.get("sourceLang") ?? params.get("lang");
+  return { docId: value("docId"), language: language === "fa" || language === "en" || language === "bilingual" ? language : undefined,
+    section: value("section"), card: value("card"), version: value("version") };
+}
+export function studyResumeUrl(study: LastStudy, versionMatches = true): string {
+  const params = new URLSearchParams({ docId: study.docId });
+  if (study.language) params.set("sourceLang", study.language);
+  if (study.version) params.set("version", study.version);
+  if (versionMatches) {
+    if (study.section) params.set("section", study.section);
+    if (study.card) params.set("card", study.card);
+  }
+  return `/app/${study.practice ? "interactive-study" : "knowledge"}?${params}`;
+}
 /**
  * The last studied lesson plus enough context to resume it precisely: which
  * source version, reading language, section/card, and whether the reader was

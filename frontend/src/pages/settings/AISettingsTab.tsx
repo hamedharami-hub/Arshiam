@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import {
-  Sparkles, Save, Trash2, Languages, Shield, Wand2, Star, RefreshCw, Eye, Cpu, Settings2,
+  Sparkles, Trash2, Languages, Shield, Wand2, Star, RefreshCw, Eye, Cpu, Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -350,15 +350,14 @@ export function AISettingsTab({
       .sort((a, b) => GROUP_ORDER.indexOf(a.groupEn) - GROUP_ORDER.indexOf(b.groupEn));
   }, [isEn]);
 
+  const [confirmation, setConfirmation] = useState<{ title: string; description: string; apply: () => void } | null>(null);
+  const confirmChange = (title: string, description: string, apply: () => void) =>
+    setConfirmation({ title, description, apply });
+
   const onLangChange = (v: AILanguage) => {
     setLang(v);
     setAILanguage(v);
     toast.success(t("toasts.aiLangSaved"));
-  };
-
-  const save = () => {
-    saveAISettings(settings);
-    toast.success(t("settings.saved"));
   };
 
   const reset = () => {
@@ -373,7 +372,7 @@ export function AISettingsTab({
   const applyRecommendedToAll = () => {
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "recommended";
-    const next = { ...settings, perOp: {}, opStrategies: strategies, useRecommended: true };
+    const next = { ...settings, opStrategies: strategies, useRecommended: true };
     setSettings(next);
     saveAISettings(next);
     toast.success(isEn ? "Recommended models applied to all sections." : "مدل پیشنهادی روی همه بخش‌ها اعمال شد.");
@@ -382,7 +381,7 @@ export function AISettingsTab({
   const applyDefaultToAll = () => {
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "global";
-    const next = { ...settings, perOp: {}, opStrategies: strategies, useRecommended: false };
+    const next = { ...settings, opStrategies: strategies, useRecommended: false };
     setSettings(next);
     saveAISettings(next);
     toast.success(isEn ? "Default model applied to every AI feature." : "مدل پیش‌فرض برای همهٔ بخش‌های هوش مصنوعی فعال شد.");
@@ -400,11 +399,8 @@ export function AISettingsTab({
   const setOpStrategy = (op: AIOperation, strategy: OpStrategy) => {
     const next = { ...settings, opStrategies: { ...settings.opStrategies } };
     next.opStrategies[op] = strategy;
-    if (strategy !== "custom") {
-      const perOp = { ...next.perOp };
-      delete perOp[op];
-      next.perOp = perOp;
-    } else if (!next.perOp[op]) {
+    // Keep custom credentials/configuration available when a strategy is disabled.
+    if (strategy === "custom" && !next.perOp[op]) {
       next.perOp = { ...next.perOp, [op]: resolveOpConfig(next, op) };
     }
     setSettings(next);
@@ -435,6 +431,21 @@ export function AISettingsTab({
 
   return (
     <div className="space-y-5">
+      <p className="text-xs text-muted-foreground" role="status">
+        {isEn ? "Changes are saved automatically on this device. Bulk changes and removal require confirmation." : "تغییرات به‌صورت خودکار روی این دستگاه ذخیره می‌شوند. تغییرات کلی و حذف نیاز به تأیید دارند."}
+      </p>
+      <Dialog open={Boolean(confirmation)} onOpenChange={(open) => { if (!open) setConfirmation(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmation?.title}</DialogTitle>
+            <DialogDescription>{confirmation?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmation(null)}>{isEn ? "Cancel" : "لغو"}</Button>
+            <Button onClick={() => { const pending = confirmation; setConfirmation(null); pending?.apply(); }}>{isEn ? "Confirm Change" : "تأیید تغییر"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <SectionCard
         icon={Cpu}
         title={isEn ? "Offline voice & assistant" : "صدا و دستیار آفلاین"}
@@ -481,7 +492,10 @@ export function AISettingsTab({
                 variant="outline"
                 size="sm"
                 className="gap-1.5 text-destructive hover:bg-destructive/10 border-destructive/30 text-xs h-8"
-                onClick={() => {
+                onClick={() => confirmChange(
+                  isEn ? "Remove all AI keys?" : "حذف همه کلیدهای هوش مصنوعی؟",
+                  isEn ? "All locally stored AI keys will be removed. AI features may stop working until you enter keys again. This cannot be undone." : "همه کلیدهای محلی حذف می‌شوند. قابلیت‌های هوش مصنوعی ممکن است تا ورود دوباره کلیدها کار نکنند. این حذف قابل بازگردانی نیست.",
+                  () => {
                   clearAllStoredAIKeys();
                   setSettings(loadAISettings());
                   toast.success(
@@ -489,7 +503,7 @@ export function AISettingsTab({
                       ? "All locally stored AI keys have been completely removed from this device."
                       : "تمام کلیدهای ذخیره‌شده هوش مصنوعی با موفقیت از این دستگاه حذف شدند."
                   );
-                }}
+                })}
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 {isEn ? "Remove all locally stored AI keys" : "حذف یک‌کلیکه تمام کلیدهای هوش مصنوعی از این دستگاه"}
@@ -550,19 +564,18 @@ export function AISettingsTab({
         description={t("settings.aiGlobalDefaultDesc")}
       >
         <p className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
-          {isEn ? "Choose one provider and model here, save it, then apply it to all AI features. You can change any feature individually below." : "اینجا یک سرویس و مدل را انتخاب و ذخیره کن، سپس آن را برای همهٔ قابلیت‌های هوش مصنوعی فعال کن. هر بخش را بعداً می‌توانی جداگانه تغییر بدهی."}
+          {isEn ? "Provider and model changes save automatically. Applying them everywhere requires confirmation and keeps your custom configurations for later reuse." : "تغییرات سرویس و مدل خودکار ذخیره می‌شوند. اعمال روی همه بخش‌ها نیاز به تأیید دارد و تنظیمات اختصاصی برای استفاده دوباره حفظ می‌شوند."}
         </p>
         <ProviderEditor
           isEn={isEn}
           value={settings.default}
-          onChange={(c) => setSettings({ ...settings, default: c })}
+          onChange={(c) => { const next = { ...settings, default: c }; setSettings(next); saveAISettings(next); }}
           hiddenModels={settings.providerHiddenModels}
           onUpdateHidden={updateProviderHidden}
         />
         <div className="pt-1">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={save} size="sm" variant="outline" className="gap-2"><Save className="w-3.5 h-3.5" /> {t("common.save")}</Button>
-            <Button onClick={applyDefaultToAll} size="sm" className="gap-2"><Sparkles className="w-3.5 h-3.5" /> {isEn ? "Set as default everywhere" : "پیش‌فرض همهٔ بخش‌ها"}</Button>
+            <Button onClick={() => confirmChange(isEn ? "Use the default everywhere?" : "استفاده از پیش‌فرض در همه بخش‌ها؟", isEn ? "Every AI feature will use the global default. Custom configurations and their keys will be kept but inactive." : "همه قابلیت‌ها از پیش‌فرض استفاده می‌کنند. تنظیمات اختصاصی و کلیدهای آن‌ها حفظ اما غیرفعال می‌شوند.", applyDefaultToAll)} size="sm" className="gap-2"><Sparkles className="w-3.5 h-3.5" /> {isEn ? "Set as default everywhere" : "پیش‌فرض همهٔ بخش‌ها"}</Button>
           </div>
         </div>
       </SectionCard>
@@ -576,10 +589,10 @@ export function AISettingsTab({
         description={t("settings.aiPerSectionDesc")}
       >
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={applyRecommendedToAll}>
+          <Button size="sm" variant="outline" onClick={() => confirmChange(isEn ? "Use recommended models everywhere?" : "استفاده از مدل‌های پیشنهادی در همه بخش‌ها؟", isEn ? "Every AI feature will use its recommended model. Custom configurations and their keys will be kept but inactive." : "همه قابلیت‌ها از مدل پیشنهادی استفاده می‌کنند. تنظیمات اختصاصی و کلیدهای آن‌ها حفظ اما غیرفعال می‌شوند.", applyRecommendedToAll)}>
             <Star className="w-3.5 h-3.5 me-1" /> {t("settings.applyRecommendedToAll")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={clearAllOverrides}>
+          <Button size="sm" variant="ghost" onClick={() => confirmChange(isEn ? "Clear all custom configurations?" : "حذف همه تنظیمات اختصاصی؟", isEn ? "All per-feature custom configurations, including keys stored in them, will be deleted and recommended models enabled. This cannot be undone." : "همه تنظیمات اختصاصی هر قابلیت و کلیدهای داخل آن حذف و مدل‌های پیشنهادی فعال می‌شوند. این حذف قابل بازگردانی نیست.", clearAllOverrides)}>
             <Trash2 className="w-3.5 h-3.5 me-1" /> {t("settings.clearAllOverrides")}
           </Button>
         </div>
@@ -647,8 +660,7 @@ export function AISettingsTab({
           ))}
         </Accordion>
         <div className="flex gap-2 pt-2">
-          <Button onClick={save} className="gap-2"><Save className="w-4 h-4" /> {t("common.saveAll")}</Button>
-          <Button variant="outline" onClick={reset} className="gap-2"><Trash2 className="w-4 h-4" /> {t("common.reset")}</Button>
+          <Button variant="outline" onClick={() => confirmChange(isEn ? "Reset AI settings?" : "بازنشانی تنظیمات هوش مصنوعی؟", isEn ? "The default provider, custom configurations and keys stored in these configurations, model visibility, and personalization preference will be reset. This cannot be undone." : "سرویس پیش‌فرض، تنظیمات اختصاصی و کلیدهای داخل آن‌ها، نمایش مدل‌ها و ترجیح شخصی‌سازی بازنشانی می‌شوند. این تغییر قابل بازگردانی نیست.", reset)} className="gap-2"><Trash2 className="w-4 h-4" /> {t("common.reset")}</Button>
         </div>
       </SectionCard>
     </div>

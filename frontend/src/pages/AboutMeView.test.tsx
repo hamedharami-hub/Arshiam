@@ -1,252 +1,106 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ uid: "owner-1", call: vi.fn(), save: vi.fn(), load: vi.fn() }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: mocks.uid } }) }));
+vi.mock("@/hooks/useBilingual", () => ({ useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true }) }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }) }));
+vi.mock("@/components/HeaderTitlePortal", () => ({ HeaderTitlePortal: () => null }));
+vi.mock("@/lib/firebase", () => ({ auth: { get currentUser() { return { uid: mocks.uid }; } } }));
+vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: {} }));
+vi.mock("@/lib/ai", () => ({ callAI: mocks.call }));
+vi.mock("@/lib/aiSettings", () => ({
+  getOpConfig: () => ({ provider: "openai", model: "configured-model", apiKey: "secret" }),
+  PROVIDER_INFO: { openai: { label: "OpenAI" } },
+  isAIPersonalizationOptedIn: () => false, setAIPersonalizationOptedIn: vi.fn(),
+}));
+vi.mock("@/lib/aboutMe", () => ({
+  ABOUT_SECTIONS: [{ emoji: "", title: "Answers", questions: [{ key: "goal", label: "Goal", type: "text" }] }],
+  loadAboutMe: mocks.load, saveAboutMe: mocks.save, formatAboutMeForAI: () => [],
+}));
+
 import AboutMeView from "./AboutMeView";
+const result = { data: { ai_analysis: { summary: "Proposed summary", themes: ["Focus"], strengths: [], risks: [] }, ai_suggestions: { folders: [], tags: [], tasks: [] } } };
+const openPreview = async () => {
+  await screen.findByRole("button", { name: "Next" });
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Frozen goal" } });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  await screen.findByRole("button", { name: "Run AI Analysis" });
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Private text" } });
+  fireEvent.click(screen.getByRole("button", { name: "Run AI Analysis" }));
+};
 
-let mockUser = { id: "user_test_me", email: "me@example.com" };
-const mockedFirebaseAuth = vi.hoisted(() => ({ currentUser: null as { uid: string } | null }));
-vi.mock("@/lib/firebase", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/firebase")>()),
-  auth: mockedFirebaseAuth,
-}));
-vi.mock("@/hooks/useAuth", () => ({
-  useAuth: () => ({ user: mockUser }),
-}));
-
-vi.mock("@/hooks/useBilingual", () => ({
-  useBilingual: () => ({
-    T: (_fa: string, en: string) => en,
-    isEn: true,
-  }),
-}));
-
-vi.mock("sonner", () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  },
-}));
-
-let mockAboutMeRow: any = null;
-let mockAboutMeRows: Record<string, any> = {};
-vi.mock("@/lib/aboutMe", async (importOriginal) => {
-  const actual: any = await importOriginal();
-  return {
-    ...actual,
-    loadAboutMe: vi.fn(async (uid: string) => mockAboutMeRows[uid] ?? mockAboutMeRow),
-    saveAboutMe: vi.fn(async (_uid: string, patch: any) => {
-      const current = mockAboutMeRows[_uid] ?? mockAboutMeRow;
-      mockAboutMeRows[_uid] = { ...current, ...patch, user_id: _uid };
-      if (_uid === mockUser.id) mockAboutMeRow = mockAboutMeRows[_uid];
-    }),
-  };
-});
-
-let mockCallAIResult: any = null;
-let mockCallAIErr: Error | null = null;
-vi.mock("@/lib/ai", () => ({
-  callAI: vi.fn(async () => {
-    if (mockCallAIErr) throw mockCallAIErr;
-    return mockCallAIResult;
-  }),
-}));
-
-describe("AboutMeView AI analysis & answer preservation", () => {
+describe("About Me analysis consent", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockUser = { id: "user_test_me", email: "me@example.com" };
-    mockedFirebaseAuth.currentUser = { uid: mockUser.id };
-    mockAboutMeRow = {
-      user_id: "user_test_me",
-      answers: { occupation: "Designer" },
-      free_text: "Seeking better focus",
-      ai_analysis: null,
-      ai_suggestions: null,
-      analyzed_at: null,
-      updated_at: new Date().toISOString(),
-    };
-    mockAboutMeRows = { [mockUser.id]: mockAboutMeRow };
-    mockCallAIErr = null;
-    mockCallAIResult = {
-      provider: "gemini",
-      model: "gemini-2.5-flash",
-      data: {
-        ai_analysis: {
-          summary: "Creative professional seeking structured focus blocks.",
-          themes: ["Design", "Productivity"],
-          strengths: ["Creativity"],
-          risks: ["Distraction"],
-        },
-        ai_suggestions: {
-          folders: ["Creative Projects"],
-          tags: ["Design"],
-          tasks: [{ title: "Set morning creative hour", folder: "Creative Projects", priority: "high" }],
-        },
-      },
-    };
-    mockCallAIResult.text = JSON.stringify(mockCallAIResult.data);
+    mocks.uid = "owner-1";
+    mocks.load.mockReset().mockResolvedValue({ answers: {}, free_text: "" });
+    mocks.save.mockReset().mockResolvedValue(undefined);
+    mocks.call.mockReset().mockResolvedValue(result);
   });
 
-  it("renders questionnaire wizard and saves answers safely", async () => {
+  it("sends only the previewed payload after approval and saves analysis only after review", async () => {
     render(<AboutMeView />);
-
-    await waitFor(() => {
-      expect(screen.getByText("About Me")).toBeInTheDocument();
-    });
-
-    const nextBtn = screen.getByRole("button", { name: /Next/i });
-    expect(nextBtn).toBeInTheDocument();
+    await openPreview();
+    expect(mocks.call).not.toHaveBeenCalled();
+    expect(screen.getByText("OpenAI · configured-model")).toBeInTheDocument();
+    const input = JSON.parse(screen.getByRole("dialog").querySelector("pre")!.textContent!);
+    expect(screen.getByRole("dialog").textContent).not.toContain("secret");
+    fireEvent.click(screen.getByRole("button", { name: "Approve & Send for Analysis" }));
+    await screen.findByText("Review proposed analysis");
+    expect(mocks.call).toHaveBeenCalledWith("about_me_analysis", input, undefined, undefined, "en", expect.objectContaining({ skipPersonalization: true }));
+    expect(mocks.save.mock.calls.every(([, patch]) => !patch.ai_analysis)).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Approve & Save Analysis" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith("owner-1", expect.objectContaining({ ai_analysis: result.data.ai_analysis })));
   });
 
-  it("renders review mode with non-clinical disclaimer banner when analysis exists", async () => {
-    mockAboutMeRow.ai_analysis = {
-      summary: "Balanced personal summary",
-      themes: ["Wellness"],
-      strengths: ["Resilience"],
-      risks: ["Time crunch"],
-    };
-    mockAboutMeRow.ai_suggestions = {
-      folders: ["Wellness"],
-      tags: ["Health"],
-      tasks: [{ title: "Walk for 20 mins", priority: "medium" }],
-    };
-
+  it("cancel sends nothing and Save & Finish only saves answers", async () => {
     render(<AboutMeView />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Non-clinical personal summary/i)).toBeInTheDocument();
-      expect(screen.getByText("Balanced personal summary")).toBeInTheDocument();
-      expect(screen.getByText("Wellness")).toBeInTheDocument();
-    });
-
-    // Suggestions require explicit user click to apply
-    expect(screen.getByText("+ Wellness")).toBeInTheDocument();
-    expect(screen.getByText("# Health")).toBeInTheDocument();
+    await openPreview();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save & Finish" }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith("owner-1", { answers: { goal: "Frozen goal" }, free_text: "Private text" }));
+    expect(mocks.call).not.toHaveBeenCalled();
   });
 
-  it("preserves manual answers and displays error toast if AI analysis fails", async () => {
-    mockCallAIErr = new Error("Google Gemini API key not found");
+  it("invalidates consent on account change", async () => {
+    const view = render(<AboutMeView />);
+    await openPreview();
+    mocks.uid = "owner-2";
+    view.rerender(<AboutMeView />);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(mocks.call).not.toHaveBeenCalled();
+  });
 
+  it("invalidates an unapproved preview when answers change", async () => {
     render(<AboutMeView />);
-
-    await waitFor(() => {
-      expect(screen.getByText("About Me")).toBeInTheDocument();
-    });
-
-    // Save button triggers persist()
-    const saveBtn = await screen.findByRole("button", { name: /^Save$/i });
-    fireEvent.click(saveBtn);
-
-    const { toast } = await import("sonner");
-    await waitFor(() => {
-      expect(toast.success).toHaveBeenCalledWith("Answers saved successfully ✓");
-    });
+    await openPreview();
+    fireEvent.change(document.querySelector("textarea")!, { target: { value: "New private text" } });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(mocks.call).not.toHaveBeenCalled();
   });
 
-  it("does not save an unstructured response as an About Me analysis", async () => {
-    mockAboutMeRow.ai_analysis = {
-      summary: "Existing profile",
-      themes: ["Focus"],
-      strengths: ["Persistence"],
-      risks: ["Distraction"],
-    };
-    mockCallAIResult = {
-      text: "Here is some unstructured advice.",
-      // `callAI` normalizes malformed About Me output to an object. The page
-      // must validate the provider's original text instead of trusting it.
-      data: {
-        ai_analysis: { summary: "Here is some unstructured advice.", themes: [], strengths: [], risks: [] },
-        ai_suggestions: { folders: [], tags: [], tasks: [] },
-      },
-    };
-
+  it("rejecting a proposal never saves AI output", async () => {
     render(<AboutMeView />);
-    await screen.findByText("Existing profile");
-    fireEvent.click(screen.getByRole("button", { name: /Re-analyze/i }));
-
-    const { toast } = await import("sonner");
-    const aboutMe = await import("@/lib/aboutMe");
-    await waitFor(() => expect(toast.info).toHaveBeenCalledWith("Answers saved, but AI did not produce structured output."));
-    await waitFor(() => expect(screen.getByRole("button", { name: /Re-analyze/i })).toBeEnabled());
-    const writes = vi.mocked(aboutMe.saveAboutMe).mock.calls;
-    expect(writes.some(([, patch]) => Object.prototype.hasOwnProperty.call(patch, "ai_analysis"))).toBe(false);
+    await openPreview();
+    fireEvent.click(screen.getByRole("button", { name: "Approve & Send for Analysis" }));
+    await screen.findByText("Review proposed analysis");
+    fireEvent.click(screen.getByRole("button", { name: "Reject Proposal" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mocks.save.mock.calls.every(([, patch]) => !patch.ai_analysis)).toBe(true);
   });
 
-  it("does not carry a prior account's answers into the next account's AI request or save", async () => {
-    mockAboutMeRows = {
-      user_test_me: {
-        ...mockAboutMeRow,
-        answers: { occupation: "PRIVATE_OLD_ACCOUNT_ROLE" },
-        free_text: "PRIVATE_OLD_ACCOUNT_NOTE",
-      },
-      user_next: {
-        user_id: "user_next",
-        answers: { occupation: "Current account role" },
-        free_text: "Current account note",
-        ai_analysis: { summary: "Existing current profile", themes: ["Focus"], strengths: ["Care"], risks: ["Time"] },
-        ai_suggestions: { folders: [], tags: [], tasks: [] },
-        analyzed_at: null,
-        updated_at: new Date().toISOString(),
-      },
-    };
-    mockAboutMeRow = mockAboutMeRows.user_test_me;
-
-    const { rerender } = render(<AboutMeView />);
-    await screen.findByDisplayValue("PRIVATE_OLD_ACCOUNT_ROLE");
-
-    mockUser = { id: "user_next", email: "next@example.com" };
-    mockedFirebaseAuth.currentUser = { uid: mockUser.id };
-    rerender(<AboutMeView />);
-
-    await screen.findByText("Existing current profile");
-    expect(screen.queryByDisplayValue("PRIVATE_OLD_ACCOUNT_ROLE")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Re-analyze/i }));
-
-    await waitFor(async () => {
-      const ai = await import("@/lib/ai");
-      expect(ai.callAI).toHaveBeenCalled();
-    });
-    const ai = await import("@/lib/ai");
-    const latestCall = vi.mocked(ai.callAI).mock.calls.at(-1)!;
-    expect(latestCall[0]).toBe("about_me_analysis");
-    expect(latestCall[1]).toMatchObject({ answers: { occupation: "Current account role" }, free_text: "Current account note" });
-    expect(JSON.stringify(latestCall[1])).not.toContain("PRIVATE_OLD_ACCOUNT");
-
-    const aboutMe = await import("@/lib/aboutMe");
-    const ownerWrites = vi.mocked(aboutMe.saveAboutMe).mock.calls.filter(([uid]) => uid === "user_next");
-    expect(ownerWrites.length).toBeGreaterThan(0);
-    for (const [, patch] of ownerWrites) {
-      expect(JSON.stringify(patch)).not.toContain("PRIVATE_OLD_ACCOUNT");
-    }
-  });
-
-  it("blocks profile actions if Firebase auth changes before the auth hook updates", async () => {
-    mockAboutMeRow.ai_analysis = { summary: "Current profile", themes: [], strengths: [], risks: [] };
-    mockAboutMeRows[mockUser.id] = mockAboutMeRow;
-    render(<AboutMeView />);
-    await screen.findByText("Current profile");
-
-    mockedFirebaseAuth.currentUser = { uid: "user_next" };
-    fireEvent.click(screen.getByRole("button", { name: /Re-analyze/i }));
-
-    const aboutMe = await import("@/lib/aboutMe");
-    const ai = await import("@/lib/ai");
-    expect(aboutMe.saveAboutMe).not.toHaveBeenCalled();
-    expect(ai.callAI).not.toHaveBeenCalled();
-  });
-
-  it("does not render an old profile when its load resolves after Firebase auth changes", async () => {
-    let resolveLoad!: (row: any) => void;
-    const aboutMe = await import("@/lib/aboutMe");
-    vi.mocked(aboutMe.loadAboutMe).mockImplementationOnce(() => new Promise((resolve) => { resolveLoad = resolve; }));
-
-    render(<AboutMeView />);
-    await screen.findByText(/Loading this account/i);
-    mockedFirebaseAuth.currentUser = { uid: "user_next" };
-    resolveLoad({ ...mockAboutMeRow, answers: { occupation: "PRIVATE_OLD_ACCOUNT_ROLE" } });
-
-    await waitFor(() => expect(screen.getByText(/Loading this account/i)).toBeInTheDocument());
-    expect(screen.queryByDisplayValue("PRIVATE_OLD_ACCOUNT_ROLE")).not.toBeInTheDocument();
-    expect(screen.queryByText("Re-analyze")).not.toBeInTheDocument();
+  it.each(["input", "owner"])("ignores a late result after %s changes", async (change) => {
+    let finish!: (value: typeof result) => void;
+    mocks.call.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const view = render(<AboutMeView />);
+    await openPreview();
+    fireEvent.click(screen.getByRole("button", { name: "Approve & Send for Analysis" }));
+    await waitFor(() => expect(mocks.call).toHaveBeenCalledOnce());
+    if (change === "input") fireEvent.change(screen.getByRole("textbox"), { target: { value: "Changed text" } });
+    else { mocks.uid = "owner-2"; view.rerender(<AboutMeView />); }
+    await act(async () => finish(result));
+    expect(screen.queryByText("Review proposed analysis")).toBeNull();
+    expect(mocks.call.mock.calls[0][5].signal.aborted).toBe(true);
+    expect(mocks.save.mock.calls.every(([, patch]) => !patch.ai_analysis)).toBe(true);
   });
 });

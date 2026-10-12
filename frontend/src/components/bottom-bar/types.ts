@@ -1,4 +1,5 @@
-import { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { findFeature } from "@/lib/featureRegistry";
 
 export interface BottomTabItemConfig {
   key: string;
@@ -16,4 +17,12 @@ export interface BottomTabItemConfig {
   shortcutLabel: string;
   badge?: number | string | null;
   match: (pathname: string) => boolean;
+}
+
+/** Keep tab-specific shortcuts/matching/descriptions while sharing feature metadata. */
+export function withFeatureMetadata<T extends BottomTabItemConfig>(tab: T): T {
+  const feature = findFeature(tab.to);
+  return feature
+    ? { ...tab, to: feature.to, labelFa: feature.nameFa, labelEn: feature.nameEn, icon: feature.icon }
+    : tab;
 }

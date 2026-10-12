@@ -6,15 +6,9 @@ import { parseTaskDueDate } from "@/lib/taskDate";
 import { computePhase, type CycleProfile, type CycleLog, PHASE_META } from "@/lib/cycle";
 import type { CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
+import { PRIORITY_META, normalizeTaskPriority } from "@/lib/priority";
+import { useBilingual } from "@/hooks/useBilingual";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-
-const PRIORITY_COLOR: Record<string, string> = {
-  urgent: "hsl(var(--destructive))",
-  high: "hsl(var(--destructive))",
-  medium: "hsl(var(--primary))",
-  low: "hsl(var(--muted-foreground))",
-  none: "hsl(var(--muted-foreground) / 0.4)",
-};
 
 export default function MonthGrid({
   month, tasks, holidays, system, onDayClick, cycleProfile, cycleLogs,
@@ -27,6 +21,7 @@ export default function MonthGrid({
   cycleProfile?: CycleProfile | null;
   cycleLogs?: CycleLog[];
 }) {
+  const { T } = useBilingual();
   // Calendar-aware month (Jalali month in Jalali mode) + the user's week start (Sat/Mon).
   const settings = { ...getTimeSettings(), calendar: system };
   const weekStartsOn: WeekStartsOn = weekStartsOnFor(settings.weekStart);
@@ -98,8 +93,9 @@ export default function MonthGrid({
                   <div className="flex flex-col gap-0.5 mt-auto">
                     {dayTasks.slice(0, 2).map((t) => (
                       <div key={t.id} className="flex min-w-0 items-center gap-1 text-[10px] leading-tight">
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
+                        <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 bg-current ${PRIORITY_META[normalizeTaskPriority(t.priority)].flagClass}`} />
                         <span className="truncate text-foreground/80">{t.title}</span>
+                        <span className={`shrink-0 ${PRIORITY_META[normalizeTaskPriority(t.priority)].textClass}`}>{T(PRIORITY_META[normalizeTaskPriority(t.priority)].label, PRIORITY_META[normalizeTaskPriority(t.priority)].labelEn)}</span>
                         <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
                       </div>
                     ))}

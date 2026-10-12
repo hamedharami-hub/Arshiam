@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   uid: "user-1" as string | null,
@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: mocks.uid ? { id: mocks.uid } : null }) }));
 vi.mock("@/hooks/useBilingual", () => ({ useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true }) }));
 vi.mock("@/components/HeaderTitlePortal", () => ({ HeaderTitlePortal: () => null }));
+vi.mock("@/components/ui/slider", () => ({ Slider: () => null }));
 vi.mock("sonner", () => ({ toast: { success: mocks.toastSuccess, error: mocks.toastError } }));
 vi.mock("@/lib/firestoreDataService", () => ({
   subscribeMindValues: (uid: string, update: Parameters<typeof mocks.valuesListeners.set>[1]) => {
@@ -31,12 +32,13 @@ vi.mock("@/lib/firestoreDataService", () => ({
 }));
 vi.mock("@/lib/taskFromMind", () => ({ createTaskFromMind: vi.fn() }));
 
-import { upsertMindGoal, deleteMindGoal } from "@/lib/firestoreDataService";
+import { upsertMindGoal, deleteMindGoal, saveMindValues } from "@/lib/firestoreDataService";
 import ValuesGoalsView from "./ValuesGoalsView";
 
 const renderPage = () => render(<MemoryRouter><ValuesGoalsView /></MemoryRouter>);
 
 describe("ValuesGoalsView account-scoped empty states", () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
   beforeEach(() => {
     mocks.uid = "user-1";
     mocks.valuesListeners.clear();
@@ -47,7 +49,50 @@ describe("ValuesGoalsView account-scoped empty states", () => {
     mocks.toastError.mockReset();
     vi.mocked(upsertMindGoal).mockReset();
     vi.mocked(deleteMindGoal).mockReset();
+    vi.mocked(saveMindValues).mockReset().mockResolvedValue(false);
     localStorage.clear();
+  });
+
+  const editValue = () => {
+    fireEvent.click(screen.getAllByRole("button", { name: "Edit / Rate" })[0]);
+    fireEvent.change(screen.getByPlaceholderText("My core value here..."), { target: { value: "My private value" } });
+  };
+
+  it.each(["throw", "readback"])("does not claim device durability after storage %s failure, including cloud failure", async (failure) => {
+    vi.useFakeTimers();
+    renderPage();
+    if (failure === "throw") vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("full"); });
+    else vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
+    editValue();
+    expect(screen.getByTestId("values-sync-status")).toHaveTextContent("Save not verified; edits are only on this page");
+    await act(async () => { vi.advanceTimersByTime(900); });
+    expect(saveMindValues).toHaveBeenCalled();
+    expect(screen.getByTestId("values-sync-status")).not.toHaveTextContent("kept on this device");
+    expect(screen.getByPlaceholderText("My core value here...")).toHaveValue("My private value");
+  });
+
+  it("preserves a verified device copy on thrown cloud failure and ignores subscription overwrite while dirty", async () => {
+    vi.useFakeTimers();
+    vi.mocked(saveMindValues).mockRejectedValue(new Error("offline"));
+    renderPage();
+    editValue();
+    expect(screen.getByTestId("values-sync-status")).toHaveTextContent("Saved on this device");
+    act(() => mocks.valuesListeners.get("user-1")?.({}, { source: "server" }));
+    expect(screen.getByPlaceholderText("My core value here...")).toHaveValue("My private value");
+    await act(async () => { vi.advanceTimersByTime(900); });
+    expect(screen.getByTestId("values-sync-status")).toHaveTextContent("Not synced; your edits are kept on this device");
+  });
+
+  it("flushes pending edits to the old owner, never the new account", async () => {
+    vi.useFakeTimers();
+    const rendered = renderPage();
+    editValue();
+    mocks.uid = "user-2";
+    rendered.rerender(<MemoryRouter><ValuesGoalsView /></MemoryRouter>);
+    await act(async () => { vi.advanceTimersByTime(1000); });
+    expect(saveMindValues).toHaveBeenCalledWith("user-1", expect.objectContaining({ family: expect.objectContaining({ value: "My private value" }) }));
+    expect(vi.mocked(saveMindValues).mock.calls.every(([owner]) => owner === "user-1")).toBe(true);
+    expect(screen.queryByTestId("values-sync-status")).toBeNull();
   });
 
   it("lets an empty server result replace cached values and goals", async () => {

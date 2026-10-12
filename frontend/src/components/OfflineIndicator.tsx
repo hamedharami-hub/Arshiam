@@ -75,7 +75,13 @@ export default function OfflineIndicator() {
   const pendingText = isEn ? String(pending) : toPersianDigits(pending);
 
   // The bar re-appears only when the set of problems changes after the user dismissed it.
-  const signature = online ? `${user?.id || "signed-out"}:${pending}:${failedItems.length}:${conflicts.length}:${unattributedItems.length}` : "offline";
+  const signature = JSON.stringify([
+    user?.id || "signed-out", online ? "online" : "offline",
+    [...ownedQueue, ...unattributedItems].map(item => [
+      item.mutationId ?? item.id ?? item.createdAt, item.table, item.op,
+      item.conflictReason ?? (item.lastError ? "failed" : "pending"),
+    ]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+  ]);
 
   const dismiss = () => {
     setDismissed(signature);
@@ -118,7 +124,7 @@ export default function OfflineIndicator() {
           {!online ? (
             <>
               <WifiOff className="h-3.5 w-3.5 shrink-0 text-destructive" />
-              <span className="truncate">{T("آفلاین — تغییرات ذخیره می‌شود", "Offline — changes saved")}</span>
+              <span className="truncate" role="status">{T("آفلاین — وضعیت ذخیره را در ویرایشگر بررسی کن", "Offline — check save status in your editor")}</span>
             </>
           ) : pending > 0 ? (
             <>

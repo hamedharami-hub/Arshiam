@@ -2,6 +2,7 @@ import * as React from "react";
 import { type DialogProps } from "@radix-ui/react-dialog";
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -38,19 +39,28 @@ const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
 const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
->(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
-    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+>(({ className, ...props }, ref) => {
+  const { i18n } = useTranslation();
+  return (
+  <div className="flex items-center border-b px-3 focus-within:ring-2 focus-within:ring-inset focus-within:ring-ring" cmdk-input-wrapper="">
+    <Search aria-hidden="true" className="me-2 h-4 w-4 shrink-0 opacity-50" />
     <CommandPrimitive.Input
+      asChild
       ref={ref}
+      aria-label={(i18n.language || "fa").startsWith("en") ? "Search" : "جستجو"}
       className={cn(
         "flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
-    />
+    >
+      {/* cmdk's empty internal label otherwise overrides aria-label. Keep an
+          explicitly supplied label association, but let our name work by default. */}
+      <input aria-labelledby={props["aria-labelledby"]} />
+    </CommandPrimitive.Input>
   </div>
-));
+  );
+});
 
 CommandInput.displayName = CommandPrimitive.Input.displayName;
 

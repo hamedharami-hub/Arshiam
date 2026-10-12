@@ -1,0 +1,56 @@
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import ArticleRewriteView from "./ArticleRewriteView";
+const state = vi.hoisted(() => ({ uid: "account-a", stream: vi.fn(), insert: vi.fn() }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: state.uid } }) }));
+vi.mock("@/hooks/useBilingual", () => ({ useBilingual: () => ({ isEn: true, T: (_fa: string, en: string) => en }) }));
+vi.mock("@/lib/aiStream", () => ({ streamAI: state.stream }));
+vi.mock("@/lib/firebaseStore", () => ({ firebaseStore: { from: () => ({ insert: state.insert }) } }));
+vi.mock("@/components/HeaderTitlePortal", () => ({ HeaderTitlePortal: () => null }));
+const draft = (content: string) => JSON.stringify({ url: "", text: "", title: "Accepted", content, updatedAt: 1 });
+describe("Article Rewrite account and retention safety", () => {
+  beforeEach(() => { localStorage.clear(); state.uid = "account-a"; state.stream.mockReset(); state.insert.mockReset(); });
+  it("isolates restored drafts and does not claim the legacy unowned draft", () => {
+    localStorage.setItem("article-rewrite:draft:v1", draft("Unowned legacy"));
+    localStorage.setItem("article-rewrite:draft:v2:account-a", draft("A private draft"));
+    localStorage.setItem("article-rewrite:draft:v2:account-b", draft("B private draft"));
+    const { rerender } = render(<MemoryRouter><ArticleRewriteView /></MemoryRouter>);
+    expect(screen.getByDisplayValue("A private draft")).toBeInTheDocument();
+    state.uid = "account-b";
+    rerender(<MemoryRouter><ArticleRewriteView /></MemoryRouter>);
+    expect(screen.getByDisplayValue("B private draft")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("A private draft")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Unowned legacy")).not.toBeInTheDocument();
+  });
+  it("reports silent storage failure, offers download and retry, and guards exit", async () => {
+    localStorage.setItem("article-rewrite:draft:v2:account-a", draft("Keep this result"));
+    const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<MemoryRouter><ArticleRewriteView /></MemoryRouter>);
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be retained");
+    expect(screen.getByRole("button", { name: "Download draft" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(confirm).toHaveBeenCalled();
+    const unload = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(unload); expect(unload.defaultPrevented).toBe(true);
+    write.mockRestore();
+    fireEvent.click(screen.getByRole("button", { name: "Retry retention" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(JSON.parse(localStorage.getItem("article-rewrite:draft:v2:account-a")!).content).toBe("Keep this result");
+    confirm.mockRestore();
+  });
+  it("ignores old-account stream deltas even if the provider ignores abort", async () => {
+    let oldInput!: { signal: AbortSignal; onDelta: (chunk: string) => void };
+    let finish!: () => void;
+    state.stream.mockImplementation(input => { oldInput = input; return new Promise<void>(resolve => { finish = resolve; }); });
+    const { rerender } = render(<MemoryRouter><ArticleRewriteView /></MemoryRouter>);
+    fireEvent.change(screen.getByPlaceholderText("https://..."), { target: { value: "https://example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Rewrite" }));
+    state.uid = "account-b"; rerender(<MemoryRouter><ArticleRewriteView /></MemoryRouter>);
+    expect(oldInput.signal.aborted).toBe(true);
+    await act(async () => { oldInput.onDelta("Private old-account candidate"); finish(); });
+    expect(screen.queryByText("Private old-account candidate")).not.toBeInTheDocument();
+    expect(localStorage.getItem("article-rewrite:draft:v2:account-b")).toBeNull();
+  });
+});

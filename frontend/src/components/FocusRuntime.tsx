@@ -26,6 +26,17 @@ export default function FocusRuntime() {
   const [leavingTaskTitle, setLeavingTaskTitle] = useState<string | null>(null);
   const syncedNotificationKey = useRef("");
   const notificationOwner = useRef(user?.id ?? null);
+  const [todayHasRuntime, setTodayHasRuntime] = useState(false);
+  useEffect(() => {
+    if (location.pathname !== "/app/today") { setTodayHasRuntime(false); return; }
+    // Observe the actual inline controller, not merely the route: Today can be
+    // loading or render a layout without the next-action row. Keep lifecycle above mounted.
+    const update = () => setTodayHasRuntime(Boolean(document.querySelector('[data-focus-runtime="true"]')));
+    const observer = new MutationObserver(update);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-focus-runtime"] });
+    update();
+    return () => observer.disconnect();
+  }, [location.pathname]);
   useEffect(() => {
     const tick = () => { tickFocus(); };
     const retry = () => { tick(); void flushFocusSessions(); };
@@ -105,7 +116,7 @@ export default function FocusRuntime() {
   }, [focus?.userId, focus?.session.id, focus?.session.startedAt, focus?.session.endAt, focus?.session.mode, focus?.session.taskTitle, focus?.session.remaining, focus?.lastOutcome]);
 
   const s = focus?.session;
-  const shouldShowMini = Boolean(focus && s?.startedAt && location.pathname !== "/app/pomodoro");
+  const shouldShowMini = Boolean(focus && s?.startedAt && location.pathname !== "/app/pomodoro" && !(location.pathname === "/app/today" && todayHasRuntime));
   const clock = s ? `${String(Math.floor(s.remaining / 60)).padStart(2, "0")}:${String(s.remaining % 60).padStart(2, "0")}` : "";
   const backgroundDisclosure = focusBackgroundDisclosure(
     Capacitor.getPlatform() === "android" ? "android" : Capacitor.getPlatform() === "ios" ? "ios" : "web",

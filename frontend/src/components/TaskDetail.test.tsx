@@ -33,6 +33,7 @@ describe("TaskDetail initial render", () => {
       <TaskDetail task={task} mode="page" onClose={() => {}} onChanged={() => {}} setConfirm={() => {}} />,
     );
     expect(html).toContain("Plan tomorrow");
+    expect(html).toContain('aria-label="Task title"');
     expect(html).not.toContain("Task progress");
     expect(html).not.toContain("Description");
   });

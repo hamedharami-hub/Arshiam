@@ -20,6 +20,8 @@ const RichEditor = lazy(() => import("@/components/RichEditor").then((module) =>
  * Task description editor with markdown support.
  * - Inline editing uses the same rich-text format as the preview, so only the selected text changes.
  * - The expanded editor keeps the full NoteEditorTabs (visual/markdown/preview).
+ * - Enter inserts a paragraph/newline; it never submits the enclosing task form,
+ *   including IME confirmation (isComposing/keyCode 229). Saving is explicit or on blur.
  */
 type DescriptionEditorProps = {
   taskId: string;
@@ -255,6 +257,12 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
     <div
       className="group/desc relative flex w-full min-w-0 flex-col px-1"
       data-testid="task-description"
+      onKeyDown={(event) => {
+        // Keep multiline editor keys local, without preventing the editor/IME default.
+        const target = event.target as HTMLElement;
+        if ((event.key === "Enter" || event.nativeEvent.isComposing || event.keyCode === 229) &&
+            target.closest("textarea, input, [contenteditable='true']")) event.stopPropagation();
+      }}
       onBlurCapture={(event) => {
         const nextFocus = event.relatedTarget as Node | null;
         if (!editing || readOnly || (nextFocus && event.currentTarget.contains(nextFocus))) return;
@@ -274,7 +282,15 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
             if (readOnly || (e.target as HTMLElement).closest("a") || (selection && !selection.isCollapsed)) return;
             startEditing();
           }}
-          onKeyDown={(e) => { if (!readOnly && e.key === "Enter") startEditing(); }}
+          aria-label={readOnly ? undefined : T("ویرایش توضیحات", "Edit description")}
+          onKeyDown={(e) => {
+            if (readOnly || e.nativeEvent.isComposing || e.keyCode === 229 || e.target !== e.currentTarget) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              startEditing();
+            }
+          }}
           className="prose-note w-full cursor-text px-1 pb-2 text-[14px] leading-relaxed [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg"
           data-testid="task-description-preview"
         >
@@ -428,7 +444,7 @@ function TaskDescriptionEditorContent({ taskId, value, onChange, onSave, onConve
                   size="sm"
                   disabled={saving || editorUploading}
                   onClick={() => void saveAdvanced()}
-                  className="gap-1"
+                  className="gap-1 me-10"
                 >
                   <Check className="w-4 h-4" />
                   {T("ذخیره", "Save")}

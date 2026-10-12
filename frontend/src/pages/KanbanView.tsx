@@ -1,7 +1,7 @@
 import { TaskSplitScreen } from "@/components/TaskSplitScreen";
 import { QuickAddTask } from "@/components/QuickAddTask";
 import { SharedTaskRow, SharedTaskRowsProvider } from "@/components/SharedTaskRow";
-import type { Task as FullTask, TaskOutcome } from "@/lib/taskTypes";
+import type { Task as FullTask, TaskOutcome, TaskStatus } from "@/lib/taskTypes";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -53,7 +53,7 @@ import { playCompletionFeedback } from "@/lib/completionFeedback";
 import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { getCachedTasks, applyPendingTaskOperations } from "@/features/tasks/taskService";
 import { setTaskCompletion, type CompletionOutcome } from "@/features/tasks/taskCompletion";
-import { listTaskOutcomes, executeTaskOutcome } from "@/lib/taskOutcomes";
+import { executeTaskOutcome } from "@/lib/taskOutcomes";
 import { OutcomePicker } from "@/components/OutcomePicker";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -94,7 +94,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-type Status = "todo" | "in_progress" | "done";
+type Status = TaskStatus;
 type Task = {
   id: string;
   user_id?: string;
@@ -118,6 +118,14 @@ const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent
   { id: "done", labelFa: "انجام شده", labelEn: "Done", icon: CheckCircle2, accent: "border-t-success" },
 ];
 const COL_ORDER: Status[] = ["todo", "in_progress", "done"];
+const STATUS_LABELS: Array<{ id: Status; fa: string; en: string }> = [
+  { id: "todo", fa: "برای انجام", en: "To Do" },
+  { id: "in_progress", fa: "در حال انجام", en: "In Progress" },
+  { id: "waiting", fa: "در انتظار", en: "Waiting" },
+  { id: "done", fa: "انجام شده", en: "Done" },
+  { id: "wont_do", fa: "انجام نمی‌شود", en: "Won’t do" },
+];
+const NONACTIVE_STATUSES: Status[] = ["waiting", "wont_do"];
 const UNASSIGN_GOAL = "__unassign";
 
 export default function KanbanView() {
@@ -267,8 +275,8 @@ export default function KanbanView() {
     navigate(`/app/new/task?${params.toString()}`);
   };
 
-  const incompleteTasks = useMemo(() => currentGoalTasks.filter((t) => !t.completed), [currentGoalTasks]);
-  const completedTasks = useMemo(() => currentGoalTasks.filter((t) => t.completed), [currentGoalTasks]);
+  const incompleteTasks = useMemo(() => currentGoalTasks.filter((t) => !t.completed && !NONACTIVE_STATUSES.includes(t.status)), [currentGoalTasks]);
+  const completedTasks = useMemo(() => currentGoalTasks.filter((t) => t.completed && !NONACTIVE_STATUSES.includes(t.status)), [currentGoalTasks]);
 
   // Task mutation helpers
   const patchTask = async (task: Task, patch: Partial<FullTask>) => {
@@ -312,11 +320,8 @@ export default function KanbanView() {
   // redirect, recurrence advancement and configured outcomes all run first.
   const completeTask = async (task: Task) => {
     if (!user) return;
-    let outcomes: TaskOutcome[] = [];
-    try { outcomes = await listTaskOutcomes(task.id); } catch { outcomes = []; }
     const result = await setTaskCompletion(user.id, task as unknown as FullTask, true, {
       allKnownTasks: [...allTasks, ...subtasks] as unknown as FullTask[],
-      outcomes,
     });
     if (result.kind === "study") { navigate(result.navUrl); return; }
     if (result.kind === "outcomes") {
@@ -350,6 +355,7 @@ export default function KanbanView() {
     if (outcome) {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         toast.info(T("اتصال اینترنت برای اجرای سناریو لازم است", "Internet connection required to run outcome scenario"));
+        return;
       } else {
         try {
           await executeTaskOutcome(outcome, user.id, task as unknown as FullTask);
@@ -362,6 +368,7 @@ export default function KanbanView() {
     }
     const result = await setTaskCompletion(user.id, task as unknown as FullTask, true, {
       allKnownTasks: [...allTasks, ...subtasks] as unknown as FullTask[],
+      outcomeConfirmed: true,
     });
     handleCompletionResult(task, result);
   };
@@ -477,9 +484,14 @@ export default function KanbanView() {
       // no task is left pointing at a goal that no longer exists.
       if (goalDeleteTasks.length > 0) {
         const destinationId = reassignGoalId === UNASSIGN_GOAL ? null : reassignGoalId;
-        await Promise.all(
+        const reassigned = await Promise.all(
           goalDeleteTasks.map((t) => upsertTask(user.id, { id: t.id, kanban_column_id: destinationId })),
         );
+        if (reassigned.some((ok) => ok !== true)) {
+          void loadTasks();
+          toast.error(T("جابه‌جایی برخی تسک‌ها ذخیره نشد؛ هدف حذف نشد. دوباره تلاش کنید.", "Some task reassignments failed; the goal was not deleted. Please retry."));
+          return;
+        }
       }
       const fid = target.folderId ?? null;
       saveKanbanGoals(readStoredGoals(fid, user.id).filter((g) => g.id !== target.id), fid, user.id);
@@ -487,6 +499,9 @@ export default function KanbanView() {
       setGoalDeleteTarget(null);
       void loadTasks();
       toast.success(T("هدف با موفقیت حذف شد", "Goal deleted successfully"));
+    } catch {
+      void loadTasks();
+      toast.error(T("جابه‌جایی تسک‌ها یا حذف هدف ذخیره نشد؛ دوباره تلاش کنید.", "Task reassignment or goal deletion failed. Please retry."));
     } finally {
       setGoalDeleting(false);
     }
@@ -605,14 +620,16 @@ export default function KanbanView() {
 
           {/* Incomplete Tasks Cards (Full Screen style like screenshot) */}
           <div className="space-y-3">
-            {incompleteTasks.map((t) => <SharedTaskRow key={t.id} task={t as FullTask} />)}
+            {incompleteTasks.map((t) => <TaskCard key={t.id} task={t} onMove={moveTaskColumn} />)}
 
             {incompleteTasks.length === 0 && (
               <div className="text-center py-10 border border-dashed rounded-lg space-y-2" data-testid="kanban-goal-empty">
                 <h4 className="text-sm font-semibold text-foreground">
                   {currentGoalTasks.length === 0
                     ? T("هنوز تسکی برای این هدف نیست", "No tasks for this goal yet")
-                    : T("همه کارهای این هدف انجام شده‌اند!", "All tasks in this goal are completed!")}
+                    : currentGoalTasks.some((task) => NONACTIVE_STATUSES.includes(task.status))
+                      ? T("کار فعالی نیست؛ وضعیت‌های دیگر در پایین نمایش داده می‌شوند.", "No active tasks; other statuses are shown below.")
+                      : T("همه کارهای این هدف انجام شده‌اند!", "All tasks in this goal are completed!")}
                 </h4>
                 <p className="text-xs text-muted-foreground">
                   {T("می‌توانید تسک جدیدی برای ادامه مسیر اضافه کنید.", "You can add new tasks to keep going.")}
@@ -638,7 +655,7 @@ export default function KanbanView() {
 
               {completedOpen && (
                 <div className="space-y-2 animate-fade-in">
-                  {completedTasks.map((t) => <SharedTaskRow key={t.id} task={t as FullTask} />)}
+                  {completedTasks.map((t) => <TaskCard key={t.id} task={t} onMove={moveTaskColumn} />)}
                 </div>
               )}
             </div>
@@ -675,6 +692,15 @@ export default function KanbanView() {
           </DragOverlay>
         </DndContext>
       )}
+      {NONACTIVE_STATUSES.map((status) => {
+        const rows = currentGoalTasks.filter((task) => task.status === status);
+        const label = STATUS_LABELS.find((entry) => entry.id === status)!;
+        if (!rows.length) return null;
+        return <section key={status} data-testid={`kanban-status-${status}`} className="space-y-2 rounded-xl border border-border p-3">
+          <h3 className="text-sm font-semibold">{T(label.fa, label.en)} <Badge variant="secondary">{rows.length}</Badge></h3>
+          {rows.map((task) => <TaskCard key={task.id} task={task} onMove={moveTaskColumn} />)}
+        </section>;
+      })}
       </>
       </>
       )}
@@ -909,7 +935,16 @@ function TaskCard({
   if (dragging) return <Card className="p-2 rounded-xl shadow-lg text-sm">{task.title}</Card>;
   return <div className="space-y-1">
     <SharedTaskRow task={task as FullTask} externalDragHandle={dragHandleProps} />
-    {(prevCol || nextCol) && onMove && <div className="flex justify-end gap-1">
+    {onMove && <div className="flex justify-end gap-1">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" aria-label={T("تغییر وضعیت", "Change status")}>
+          {(() => { const label = STATUS_LABELS.find((entry) => entry.id === task.status); return label ? T(label.fa, label.en) : task.status; })()}
+          <ChevronDown className="ms-1 h-3.5 w-3.5" />
+        </Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {STATUS_LABELS.map((label) => <DropdownMenuItem key={label.id} disabled={label.id === task.status} onSelect={() => onMove(task.id, label.id)}>{T(label.fa, label.en)}</DropdownMenuItem>)}
+        </DropdownMenuContent>
+      </DropdownMenu>
       {prevCol && <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => onMove(task.id, prevCol)} aria-label={T("ستون قبل", "Previous column")}>{isEn ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}</Button>}
       {nextCol && <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => onMove(task.id, nextCol)} aria-label={T("ستون بعد", "Next column")}>{isEn ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}</Button>}
     </div>}

@@ -1,7 +1,9 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, CircleAlert, Gamepad2, Layers, Loader2, Search, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { readStudyResumeParams, recordLastStudy } from "@/lib/lastStudy";
+import { learningVersion } from "@/lib/learningWorkspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InteractiveLearningModal } from "@/components/knowledge/InteractiveLearningModal";
@@ -211,6 +213,10 @@ export const InteractiveStudyView: React.FC = () => {
   const { user } = useAuth();
   const { isEn } = useBilingual();
   const navigate = useNavigate();
+  const location = useLocation();
+  const resume = useMemo(() => readStudyResumeParams(location.search), [location.search]);
+  const [resumeNotice, setResumeNotice] = useState("");
+  const appliedResumeRef = useRef("");
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -247,6 +253,7 @@ export const InteractiveStudyView: React.FC = () => {
 
   useEffect(() => {
     let isCurrent = true;
+    appliedResumeRef.current = "";
     const loadDocuments = async () => {
       if (!user?.id) {
         setDocuments([]);
@@ -320,6 +327,35 @@ export const InteractiveStudyView: React.FC = () => {
     : "";
   const safeSourceUrl = getSafeKnowledgeExternalUrl(selectedDocument?.source_url);
 
+  useEffect(() => {
+    if (isLoading || loadError || !user?.id || !resume.docId) return;
+    const identity = `${user.id}:${location.search}`;
+    if (appliedResumeRef.current === identity) return;
+    const doc = documents.find(row => row.id === resume.docId && row.user_id === user.id);
+    if (!doc) {
+      setResumeNotice(isEn ? "This lesson is unavailable. Choose another lesson; no practice was started." : "این درس در دسترس نیست؛ درس دیگری انتخاب کن. تمرینی شروع نشد.");
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const result = await flushPendingSessionSaveRef.current();
+      if (!active) return;
+      if (result === "failed") {
+        setResumeNotice(isEn ? "Save your current practice before switching lessons." : "پیش از تغییر درس، تمرین فعلی را ذخیره کن.");
+        return;
+      }
+      appliedResumeRef.current = identity;
+      setSelectedDocId(doc.id);
+      setLanguage(resume.language === "fa" ? "fa" : "en");
+      setIsLessonPickerCollapsed(true);
+      const content = resume.language === "fa" ? doc.content_html || doc.content_en : doc.content_en || doc.content_html;
+      setResumeNotice(resume.version && learningVersion(content || "") !== resume.version
+        ? (isEn ? "The source version changed. Saved practice is retained, but may use older content; the previous position is not restored." : "نسخهٔ منبع تغییر کرده؛ تمرین قبلی حفظ شده ولی ممکن است از متن قدیمی باشد. موقعیت قبلی بازیابی نمی‌شود.")
+        : resume.language === "bilingual" ? (isEn ? "Saved practice supports English or Persian only; checking the English session." : "تمرین ذخیره‌شده فقط فارسی یا انگلیسی است؛ جلسهٔ انگلیسی بررسی می‌شود.") : "");
+    })();
+    return () => { active = false; };
+  }, [documents, isEn, isLoading, loadError, location.search, resume, user?.id]);
+
   const safeSessionHtml = useMemo(() => sanitizeKnowledgeHtml(sessionHtml), [sessionHtml]);
   const safeDocumentPreviewHtml = useMemo(() => sanitizeKnowledgeHtml(documentContent), [documentContent]);
   const studyFlipCards = useMemo(() => extractStudyFlipCards(safeSessionHtml, language), [safeSessionHtml, language]);
@@ -385,6 +421,22 @@ export const InteractiveStudyView: React.FC = () => {
     return attachInteractiveListeners(container, scheduleSessionSave, language);
   }, [language, safeSessionHtml, scheduleSessionSave]);
 
+  useEffect(() => {
+    if (!safeSessionHtml || !selectedDocument || !user?.id) return;
+    const version = learningVersion(documentContent);
+    const own = resume.docId === selectedDocument.id;
+    const positionValid = own && (!resume.version || resume.version === version);
+    const section = positionValid ? resume.section : undefined;
+    const card = positionValid ? resume.card : undefined;
+    const container = sessionContainerRef.current;
+    const target = container && Array.from(container.querySelectorAll<HTMLElement>("[id], [data-section-id], [data-card-id]")).find(el =>
+      el.id === (card || section) || (card && el.dataset.cardId === card) || (!card && section && el.dataset.sectionId === section));
+    target?.scrollIntoView?.({ block: "center" });
+    if ((card || section) && !target) setResumeNotice(isEnRef.current ? "The saved practice is restored, but that section or card is not present. Showing the session from its beginning." : "تمرین ذخیره‌شده بازیابی شد اما آن بخش یا کارت موجود نیست؛ جلسه از ابتدا نمایش داده می‌شود.");
+    void recordLastStudy(user.id, { docId: selectedDocument.id, title: selectedDocument.title, titleEn: selectedDocument.title_en,
+      language, version: own && resume.version ? resume.version : version, section: target ? section : undefined, card: target ? card : undefined, practice: true });
+  }, [safeSessionHtml, selectedDocument, user?.id, language, documentContent, resume]);
+
   useEffect(() => () => {
     void flushPendingSessionSaveRef.current();
   }, []);
@@ -426,6 +478,7 @@ export const InteractiveStudyView: React.FC = () => {
         setSessionSaveState("saved");
       } else {
         setSessionSaveState("idle");
+        setSessionNotice(isEnRef.current ? "No saved practice is available for this lesson and language. Build a new session explicitly to begin." : "تمرین ذخیره‌شده‌ای برای این درس و زبان نیست؛ برای شروع، جلسهٔ تازه بساز.");
       }
     } catch (error) {
       if (requestSequence !== draftLoadSequenceRef.current) return;
@@ -786,6 +839,7 @@ export const InteractiveStudyView: React.FC = () => {
           <CircleAlert className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
           <div><strong className="block">{labels.safetyTitle}</strong><span className="text-muted-foreground">{labels.safetyText}</span></div>
         </aside>
+        {resumeNotice && <p role="status" data-testid="practice-resume-notice" className="rounded-xl border p-3 text-sm">{resumeNotice}</p>}
 
         <div className="grid min-h-[420px] min-w-0 grid-cols-1 gap-4 min-[900px]:h-[68vh] min-[900px]:max-h-[680px] min-[900px]:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.5fr)] lg:grid-cols-[minmax(270px,0.8fr)_minmax(0,1.6fr)]">
           <section data-testid="interactive-study-lesson-picker" aria-label={labels.documents} className={`${isLessonPickerCollapsed && selectedDocument ? "hidden min-[900px]:flex" : "flex"} min-h-0 min-w-0 flex-col rounded-3xl border border-border bg-card p-3 sm:p-4`}>

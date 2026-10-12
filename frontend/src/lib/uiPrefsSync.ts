@@ -1,6 +1,6 @@
 import type { CloudBinding } from "./cloudStateSync";
 import { changeLanguage, currentLanguage, type AppLanguage } from "@/i18n";
-import { EN_JALALI_KEY } from "./localeFormat";
+import { EN_JALALI_KEY, setEnglishUsesJalali } from "./localeFormat";
 
 const PAGE_BG_PREFIX = "arshnaz_page_bg_v1_";
 const FOLDER_PREFIX = "arshnaz_folder_prefs_v1_";
@@ -56,11 +56,11 @@ export function startUiPrefsCloudSync(userId: string | null) {
       },
       apply: (data, updatedAt) => {
         const d = (data || {}) as { pageBg?: Record<string, string>; folders?: Record<string, unknown>; lang?: AppLanguage; enJalali?: boolean };
-        if (typeof d.enJalali === "boolean") localStorage.setItem(EN_JALALI_KEY, d.enJalali ? "1" : "0");
-        if ((d.lang === "fa" || d.lang === "en") && d.lang !== currentLanguage()) {
-          applyingRemote = true;
-          try { changeLanguage(d.lang); } finally { applyingRemote = false; }
-        }
+        applyingRemote = true;
+        try {
+          if (typeof d.enJalali === "boolean") setEnglishUsesJalali(d.enJalali);
+          if ((d.lang === "fa" || d.lang === "en") && d.lang !== currentLanguage()) changeLanguage(d.lang);
+        } finally { applyingRemote = false; }
         localStorage.setItem(`${PAGE_BG_PREFIX}${userId}`, JSON.stringify(d.pageBg || {}));
         Object.entries(d.folders || {}).forEach(([k, v]) => {
           if (!k.startsWith(FOLDER_PREFIX) || !k.endsWith(`_${userId}`)) return;

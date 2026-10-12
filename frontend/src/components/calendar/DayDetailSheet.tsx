@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isPathAllowed } from "@/lib/appModules";
 import { format, isSameDay } from "date-fns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -18,20 +18,14 @@ import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
 import { useBilingual } from "@/hooks/useBilingual";
 import { PRIORITY_META, normalizeTaskPriority } from "@/lib/priority";
+import { getDailyCheckin, upsertTask } from "@/lib/firestoreDataService";
 
 const priorityRank = (value: unknown): number => PRIORITY_META[normalizeTaskPriority(value)].rank;
-const PRIORITY_COLOR: Record<string, string> = {
-  urgent: "hsl(var(--destructive))",
-  high: "hsl(var(--destructive))",
-  medium: "hsl(var(--primary))",
-  low: "hsl(var(--muted-foreground))",
-  none: "hsl(var(--muted-foreground) / 0.4)",
-};
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export default function DayDetailSheet({
-  date, open, onOpenChange, tasks, holidays, system, onTaskCreated,
+  date, open, onOpenChange, tasks, holidays, system, onTaskCreated, initialHour,
 }: {
   date: Date | null;
   open: boolean;
@@ -40,6 +34,7 @@ export default function DayDetailSheet({
   holidays: Holiday[];
   system: CalendarSystem;
   onTaskCreated?: () => void;
+  initialHour?: number | null;
 }) {
   const { user } = useAuth();
   const { T } = useBilingual();
@@ -48,20 +43,29 @@ export default function DayDetailSheet({
   const [checkin, setCheckin] = useState<any>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newHour, setNewHour] = useState<number>(9);
+  const addBusy = useRef(false);
 
   useEffect(() => {
-    if (!date || !user || !open) return;
+    if (!open) return;
+    setNewHour(Number.isInteger(initialHour) && initialHour! >= 0 && initialHour! <= 23 ? initialHour! : 9);
+  }, [date, open, initialHour]);
+
+  useEffect(() => {
+    setCheckin(null);
+    if (!date || !user?.id || !open) return;
+    let active = true;
+    const owner = user.id;
     const ds = format(date, "yyyy-MM-dd");
-    import("@/lib/firestoreDataService").then(({ getDailyCheckin }) => {
-      getDailyCheckin(user.id, ds).then((data) => {
+    getDailyCheckin(owner, ds).then((data) => {
+        if (!active) return;
         if (data) setCheckin(data);
         else {
-          firebaseStore.from("daily_checkins").select("*").eq("checkin_date", ds).maybeSingle()
-            .then(({ data }) => setCheckin(data)).catch(() => {});
+          firebaseStore.from("daily_checkins").select("*").eq("user_id", owner).eq("checkin_date", ds).maybeSingle()
+            .then(({ data }) => { if (active) setCheckin(data); }).catch(() => {});
         }
-      });
-    });
-  }, [date, user, open]);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [date, user?.id, open]);
 
   if (!date) return null;
   const dayTasks = tasks
@@ -79,7 +83,8 @@ export default function DayDetailSheet({
   const isFriday = date.getDay() === 5;
 
   const addTask = async () => {
-    if (!newTitle.trim() || !user) return;
+    if (!newTitle.trim() || !user || addBusy.current) return;
+    addBusy.current = true;
     const dt = new Date(date);
     dt.setHours(newHour, 0, 0, 0);
 
@@ -94,16 +99,16 @@ export default function DayDetailSheet({
       updated_at: new Date().toISOString(),
     };
 
-    const { upsertTask } = await import("@/lib/firestoreDataService");
-    const ok = await upsertTask(user.id, newTask);
-    firebaseStore.from("tasks").insert(newTask).catch(() => {});
-
-    if (ok) {
+    try {
+      const ok = await upsertTask(user.id, newTask);
+      if (!ok) throw new Error("task-save-failed");
       toast.success("تسک ثبت شد ✨");
       setNewTitle("");
       onTaskCreated?.();
-    } else {
-      toast.error("خطا در ثبت تسک");
+    } catch {
+      toast.error("ثبت تسک انجام نشد؛ دوباره تلاش کن.");
+    } finally {
+      addBusy.current = false;
     }
   };
 
@@ -141,8 +146,9 @@ export default function DayDetailSheet({
                 onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
                 className="flex items-center gap-2 w-full text-end px-3 py-2 text-sm hover:bg-accent/30 transition"
               >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[normalizeTaskPriority(t.priority)] || PRIORITY_COLOR.none }} />
+                <span aria-hidden="true" className={`w-2 h-2 rounded-full shrink-0 bg-current ${PRIORITY_META[normalizeTaskPriority(t.priority)].flagClass}`} />
                 <span className="truncate flex-1">{t.title}</span>
+                <span className={`text-[10px] shrink-0 ${PRIORITY_META[normalizeTaskPriority(t.priority)].textClass}`}>{T(PRIORITY_META[normalizeTaskPriority(t.priority)].label, PRIORITY_META[normalizeTaskPriority(t.priority)].labelEn)}</span>
                 <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
                 <span className="text-[10px] text-muted-foreground tabular-nums">
                   {isAllDayCalendarDate(t.due_date, t.schedule_v)
@@ -204,6 +210,7 @@ export default function DayDetailSheet({
             />
             <div className="flex items-center gap-2">
               <select
+                aria-label={T("ساعت تسک جدید", "New task hour")}
                 className="flex h-9 rounded-md border bg-background px-2 text-sm flex-1"
                 value={newHour}
                 onChange={(e) => setNewHour(+e.target.value)}

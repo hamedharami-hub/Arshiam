@@ -6,7 +6,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import RecentlyDeletedSheet from "@/components/RecentlyDeletedSheet";
 import { isRTL } from "@/i18n";
 import { shouldShowBottomNavigation, useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import { BottomTabItemConfig } from "./bottom-bar/types";
+import { withFeatureMetadata, type BottomTabItemConfig } from "./bottom-bar/types";
 import { MobileBottomBar } from "./bottom-bar/MobileBottomBar";
 import {
   useMobileBottomTabs,
@@ -19,8 +19,6 @@ import {
  * (Material-3 style) down to a 320px-wide viewport.
  */
 const MOBILE_TAB_SHORT_LABELS: Record<string, { fa: string; en: string }> = {
-  today: { fa: "امروز", en: "Today" },
-  calendar: { fa: "تقویم", en: "Calendar" },
   notes: { fa: "یادداشت", en: "Notes" },
   mind: { fa: "ذهن", en: "Mind" },
   inbox: { fa: "صندوق", en: "Inbox" },
@@ -105,7 +103,7 @@ export function BottomTabBar() {
   // The compact bar is the only rendered bar, so this list is the single source of tab config.
   const selectedTabKeys = useMobileBottomTabs();
   const mobileCustomTabs = useMemo<BottomTabItemConfig[]>(() => {
-    return getAccessibleMobileTabs(selectedTabKeys, modules).map((tab) => {
+    return getAccessibleMobileTabs(selectedTabKeys, modules).map(withFeatureMetadata).map((tab) => {
       const short = MOBILE_TAB_SHORT_LABELS[tab.key];
       return short
         ? { ...tab, shortLabelFa: short.fa, shortLabelEn: short.en }

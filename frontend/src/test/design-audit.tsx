@@ -26,7 +26,11 @@ document.documentElement.dir = isEn ? "ltr" : "rtl";
 document.documentElement.lang = isEn ? "en" : "fa";
 document.documentElement.classList.toggle("dark", params.get("theme") !== "light");
 document.documentElement.classList.toggle("theme-oled", params.get("theme") === "oled");
-document.documentElement.dataset.accent = "olive";
+const accents = ["indigo", "olive", "amber", "steel", "rose", "brick"];
+document.documentElement.dataset.accent = accents.includes(params.get("accent") || "") ? params.get("accent")! : "olive";
+const editorMarkdown = params.get("long") === "1"
+  ? Array.from({ length: 500 }, (_, index) => `## Section ${index + 1}\n\nمتن آزمایشی بدون اطلاعات شخصی. Synthetic paragraph for a long document. **Focus** and [reference](https://example.com).\n`).join("\n")
+  : "A note with **bold** and <u>underlined text</u>.";
 const T = (fa: string, en: string) => isEn ? en : fa;
 const folders: KnowledgeFolder[] = [{ id: "qa-folder", name: T("دسته‌بندی آموزشی با نام طولانی برای بررسی نمایش", "A long learning category to check responsive navigation"), parent_id: null, position: 0, created_at: "", updated_at: "", user_id: "qa" }];
 const lesson: KnowledgeDocument = {
@@ -46,7 +50,7 @@ function Fixture() {
       <div id="app-header-actions" className="shrink-0" />
     </header>
     {!isSleep && <HeaderTitlePortal title={isSettings ? T("تنظیمات", "Settings") : T("پایگاه دانش", "Knowledge")} />}
-    {isSleep ? <SleepView /> : isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown="A note with **bold** and <u>underlined text</u>." showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-4 max-w-xl mx-auto space-y-6"><MobileBottomBarSettings isEn={isEn} /><TaskListSortSettings /></main> : <>
+    {isSleep ? <SleepView /> : isEditor ? <main className="p-3 max-w-5xl mx-auto"><RichEditor initialMarkdown={editorMarkdown} showVoiceButton={false} onChange={(_html, markdown) => { document.body.dataset.savedMarkdown = markdown; }} /></main> : isSettings ? <main className="p-4 max-w-xl mx-auto space-y-6"><MobileBottomBarSettings isEn={isEn} /><TaskListSortSettings /></main> : <>
     <div className="border-b px-3 py-1">
       <TaskDetailTopBar T={T} isEn={isEn} canEdit folderLabel={folders[0].name} hasFolder onFolder={noop} onGoal={noop} goalLabel={null} save={null} more={null} />
     </div>

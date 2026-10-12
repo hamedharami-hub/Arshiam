@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,17 @@ const OPTIONS: Array<{ id: AppLanguage; label: string; hint: string }> = [
   { id: "en", label: "English", hint: "Left-to-right · Gregorian" },
 ];
 
+function handleRadioKey(event: KeyboardEvent<HTMLButtonElement>) {
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const radios = Array.from(event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') || []);
+  const index = radios.indexOf(event.currentTarget);
+  const next = event.key === "Home" ? 0 : event.key === "End" ? radios.length - 1
+    : (index + (event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1) + radios.length) % radios.length;
+  radios[next]?.focus();
+  radios[next]?.click();
+}
+
 /** Compact segmented language switch (used on the sign-in page and in Settings). */
 export function LanguageToggle({ className = "", tone = "default" }: { className?: string; tone?: "default" | "auth" }) {
   const { i18n } = useTranslation();
@@ -21,6 +32,7 @@ export function LanguageToggle({ className = "", tone = "default" }: { className
         const active = o.id === current;
         return (
           <button key={o.id} type="button" role="radio" aria-checked={active} lang={o.id} dir={o.id === "fa" ? "rtl" : "ltr"}
+            tabIndex={active ? 0 : -1} onKeyDown={handleRadioKey}
             onClick={() => !active && changeLanguage(o.id)}
             className={`h-7 rounded-full px-3 transition-colors ${active
               ? tone === "auth" ? "bg-[hsl(var(--auth-ink))] text-[hsl(var(--auth-bg))]" : "bg-background text-foreground shadow-sm"
@@ -61,6 +73,7 @@ export function LanguageSwitcher() {
             const active = (o.id === "en") === isEn;
             return (
               <button key={o.id} type="button" role="radio" aria-checked={active} lang={o.id} dir={o.id === "fa" ? "rtl" : "ltr"}
+                tabIndex={active ? 0 : -1} onKeyDown={handleRadioKey}
                 onClick={() => !active && changeLanguage(o.id)}
                 className={`rounded-lg border px-3 py-2.5 text-start transition-colors ${active ? "border-primary/50 bg-primary/5" : "border-border hover:bg-muted/60"}`}
                 data-testid={`settings-language-${o.id}`}>
@@ -76,7 +89,7 @@ export function LanguageSwitcher() {
               <span className="block text-sm text-foreground">Show Persian (Jalali) dates</span>
               <span className="block text-xs text-muted-foreground">Keeps English text, uses the Solar Hijri calendar for dates.</span>
             </span>
-            <Switch checked={jalali} onCheckedChange={(v) => { setEnglishUsesJalali(!!v); setJalali(!!v); }} data-testid="settings-en-jalali" />
+            <Switch aria-label="Show Persian (Jalali) dates" checked={jalali} onCheckedChange={(v) => { setEnglishUsesJalali(!!v); setJalali(!!v); }} data-testid="settings-en-jalali" />
           </label>
         )}
       </CardContent>

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
-import CalendarView from "./CalendarView";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import CalendarView, { parseCalendarDate, parseCalendarView } from "./CalendarView";
 
 const taskReads: Array<{ resolve: (value: { data: unknown[] }) => void; userId?: string }> = [];
 const user = { id: "user-1" };
@@ -45,14 +45,41 @@ vi.mock("@/lib/holidays", () => ({
 }));
 vi.mock("@/components/HeaderTitlePortal", () => ({ HeaderTitlePortal: () => null }));
 vi.mock("@/components/calendar/MonthGrid", () => ({ default: ({ tasks }: { tasks: { id: string; due_date?: string | null; deadline_date?: string | null; calendar_kind?: string }[] }) => <div data-testid="calendar-tasks" data-dates={JSON.stringify(tasks.map(({ id, due_date, deadline_date, calendar_kind }) => ({ id, due_date, deadline_date, calendar_kind })))}>{tasks.map(t => t.id).join(",")}</div> }));
-vi.mock("@/components/calendar/WeekView", () => ({ default: ({ tasks }: { tasks: { id: string }[] }) => <div data-testid="week-task-list">{tasks.map(t => t.id).join(",")}</div> }));
-vi.mock("@/components/calendar/DayView", () => ({ default: ({ tasks }: { tasks: { id: string }[] }) => <div data-testid="day-task-list">{tasks.map(t => t.id).join(",")}</div> }));
+vi.mock("@/components/calendar/WeekView", () => ({ default: ({ tasks, date, onSlotClick, onDayClick }: any) => <div data-testid="week-task-list">{tasks.map((t: any) => t.id).join(",")}<button onClick={() => onSlotClick(date, 14)}>Week hour</button><button onClick={() => onDayClick(date)}>Open day</button></div> }));
+vi.mock("@/components/calendar/DayView", () => ({ default: ({ tasks, onSlotClick }: any) => <div data-testid="day-task-list">{tasks.map((t: any) => t.id).join(",")}<button onClick={() => onSlotClick(0)}>Day hour</button></div> }));
 vi.mock("@/components/calendar/AgendaView", () => ({ default: ({ tasks }: { tasks: { id: string }[] }) => <div data-testid="agenda-task-list">{tasks.map(t => t.id).join(",")}</div> }));
-vi.mock("@/components/calendar/DayDetailSheet", () => ({ default: () => null }));
+vi.mock("@/components/calendar/DayDetailSheet", () => ({ default: ({ open, initialHour }: any) => open ? <output data-testid="detail-hour">{initialHour}</output> : null }));
 vi.mock("@/components/calendar/HolidayList", () => ({ HolidayList: () => null }));
 
 describe("Calendar task refresh", () => {
   beforeEach(() => { taskReads.length = 0; currentUser = user; localStorage.clear(); });
+
+  it("rejects malformed, overflowing, and timestamp URL dates and unknown views", () => {
+    expect(parseCalendarDate("2026-02-30")).toBeNull();
+    expect(parseCalendarDate("invalid")).toBeNull();
+    expect(parseCalendarDate("2026-10-13T14:00:00Z")).toBeNull();
+    expect(parseCalendarDate("2026-10-13")).toEqual(new Date(2026, 9, 13));
+    expect(parseCalendarView("unknown")).toBe("month");
+  });
+
+  it("restores URL views on Back and passes week/day clicked hours to the editor", async () => {
+    function NavigationProbe() {
+      const location = useLocation();
+      const navigate = useNavigate();
+      return <><output data-testid="url">{location.search}</output><button onClick={() => navigate(-1)}>History back</button></>;
+    }
+    render(<MemoryRouter initialEntries={["/app/calendar?date=2026-10-13&view=week&keep=yes"]}><CalendarView /><NavigationProbe /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: "Week hour" }));
+    expect(screen.getByTestId("detail-hour")).toHaveTextContent("14");
+    fireEvent.click(screen.getByRole("button", { name: "Open day" }));
+    expect(screen.getByTestId("url")).toHaveTextContent("view=day");
+    expect(screen.getByTestId("url")).toHaveTextContent("keep=yes");
+    fireEvent.click(screen.getByRole("button", { name: "Day hour" }));
+    expect(screen.getByTestId("detail-hour")).toHaveTextContent("0");
+    fireEvent.click(screen.getByRole("button", { name: "History back" }));
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Week" })).toHaveAttribute("aria-selected", "true"));
+    expect(screen.getByTestId("url")).toHaveTextContent("date=2026-10-13");
+  });
 
   const todayTasks = () => {
     const today = new Date();

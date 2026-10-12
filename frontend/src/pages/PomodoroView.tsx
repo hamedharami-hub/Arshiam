@@ -18,6 +18,7 @@ import { addMonths as addJalaliMonths, startOfMonth as startOfJalaliMonth } from
 import { getCalendarSystem, jalaliDayOfWeek, WEEKDAY_SHORT_FA, formatDate } from "@/lib/jalali";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useFocusSession } from "@/hooks/useFocusSession";
+import { focusSessionMinutes } from "@/lib/focusMetrics";
 import { todayISO } from "@/lib/timeHorizon";
 import { parseTaskDueDate, taskDueTimestamp, taskWorkDate } from "@/lib/taskDate";
 import type { Task } from "@/lib/taskTypes";
@@ -46,7 +47,7 @@ const MONTH_REPORT_LIMIT = 500;
 export function sessionMinutesForCompletionDay(sessions: WeekRow[], day: Date): number {
   return sessions
     .filter((session) => isSameDay(new Date(session.ended_at), day))
-    .reduce((sum, session) => sum + (session.duration_minutes || 0), 0);
+    .reduce((sum, session) => sum + focusSessionMinutes(session), 0);
 }
 
 export default function PomodoroView() {
@@ -225,7 +226,7 @@ export default function PomodoroView() {
   }, [user?.id]);
 
   useEffect(() => { setSelectedTaskId(focus?.session.startedAt ? focus.session.taskId : null); }, [user?.id, focus?.session.id]);
-  const totalMin = today.reduce((s, r) => s + (r.duration_minutes || 0), 0);
+  const totalMin = today.reduce((s, r) => s + focusSessionMinutes(r), 0);
 
   const weekData = useMemo(() => {
     const days: { label: string; minutes: number; date: Date }[] = [];
@@ -250,9 +251,9 @@ export default function PomodoroView() {
   for (const r of today) {
     if (r.task_id && r.tasks) {
       const cur = taskTotals.get(r.task_id) || { title: r.tasks.title, min: 0 };
-      cur.min += r.duration_minutes;
+      cur.min += focusSessionMinutes(r);
       taskTotals.set(r.task_id, cur);
-    } else freeMin += r.duration_minutes;
+    } else freeMin += focusSessionMinutes(r);
   }
 
   const monthBreakdown = monthGroupBy === "task" ? monthReport.byTask : monthReport.byFolder;

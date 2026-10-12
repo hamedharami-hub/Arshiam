@@ -100,10 +100,12 @@ export const KnowledgeBaseView: React.FC = () => {
       return false;
     }
   });
+  const desktopSidebarRef = useRef<HTMLDivElement>(null);
 
   // Folder deep links from Pharmacy should reveal the folder tree immediately.
   useEffect(() => {
     if (urlDocId) {
+      if (desktopSidebarRef.current?.contains(document.activeElement)) return;
       setSidebarCollapsed(true);
       setMobileTreeOpen(false);
       return;
@@ -533,6 +535,7 @@ export const KnowledgeBaseView: React.FC = () => {
         {/* Desktop Sidebar Folder Tree */}
         <div
           data-testid="knowledge-desktop-sidebar"
+          ref={desktopSidebarRef}
           aria-hidden={sidebarCollapsed || studyMode}
           className={`hidden md:block shrink-0 h-full transition-all duration-300 ease-in-out ${
             sidebarCollapsed || studyMode
@@ -540,7 +543,7 @@ export const KnowledgeBaseView: React.FC = () => {
               : "w-72 lg:w-80 opacity-100"
           }`}
         >
-          <KnowledgeSidebarTree
+          {!sidebarCollapsed && !studyMode && <KnowledgeSidebarTree
             tree={tree}
             allFolders={folders}
             documents={filteredDocuments}
@@ -559,7 +562,7 @@ export const KnowledgeBaseView: React.FC = () => {
             selectedTag={selectedTag}
             onSelectTag={setSelectedTag}
             onToggleCollapse={toggleSidebar}
-          />
+          />}
         </div>
 
         {/* Mobile Drawer */}

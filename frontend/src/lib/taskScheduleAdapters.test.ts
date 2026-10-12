@@ -57,13 +57,19 @@ describe("normalizeTaskWrite (legacy writers → single schedule)", () => {
 
   it("does not silently move a local clock time that falls inside a daylight-saving gap", () => {
     const originalTimezone = process.env.TZ;
+    const originalRuntimeTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const originalOffset = now.getTimezoneOffset();
     process.env.TZ = "America/New_York";
     try {
       expect(() => dateTimeSchedule("2026-03-08", "02:30")).toThrow(/does not exist/);
     } finally {
+      // On Windows, deleting TZ alone leaves Node using the last assigned zone.
+      // Restore the runtime zone explicitly before restoring the environment.
+      process.env.TZ = originalTimezone ?? originalRuntimeTimezone;
       if (originalTimezone === undefined) delete process.env.TZ;
-      else process.env.TZ = originalTimezone;
     }
+    expect(now.getTimezoneOffset()).toBe(originalOffset);
+    expect(toLocalISO(now)).toBe(today);
   });
 });
 
@@ -71,6 +77,15 @@ describe("isTodayCommitment (today's load / today list)", () => {
   it("counts only open tasks scheduled for this calendar day", () => {
     expect(isTodayCommitment(t({ schedule_v: 2, work_date: today }), now)).toBe(true);
     expect(isTodayCommitment(t({ schedule_v: 2, work_date: new Date(2026, 5, 17, 15, 0).toISOString() }), now)).toBe(true);
+  });
+  it("uses the reference instant's local day, not the machine's current date or calendar setting", () => {
+    const reference = new Date(2026, 5, 17, 0, 5);
+    for (const calendar of ["gregorian", "jalali"] as const) {
+      const settings = { calendar, weekStart: "sat" as const, seasonsEnabled: true };
+      expect(isTodayCommitment(t({ schedule_v: 2, work_date: "2026-06-17" }), reference, settings)).toBe(true);
+      expect(isTodayCommitment(t({ schedule_v: 2, work_date: "2026-06-16" }), reference, settings)).toBe(false);
+      expect(isTodayCommitment(t({ schedule_v: 2, work_date: new Date(2026, 5, 16, 23, 55).toISOString() }), reference, settings)).toBe(false);
+    }
   });
   it("excludes a month plan without a day, future, undated, done and set-aside tasks", () => {
     expect(isTodayCommitment(t({ schedule_v: 2, planning_horizon: "month", planning_start: "2026-06-01", planning_end: "2026-06-30" }), now)).toBe(false);

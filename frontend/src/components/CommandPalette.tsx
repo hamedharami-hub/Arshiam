@@ -1,10 +1,11 @@
 import { isPathAllowed, useModules } from "@/lib/appModules";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  CommandDialog, CommandEmpty, CommandGroup, CommandInput,
+  Command, CommandEmpty, CommandGroup, CommandInput,
   CommandItem, CommandList, CommandSeparator,
 } from "@/components/ui/command";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { cacheGet } from "@/lib/offlineQueue";
@@ -20,7 +21,39 @@ type Hit = {
   id: string;
   title: string;
   subtitle?: string;
+  searchText: string;
+  snippet?: string;
   action?: () => void;
+};
+
+// Retrieval and cmdk use the same literal, case-insensitive matching policy.
+function matchesSearch(text: string, query: string): boolean {
+  return text.toLowerCase().includes(query.trim().toLowerCase());
+}
+
+function commandFilter(value: string, search: string, keywords?: string[]): number {
+  return matchesSearch(keywords?.length ? keywords.join(" ") : value, search) ? 1 : 0;
+}
+
+function contentHit(kind: "task" | "note", row: any, term: string, untitled: string): Hit | undefined {
+  const title = String(row.title || untitled);
+  const body = String((kind === "task" ? row.description : row.content) || "").replace(/<[^>]*>/g, " ");
+  const searchText = `${title} ${body}`;
+  if (!matchesSearch(searchText, term)) return undefined;
+  const matchIndex = body.toLowerCase().indexOf(term);
+  const start = Math.max(0, matchIndex - 45);
+  const end = Math.min(body.length, matchIndex + term.length + 75);
+  return {
+    kind, id: row.id, title, searchText,
+    snippet: matchIndex < 0 ? undefined : `${start ? "…" : ""}${body.slice(start, end)}${end < body.length ? "…" : ""}`,
+  };
+}
+
+type SearchResult = {
+  owner: string | null;
+  term: string;
+  hits: Hit[];
+  status: "pending" | "ready" | "error";
 };
 
 export default function CommandPalette() {
@@ -29,7 +62,15 @@ export default function CommandPalette() {
   const { T, isEn } = useBilingual();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<Hit[]>([]);
+  const [result, setResult] = useState<SearchResult | null>(null);
+  const owner = user?.id || null;
+  const term = q.trim().toLowerCase();
+  const generation = useRef(0);
+  const context = useRef({ owner, term, open });
+  context.current = { owner, term, open };
+  const currentResult = open && result?.owner === owner && result.term === term ? result : null;
+  const hits = currentResult?.hits || [];
+  const status = currentResult?.status || (open && term ? "pending" : "ready");
 
   const modules = useModules();
   const features = useMemo(
@@ -56,15 +97,19 @@ export default function CommandPalette() {
 
   // Offline-first fast search: caches first, then remote
   useEffect(() => {
-    if (!open) return;
-    const term = q.trim().toLowerCase();
-    if (!term || term.length < 1) {
-      setHits([]);
-      return;
-    }
-
+    const request = ++generation.current;
     let cancelled = false;
     let localHits: Hit[] = [];
+    const isCurrent = () => !cancelled && generation.current === request &&
+      context.current.open && context.current.owner === owner && context.current.term === term;
+    const publish = (nextHits: Hit[], nextStatus: SearchResult["status"]) => {
+      if (isCurrent()) setResult({ owner, term, hits: nextHits, status: nextStatus });
+    };
+    if (!open || !term) {
+      setResult(null);
+      return () => { cancelled = true; };
+    }
+    publish([], "pending");
 
     // 1. Instant local search from cache
     async function searchLocal() {
@@ -73,16 +118,18 @@ export default function CommandPalette() {
       // Local cached tasks
       try {
         let cachedTasks: any[] = [];
-        if (user) {
-          const userTasks = extractTasksFromCache(await cacheGet<unknown>(`tasks:all:${user.id}`));
+        if (owner) {
+          const userTasks = extractTasksFromCache(await cacheGet<unknown>(`tasks:all:${owner}`));
           if (userTasks.length > 0) cachedTasks = userTasks;
         }
         if (!cachedTasks.length) {
           const generalTasks = extractTasksFromCache(await cacheGet<unknown>("tasks"));
-          if (generalTasks.length > 0) cachedTasks = generalTasks;
+          // Legacy caches are not owner-keyed; never borrow another account's rows.
+          cachedTasks = generalTasks.filter((task) => owner && task.user_id === owner);
         }
         cachedTasks.forEach((t) => {
-          if (t?.title?.toLowerCase().includes(term) || t?.description?.toLowerCase().includes(term)) {
+          const hit = contentHit("task", t, term, T("بدون عنوان", "Untitled"));
+          if (hit) {
             let dueSubtitle: string | undefined;
             if (taskWorkDate(t)) {
               try {
@@ -92,12 +139,7 @@ export default function CommandPalette() {
                 }
               } catch {}
             }
-            localHits.push({
-              kind: "task",
-              id: t.id,
-              title: t.title || T("بدون عنوان", "Untitled"),
-              subtitle: dueSubtitle,
-            });
+            localHits.push({ ...hit, subtitle: dueSubtitle });
           }
         });
       } catch {}
@@ -105,86 +147,78 @@ export default function CommandPalette() {
       // Local cached notes
       try {
         let notesList: any[] = [];
-        if (user) {
-          const userNotes = await cacheGet<any[]>(`notes:all:${user.id}`);
+        if (owner) {
+          const userNotes = await cacheGet<any[]>(`notes:all:${owner}`);
           if (Array.isArray(userNotes)) notesList = userNotes;
         }
         if (!notesList.length) {
           const rawNotes = localStorage.getItem("arshnaz_notes") || localStorage.getItem("notes");
           if (rawNotes) {
             const parsedNotes = JSON.parse(rawNotes);
-            if (Array.isArray(parsedNotes)) notesList = parsedNotes;
+            if (Array.isArray(parsedNotes)) notesList = parsedNotes.filter((note) => owner && note.user_id === owner);
           }
         }
         notesList.forEach((n: any) => {
-          if (n?.title?.toLowerCase().includes(term) || n?.content?.toLowerCase().includes(term)) {
-            localHits.push({
-              kind: "note",
-              id: n.id,
-              title: n.title || T("بدون عنوان", "Untitled"),
-              subtitle: n.folder_id ? T("درون پوشه", "In folder") : undefined,
-            });
+          const hit = contentHit("note", n, term, T("بدون عنوان", "Untitled"));
+          if (hit) {
+            localHits.push({ ...hit, subtitle: n.folder_id ? T("درون پوشه", "In folder") : undefined });
           }
         });
       } catch {}
 
-      if (!cancelled) {
-        setHits(localHits.slice(0, 20));
-      }
+      publish(localHits.slice(0, 20), owner ? "pending" : "ready");
     }
 
-    searchLocal();
+    const localSearch = searchLocal();
 
     // 2. Debounced remote enhancement if logged in
-    if (!user) return;
+    if (!owner) return () => { cancelled = true; };
     const t = setTimeout(async () => {
       try {
-        const queryTerm = term.trim().toLowerCase();
-        if (!queryTerm) return;
+        if (!isCurrent()) return;
 
         const [tasksRes, notesRes, foldersRes, tagsRes] = await Promise.all([
-          firebaseStore.from("tasks").select("id,title,description").eq("user_id", user.id),
-          firebaseStore.from("notes").select("id,title,content").eq("user_id", user.id),
-          firebaseStore.from("folders").select("id,name").eq("user_id", user.id),
-          firebaseStore.from("tags").select("id,name").eq("user_id", user.id),
+          firebaseStore.from("tasks").select("id,title,description").eq("user_id", owner),
+          firebaseStore.from("notes").select("id,title,content").eq("user_id", owner),
+          firebaseStore.from("folders").select("id,name").eq("user_id", owner),
+          firebaseStore.from("tags").select("id,name").eq("user_id", owner),
         ]);
+        // Local reads may be slower than the network; they must not overwrite it later.
+        await localSearch;
+        if (!isCurrent()) return;
 
         const remoteMap = new Map<string, Hit>();
         // Add existing local hits
         localHits.forEach((h) => remoteMap.set(`${h.kind}-${h.id}`, h));
 
         ((tasksRes.data || []) as any[])
-          .filter((x) =>
-            (x.title && String(x.title).toLowerCase().includes(queryTerm)) ||
-            (x.description && String(x.description).toLowerCase().includes(queryTerm))
-          )
+          .map((x) => contentHit("task", x, term, T("بدون عنوان", "Untitled")))
+          .filter((hit): hit is Hit => Boolean(hit))
           .slice(0, 8)
-          .forEach((x) => {
-            remoteMap.set(`task-${x.id}`, { kind: "task", id: x.id, title: x.title || "" });
+          .forEach((hit) => {
+            remoteMap.set(`task-${hit.id}`, { ...remoteMap.get(`task-${hit.id}`), ...hit });
           });
 
         ((notesRes.data || []) as any[])
-          .filter((x) =>
-            (x.title && String(x.title).toLowerCase().includes(queryTerm)) ||
-            (x.content && String(x.content).toLowerCase().includes(queryTerm))
-          )
+          .map((x) => contentHit("note", x, term, T("بدون عنوان", "Untitled")))
+          .filter((hit): hit is Hit => Boolean(hit))
           .slice(0, 6)
-          .forEach((x) => {
-            remoteMap.set(`note-${x.id}`, { kind: "note", id: x.id, title: x.title || "" });
+          .forEach((hit) => {
+            remoteMap.set(`note-${hit.id}`, { ...remoteMap.get(`note-${hit.id}`), ...hit });
           });
 
         ((foldersRes.data || []) as any[])
-          .filter((x) => x.name && String(x.name).toLowerCase().includes(queryTerm))
+          .filter((x) => x.name && matchesSearch(String(x.name), term))
           .slice(0, 4)
           .forEach((x) => {
-            remoteMap.set(`folder-${x.id}`, { kind: "folder", id: x.id, title: x.name || "" });
+            remoteMap.set(`folder-${x.id}`, { kind: "folder", id: x.id, title: x.name || "", searchText: x.name || "" });
           });
 
         ((tagsRes.data || []) as any[])
-          .filter((x) => x.name && String(x.name).toLowerCase().includes(queryTerm))
+          .filter((x) => x.name && matchesSearch(String(x.name), term))
           .slice(0, 4)
           .forEach((x) => {
-            remoteMap.set(`tag-${x.id}`, { kind: "tag", id: x.id, title: x.name || "" });
+            remoteMap.set(`tag-${x.id}`, { kind: "tag", id: x.id, title: x.name || "", searchText: x.name || "" });
           });
 
         const sorted = Array.from(remoteMap.values()).sort((a, b) => {
@@ -195,14 +229,16 @@ export default function CommandPalette() {
           return bExact - aExact;
         });
 
-        setHits(sorted.slice(0, 25));
+        const failed = [tasksRes, notesRes, foldersRes, tagsRes].some((response) => response.error);
+        publish(sorted.slice(0, 25), failed ? "error" : "ready");
       } catch {
-        // Fallback to localHits if remote fails
+        await localSearch;
+        publish(localHits.slice(0, 20), "error");
       }
     }, 250);
 
-    return () => clearTimeout(t);
-  }, [q, user, open, T, isEn]);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [term, owner, open, T, isEn]);
 
   const go = useCallback((to: string) => {
     setOpen(false);
@@ -211,7 +247,9 @@ export default function CommandPalette() {
   }, [navigate]);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="overflow-hidden p-0 shadow-lg">
+      <Command filter={commandFilter} className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
       <div className="flex items-center px-3 border-b border-border/50" dir={isEn ? "ltr" : "rtl"}>
         <Search className="w-4 h-4 text-muted-foreground me-2 shrink-0" />
         <CommandInput
@@ -224,9 +262,11 @@ export default function CommandPalette() {
       </div>
 
       <CommandList className="max-h-[65vh] overflow-y-auto" dir={isEn ? "ltr" : "rtl"}>
-        <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+        {term && status === "pending" && <div role="status" className="px-4 py-3 text-sm text-muted-foreground">{T("در حال جستجو…", "Searching…")}</div>}
+        {term && status === "error" && <div role="status" className="px-4 py-3 text-sm text-muted-foreground">{T("جستجوی ابری انجام نشد؛ نتایج ذخیره‌شده همچنان در دسترس‌اند.", "Cloud search failed; cached results are still available.")}</div>}
+        {status === "ready" && <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
           {T("هیچ موردی منطبق با عبارت مورد نظر پیدا نشد.", "No results found for your query.")}
-        </CommandEmpty>
+        </CommandEmpty>}
 
         {/* Quick action shortcuts */}
         <CommandGroup heading={T("اقدامات سریع", "Quick Actions")}>
@@ -271,13 +311,17 @@ export default function CommandPalette() {
                 return (
                   <CommandItem
                     key={`${h.kind}-${h.id}`}
-                    value={`${h.kind} ${h.title}`}
+                    value={`${h.kind}-${h.id}`}
+                    keywords={[h.searchText]}
                     onSelect={() => go(to)}
                     className="flex items-center justify-between py-2 cursor-pointer"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <span className="truncate font-medium">{h.title}</span>
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">{h.title}</div>
+                        {h.snippet && <div className="truncate text-xs text-muted-foreground">{h.snippet}</div>}
+                      </div>
                       {h.subtitle && (
                         <span className="text-xs text-muted-foreground/80 truncate">
                           ({h.subtitle})
@@ -307,6 +351,8 @@ export default function CommandPalette() {
           })}
         </CommandGroup>
       </CommandList>
-    </CommandDialog>
+      </Command>
+      </DialogContent>
+    </Dialog>
   );
 }

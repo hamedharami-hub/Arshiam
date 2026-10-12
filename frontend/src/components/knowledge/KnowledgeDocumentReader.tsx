@@ -40,7 +40,7 @@ import type {
 } from "@/lib/knowledgeTypes";
 import { sanitizeKnowledgeHtml } from "@/lib/knowledgeBeautifier";
 import { isPersianText, detectDirection, generateBilingualLesson } from "@/lib/bilingualHelper";
-import { updateKnowledgeDocument } from "@/lib/knowledgeService";
+import { getKnowledgeDocument, updateKnowledgeDocument } from "@/lib/knowledgeService";
 import { recordLastStudy } from "@/lib/lastStudy";
 import {
   attachInteractiveListeners,
@@ -70,27 +70,14 @@ const ClinicalRelationsNetwork = React.lazy(() =>
   }))
 );
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { createInteractiveStudySessionDraft, persistInteractiveStudySession } from "@/lib/interactiveStudyService";
+import { preserveSourceRevision, readSourceRevisions, sameSourceDocument, sourceRestorePatch } from "@/lib/knowledgeSourceRevisions";
 
 /**
  * A recoverable snapshot of source content that a practice/translation flow is
  * about to replace. Kept on this device so a source overwrite is never final.
  */
-interface SourceRevision { content_html?: string; content_en?: string; title_en?: string; savedAt: number }
-const sourceRevisionKey = (userId: string, docId: string) => `arshnaz:knowledge-source-revision:v1:${userId}:${docId}`;
-function writeSourceRevision(userId: string, docId: string, revision: Omit<SourceRevision, "savedAt">) {
-  try { localStorage.setItem(sourceRevisionKey(userId, docId), JSON.stringify({ ...revision, savedAt: Date.now() } satisfies SourceRevision)); } catch { /* storage unavailable */ }
-}
-function readSourceRevision(userId: string, docId: string): SourceRevision | null {
-  try {
-    const raw = JSON.parse(localStorage.getItem(sourceRevisionKey(userId, docId)) ?? "null") as Partial<SourceRevision> | null;
-    if (!raw || typeof raw !== "object") return null;
-    const revision: SourceRevision = { savedAt: typeof raw.savedAt === "number" ? raw.savedAt : 0 };
-    if (typeof raw.content_html === "string") revision.content_html = raw.content_html;
-    if (typeof raw.content_en === "string") revision.content_en = raw.content_en;
-    if (typeof raw.title_en === "string") revision.title_en = raw.title_en;
-    return revision;
-  } catch { return null; }
-}
 
 interface KnowledgeDocumentReaderProps {
   document: KnowledgeDocument | null;
@@ -138,9 +125,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   scrollPositionsMap,
 }) => {
   const { isEn } = useBilingual();
+  const navigate = useNavigate();
   const [localDocument, setLocalDocument] = useState<KnowledgeDocument | null>(null);
   const activeDocumentIdentity = useRef(''); activeDocumentIdentity.current = `${userId}:${externalDocument?.id || ''}`;
   const document = localDocument && externalDocument && localDocument.id === externalDocument.id && localDocument.user_id === externalDocument.user_id && localDocument.updated_at >= externalDocument.updated_at ? localDocument : externalDocument;
+  const currentDocumentRef = useRef(document); currentDocumentRef.current = document;
+  const translationSequenceRef = useRef(0);
+  const [revisionEpoch, setRevisionEpoch] = useState(0);
   const onDocumentUpdated = (updated: KnowledgeDocument) => { if (activeDocumentIdentity.current !== `${updated.user_id}:${updated.id}`) return; setLocalDocument(updated); notifyDocumentUpdated?.(updated); };
   const isPharmacySourceFile = document ? isPharmacyKnowledgeDocument(document) : false;
   const documentId = document?.id;
@@ -157,7 +148,13 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   const notebookRef = useRef<LearningNotebookHandle>(null);
   const [selectedLearningAnchor, setSelectedLearningAnchor] = useState<LearningAnchor | undefined>();
   const practiceRef = useRef(false);
-  const [translationProposal, setTranslationProposal] = useState<{ title_en: string; content_en: string } | null>(null);
+  const [translationProposal, setTranslationProposal] = useState<{ title_en: string; content_en: string; base: KnowledgeDocument } | null>(null);
+  useEffect(() => {
+    translationSequenceRef.current += 1;
+    setTranslationProposal(null);
+    setIsGeneratingBilingual(false);
+    setInteractiveModalOpen(false);
+  }, [userId, documentId, document?.updated_at, document?.content_html, document?.content_en]);
 
   // Compute smart related documents
   const relatedSuggestions = useMemo(() => {
@@ -249,9 +246,9 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   }, [recordResume]);
 
   const handleOpenInteractive = useCallback(() => {
-    practiceRef.current = true;
     setInteractiveModalOpen(true);
-    recordResume(true);
+    // This is the source editor, not a saved standalone practice session.
+    recordResume(false);
   }, [recordResume]);
 
   // Open each document in the user's requested default reading language.
@@ -305,22 +302,25 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   // Practice is separate by default: appending keeps the source lesson. A source
   // replacement keeps a restorable snapshot and offers a one-tap restore.
   const restoreSourceRevision = async (docId: string) => {
-    const revision = readSourceRevision(userId, docId);
+    const revision = readSourceRevisions(userId, docId).at(-1);
     if (!revision) {
       toast.error(isEn ? "No previous version is stored for this lesson." : "نسخهٔ قبلی برای این درس ذخیره نشده است.");
       return;
     }
-    const restore: Partial<KnowledgeDocument> = {};
-    if (typeof revision.content_html === "string") restore.content_html = revision.content_html;
-    if (typeof revision.content_en === "string") restore.content_en = revision.content_en;
-    if (typeof revision.title_en === "string") restore.title_en = revision.title_en;
     try {
+      const current = currentDocumentRef.current;
+      if (!current || current.id !== docId) throw new Error("The lesson changed since this snapshot. Restore was not applied.");
+      const restore = sourceRestorePatch(userId, current, revision);
+      const stored = await getKnowledgeDocument(userId, docId);
+      if (!sameSourceDocument(current, stored) || !sameSourceDocument(current, currentDocumentRef.current)) throw new Error("The lesson changed. Restore was not applied.");
+      preserveSourceRevision(userId, current, revision.source);
+      setRevisionEpoch(value => value + 1);
       const updated = await updateKnowledgeDocument(userId, docId, restore);
       onDocumentUpdated?.(updated);
       toast.success(isEn ? "Previous version restored." : "نسخهٔ قبلی بازگردانده شد.");
     } catch (err: any) {
       console.error("Error restoring previous content:", err);
-      toast.error(isEn ? "Could not restore the previous version." : "بازگرداندن نسخهٔ قبلی ممکن نشد.");
+      toast.error(err.message || (isEn ? "Could not restore the previous version." : "بازگرداندن نسخهٔ قبلی ممکن نشد."));
     }
   };
 
@@ -368,17 +368,17 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       };
     }
 
-    const replaceSnapshot = mode === "replace"
-      ? { content_html: document.content_html, content_en: document.content_en }
-      : null;
-
     try {
-      const updated = await updateKnowledgeDocument(userId, document.id, patch);
+      if (!sameSourceDocument(document, currentDocumentRef.current)) throw new Error("The lesson changed. Generate a new preview before applying it.");
+      const stored = await getKnowledgeDocument(userId, document.id);
+      if (!sameSourceDocument(document, stored) || !sameSourceDocument(document, currentDocumentRef.current)) throw new Error("The lesson changed. Generate a new preview before applying it.");
+      preserveSourceRevision(userId, document, patch);
+      setRevisionEpoch(value => value + 1);
+      const updated = await updateKnowledgeDocument(userId, document.id, { ...patch, _expected_document_updated_at: document.updated_at });
       if (onDocumentUpdated) {
         onDocumentUpdated(updated);
       }
-      if (replaceSnapshot) {
-        writeSourceRevision(userId, document.id, replaceSnapshot);
+      if (mode === "replace") {
         toast(isEn ? "Source content replaced. The previous version is kept." : "متن اصلی جایگزین شد؛ نسخهٔ قبلی حفظ شد.", {
           action: {
             label: isEn ? "Restore previous" : "بازگرداندن قبلی",
@@ -390,6 +390,17 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       console.error("Error saving interactive content:", err);
       throw err;
     }
+  };
+  const handleStartPractice = async (html: string) => {
+    if (!document || document.user_id !== userId || userId === "guest") throw new Error("Sign in as the lesson owner to save practice.");
+    const base = document;
+    const language = docLangMode === "fa" ? "fa" : "en";
+    const result = await persistInteractiveStudySession(createInteractiveStudySessionDraft(userId, base.id,
+      language === "en" ? base.title_en || base.title : base.title, language, html));
+    if (result.status === "failed") throw new Error(result.error || "Practice could not be retained. Please retry.");
+    if (!sameSourceDocument(base, currentDocumentRef.current)) throw new Error("The lesson changed. Practice was retained separately; reopen it in Interactive Study.");
+    setInteractiveModalOpen(false);
+    navigate(`/app/interactive-study?${new URLSearchParams({ docId: base.id, sourceLang: language, version: learningVersion((language === "fa" ? base.content_html : base.content_en || base.content_html) || "") })}`);
   };
 
   // Memoize sanitized Persian and English HTML
@@ -462,6 +473,8 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
   // overwrite. The previous English text is kept so the change is recoverable.
   const handleGenerateBilingualLesson = async () => {
     if (!document) return;
+    const base = document;
+    const sequence = ++translationSequenceRef.current;
     setIsGeneratingBilingual(true);
 
     try {
@@ -477,33 +490,40 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
         targetLang: "en",
       });
 
-      setTranslationProposal({ title_en: result.title_en, content_en: result.content_en });
+      if (sequence !== translationSequenceRef.current || !sameSourceDocument(base, currentDocumentRef.current)) return;
+      setTranslationProposal({ title_en: result.title_en, content_en: result.content_en, base });
       toast.info(
         isEn
           ? "Review the proposed translation, then apply or discard it."
           : "ترجمهٔ پیشنهادی را بررسی کن، سپس اعمال یا کنار بگذار."
       );
     } catch (err: any) {
+      if (sequence !== translationSequenceRef.current) return;
       console.error("Error generating bilingual lesson:", err);
       toast.error(err.message || (isEn ? "Failed to bilingualize lesson" : "خطا در دوزبانه کردن درس"));
     } finally {
-      setIsGeneratingBilingual(false);
+      if (sequence === translationSequenceRef.current) setIsGeneratingBilingual(false);
     }
   };
 
   const applyTranslationProposal = async () => {
     if (!document || !translationProposal) return;
-    const snapshot = { content_en: document.content_en, title_en: document.title_en ?? "" };
     try {
-      const updated = await updateKnowledgeDocument(userId, document.id, {
+      if (!sameSourceDocument(translationProposal.base, currentDocumentRef.current)) throw new Error("The lesson changed. Generate a new translation before applying it.");
+      const stored = await getKnowledgeDocument(userId, document.id);
+      if (!sameSourceDocument(translationProposal.base, stored) || !sameSourceDocument(translationProposal.base, currentDocumentRef.current)) throw new Error("The lesson changed. Generate a new translation before applying it.");
+      const patch: Partial<KnowledgeDocument> = {
         title_en: translationProposal.title_en,
-        content_en: translationProposal.content_en,
+        content_en: sanitizeKnowledgeHtml(translationProposal.content_en),
         preferred_language: "bilingual",
-      });
+      };
+      preserveSourceRevision(userId, document, patch);
+      setRevisionEpoch(value => value + 1);
+      const updated = await updateKnowledgeDocument(userId, document.id, { ...patch, _expected_document_updated_at: translationProposal.base.updated_at });
       onDocumentUpdated?.(updated);
+      if (activeDocumentIdentity.current !== `${userId}:${document.id}`) return;
       setTranslationProposal(null);
       setDocLangMode("bilingual");
-      writeSourceRevision(userId, document.id, snapshot);
       toast.success(
         isEn
           ? "Bilingual version saved. The previous English text is kept."
@@ -660,6 +680,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             </div>
 
             {document.learning_workspace_unavailable && <p role="alert" className="text-xs text-muted-foreground">{isEn ? "This workspace needs a newer app. Original content is retained." : "این دفتر درس به نسخهٔ جدیدتر نیاز دارد؛ متن اصلی محفوظ است."}</p>}
+            {document.user_id === userId && readSourceRevisions(userId, document.id).length > 0 && <div key={revisionEpoch} className="text-xs text-muted-foreground"><span>{isEn ? "Source recovery is stored on this device only (last 10 changes)." : "بازیابی منبع فقط در این دستگاه ذخیره می‌شود (۱۰ تغییر اخیر)."}</span> <button type="button" className="min-h-11 text-primary underline" onClick={() => { void restoreSourceRevision(document.id); }}>{isEn ? "Restore previous source" : "بازگرداندن منبع قبلی"}</button></div>}
             {document.learning_workspace?.enabled && (document.learning_workspace.source_versions.fa !== learningVersion(document.content_html) || document.learning_workspace.source_versions.en !== learningVersion(document.content_en)) && <p role="status" className="text-xs text-muted-foreground">{isEn ? "Source changed. Showing its current text; refresh the card preview before reapplying layout." : "منبع تغییر کرده؛ متن فعلی نمایش داده می‌شود. پیش‌نمایش کارت‌ها را پیش از اعمال دوباره تازه کنید."}</p>}
             {!studyMode && <div className="learning-reader-tools flex flex-wrap items-center gap-1 border-b border-border pb-1">
             <LearningNotebook key={`notebook:${userId}:${document.id}`} ref={notebookRef} document={document} userId={userId} language={docLangMode === "fa" ? "fa" : "en"} containerRef={contentContainerRef} onUpdated={onDocumentUpdated} onGenerateReview={handleTriggerAiFromSelection} />
@@ -951,6 +972,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
       {interactiveModalOpen && (
         <React.Suspense fallback={null}>
           <InteractiveLearningModal
+            presentationMode="standalone"
             open={interactiveModalOpen}
             onOpenChange={setInteractiveModalOpen}
             documentId={document?.id}
@@ -967,7 +989,7 @@ export const KnowledgeDocumentReader: React.FC<KnowledgeDocumentReaderProps> = (
             documentTitleEn={document?.title_en?.trim() || ""}
             documentContentEn={document?.content_en || ""}
             languageOverride={docLangMode}
-            onInsertContent={handleInsertInteractive}
+            onInsertContent={handleStartPractice}
           />
         </React.Suspense>
       )}

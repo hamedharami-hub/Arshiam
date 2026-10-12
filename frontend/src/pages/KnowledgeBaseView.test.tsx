@@ -113,6 +113,24 @@ vi.mock("@/lib/knowledgeService", async (importOriginal) => {
 });
 
 describe("KnowledgeBaseView (/app/knowledge) Page Verification", { timeout: 15000 }, () => {
+  it("unmounts collapsed sidebar controls rather than leaving focusable hidden content", async () => {
+    localStorage.setItem("knowledge_sidebar_collapsed", "true");
+    render(<MemoryRouter><KnowledgeBaseView /></MemoryRouter>);
+    const sidebar = await screen.findByTestId("knowledge-desktop-sidebar");
+    expect(sidebar.querySelector("button, a, input, [tabindex]" )).toBeNull();
+    localStorage.removeItem("knowledge_sidebar_collapsed");
+  });
+  it("does not auto-collapse chapters when a focused lesson link changes the document URL", async () => {
+    localStorage.removeItem("knowledge_sidebar_collapsed"); localStorage.removeItem("knowledge_study_mode");
+    render(<MemoryRouter initialEntries={["/app/knowledge"]}><KnowledgeBaseView /></MemoryRouter>);
+    const sidebar = await screen.findByTestId("knowledge-desktop-sidebar");
+    const folder = await screen.findByRole("treeitem", { name: "پوشه: فولدر داروها" });
+    fireEvent.click(folder);
+    const link = await screen.findByRole("link", { name: "راهنمای فلوکستین" });
+    link.focus(); fireEvent.click(link);
+    await waitFor(() => expect(screen.getByTestId("knowledge-reader-header")).toBeInTheDocument());
+    expect(sidebar).toHaveAttribute("aria-hidden", "false"); expect(link).toHaveFocus();
+  });
   beforeEach(() => {
     mockIsEn = false;
     currentFolders = [...mockFolders];

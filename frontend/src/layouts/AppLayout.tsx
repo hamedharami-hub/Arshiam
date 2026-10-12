@@ -1,4 +1,5 @@
 import { installMouseTabScroll } from "@/lib/mouseTabScroll";
+import { Capacitor } from "@capacitor/core";
 import { ModuleGatedOutlet } from "@/components/modules/ModuleGatedOutlet";
 import { syncModulesForUser } from "@/lib/appModules";
 import { loadSettings } from "@/lib/reminders";
@@ -12,7 +13,6 @@ import OfflineIndicator from "@/components/OfflineIndicator";
 import FocusRuntime from "@/components/FocusRuntime";
 import InstallPrompt from "@/components/InstallPrompt";
 import EdgeSwipeHandler from "@/components/EdgeSwipeHandler";
-import EdgePanBack from "@/components/EdgePanBack";
 import SwipeNavigator from "@/components/gestures/SwipeNavigator";
 import ClinicalDisclaimer from "@/components/ClinicalDisclaimer";
 import RemindersRunner from "@/components/RemindersRunner";
@@ -44,12 +44,15 @@ import { isAndroid } from "@/lib/nativeExperience";
 import { cn } from "@/lib/utils";
 import { shouldShowBottomNavigation, useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { hydrateSidebarPositionFromCloud, useSidebarPosition } from "@/lib/sidebarPosition";
+import { navigationInteractionBlocked, rememberLastRoute, routeTitle } from "@/lib/appNavigation";
 
 export default function AppLayout() {
   useEffect(() => installMouseTabScroll(), []);
   const [aiOpen, setAiOpen] = useState(false);
   const { setTheme } = useTheme();
   const loc = useLocation();
+  const [routeAnnouncement, setRouteAnnouncement] = useState("");
+  const isEn = document.documentElement.lang?.startsWith("en");
   useTwoFingerSwipe();
   const { user: layoutUser } = useAuth();
   useEffect(() => { purgeRetiredFeatureKeys(); }, []);
@@ -75,10 +78,26 @@ export default function AppLayout() {
     onOpenSearch: () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true })),
   });
   useEffect(() => {
-    if (loc.pathname.startsWith("/app/")) {
-      try { localStorage.setItem("last_route", loc.pathname); } catch {}
-    }
-  }, [loc.pathname]);
+    rememberLastRoute(layoutUser?.id, loc.pathname + loc.search);
+  }, [layoutUser?.id, loc.pathname, loc.search]);
+
+  useEffect(() => {
+    setRouteAnnouncement("");
+    const frame = requestAnimationFrame(() => {
+      // An editor's autofocus or an open dialog takes precedence over route focus.
+      if (navigationInteractionBlocked()) return;
+      const main = document.getElementById("main-scroll");
+      const heading = main?.querySelector<HTMLElement>("h1");
+      const title = heading?.textContent?.trim() || document.getElementById("app-header-title")?.textContent?.trim() || routeTitle(loc.pathname, Boolean(isEn));
+      const target = heading || main;
+      if (target) {
+        if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+        target.focus({ preventScroll: true });
+      }
+      setRouteAnnouncement(title);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loc.pathname, isEn]);
 
   // Safety guard against Radix UI pointer-events locking when modals/drawers unmount
   useEffect(() => {
@@ -124,6 +143,10 @@ export default function AppLayout() {
 
   return (
     <SidebarProvider defaultOpen={desktopDefaultOpen} side={sidebarPosition}>
+      <a href="#main-scroll" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded focus:bg-background focus:p-3 focus:text-foreground" onClick={() => document.getElementById("main-scroll")?.focus()}>
+        {isEn ? "Skip to main content" : "رفتن به محتوای اصلی"}
+      </a>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{routeAnnouncement}</div>
       <div className="app-shell min-h-screen flex w-full bg-background" dir="ltr">
         <AppSidebar className={isSidebarLeft ? "order-1" : "order-2"} />
         <div
@@ -154,8 +177,8 @@ export default function AppLayout() {
                   onClick={() => {
                     window.dispatchEvent(new CustomEvent("arshnaz:open-search"));
                   }}
-                  aria-label={document.documentElement.lang?.startsWith("en") ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
-                  title={document.documentElement.lang?.startsWith("en") ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
+                   aria-label={isEn ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
+                   title={isEn ? "Search (Ctrl+K)" : "جستجو (Ctrl+K)"}
                   data-testid="header-search-button"
                 >
                   <Search className="w-4 h-4 text-muted-foreground" />
@@ -169,6 +192,8 @@ export default function AppLayout() {
           )}
           <main
             id="main-scroll"
+            tabIndex={-1}
+            aria-label={routeTitle(loc.pathname, Boolean(isEn))}
             style={{ "--app-bottom-space": showMobileBottomBar ? "calc(var(--bottom-bar-height) + var(--bottom-bar-gap) + env(safe-area-inset-bottom, 0px))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
             className={cn(
               "app-shell-main flex-1 overflow-auto",
@@ -190,7 +215,7 @@ export default function AppLayout() {
         <OfflineIndicator />
         <FocusRuntime />
         <InstallPrompt />
-        {isAndroid() ? <AndroidGestures /> : <><EdgeSwipeHandler /><EdgePanBack /><SwipeNavigator /></>}
+        {isAndroid() ? <AndroidGestures /> : !Capacitor.isNativePlatform() ? <><EdgeSwipeHandler /><SwipeNavigator /></> : null}
         <ClinicalDisclaimer />
         <RemindersRunner />
         {isAndroid() ? <AndroidTaskSync /> : null}

@@ -9,7 +9,7 @@ export function AILangToggle({
     <div className={`flex items-center gap-2 ${className}`}>
       <Languages className="w-3.5 h-3.5 text-muted-foreground" />
       <Select value={value} onValueChange={(v) => onChange(v as AILanguage)}>
-        <SelectTrigger className="h-7 w-[110px] text-xs">
+        <SelectTrigger aria-label="AI response language / زبان پاسخ هوش مصنوعی" className="h-7 w-[110px] text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

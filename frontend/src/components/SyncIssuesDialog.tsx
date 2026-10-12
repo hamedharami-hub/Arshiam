@@ -76,6 +76,13 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, ownerId, i
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [discardTargets, setDiscardTargets] = useState<QueuedOp[]>([]);
+  const [discardAll, setDiscardAll] = useState(false);
+  const requestDiscard = (targets: QueuedOp[], all = false) => {
+    setDiscardTargets(targets);
+    setDiscardAll(all);
+    setConfirmOpen(true);
+  };
   const ownedItems = items.filter(item => canReplayForOwner(item, ownerId));
 
   const undoDiscard = async (removed: QueuedOp[]) => {
@@ -186,7 +193,7 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, ownerId, i
                   variant="ghost"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
                   disabled={busy || !canReplayForOwner(item, ownerId)}
-                  onClick={() => discard([item])}
+                   onClick={() => requestDiscard([item])}
                   aria-label={T("حذف از صف", "Remove from queue")}
                   title={T("حذف از صف", "Remove from queue")}
                   data-testid={`sync-issue-discard-${i}`}
@@ -199,7 +206,7 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, ownerId, i
         </ul>
         <DialogFooter className="gap-2 sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="ghost" className="text-destructive hover:bg-destructive/10" disabled={busy || ownedItems.length === 0} onClick={() => setConfirmOpen(true)} data-testid="sync-issues-discard-all">
+            <Button variant="ghost" className="text-destructive hover:bg-destructive/10" disabled={busy || ownedItems.length === 0} onClick={() => requestDiscard(ownedItems, true)} data-testid="sync-issues-discard-all">
               <Trash2 className="h-4 w-4" /> {T("حذف تغییرات این حساب از صف", "Remove this account’s changes")}
             </Button>
             <Button variant="outline" disabled={items.length === 0} onClick={downloadRecoveryCopy} data-testid="sync-issues-download">
@@ -218,8 +225,8 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, ownerId, i
             <AlertDialogTitle>{T("حذف تغییرات همگام‌نشده؟", "Remove unsynced changes?")}</AlertDialogTitle>
             <AlertDialogDescription className="leading-6">
               {T(
-                `${ownedItems.length} تغییر این حساب از صف حذف می‌شود. نسخهٔ ابری دست‌نخورده می‌ماند و بلافاصله پس از حذف، مهلت کوتاهی برای بازگرداندن داری.`,
-                `${ownedItems.length} change${ownedItems.length === 1 ? "" : "s"} for this account will be removed from the queue. The cloud copy is left untouched, and you get a short window to undo right after.`,
+                `${discardTargets.length} تغییر این حساب از صف حذف می‌شود. نسخهٔ ابری دست‌نخورده می‌ماند و بلافاصله پس از حذف، مهلت کوتاهی برای بازگرداندن داری.`,
+                `${discardTargets.length} change${discardTargets.length === 1 ? "" : "s"} for this account will be removed from the queue. The cloud copy is left untouched, and you get a short window to undo right after.`,
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -227,7 +234,8 @@ export default function SyncIssuesDialog({ open, onOpenChange, items, ownerId, i
             <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => void discard(ownedItems, true)}
+              disabled={busy}
+              onClick={() => void discard(discardTargets, discardAll)}
             >
               <Trash2 className="h-4 w-4" /> {T("حذف از صف", "Remove from queue")}
             </AlertDialogAction>

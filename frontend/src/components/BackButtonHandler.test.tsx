@@ -21,8 +21,11 @@ describe("BackButtonHandler", () => {
     push.mockRestore();
   });
 
-  it("preserves the router history index when guarding a direct root entry", () => {
+  it("leaves a direct root history entry unchanged without trapping browser Back", () => {
+    const push = vi.spyOn(window.history, "pushState");
     render(<BackButtonHandler />);
-    expect(window.history.state).toMatchObject({ idx: 0, __sentinel: true });
+    expect(window.history.state).toEqual({ idx: 0 });
+    expect(push).not.toHaveBeenCalled();
+    push.mockRestore();
   });
 });

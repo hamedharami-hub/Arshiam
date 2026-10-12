@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { haptic } from "@/lib/haptics";
 import { BottomTabItemConfig } from "./types";
@@ -21,7 +21,6 @@ export function BottomTabItem({
   mode = "mobile",
   className = "",
 }: BottomTabItemProps) {
-  const navigate = useNavigate();
   const { i18n } = useTranslation();
   const isEn = (i18n.language || "fa").startsWith("en");
   const label = isEn ? tab.labelEn : tab.labelFa;
@@ -33,19 +32,18 @@ export function BottomTabItem({
 
   const handleClick = () => {
     haptic("light");
-    navigate(tab.to);
   };
 
   if (mode === "desktop") {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
+          <Link
+            to={tab.to}
             onClick={handleClick}
             aria-label={label}
             aria-current={isActive ? "page" : undefined}
-            className={`group relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium select-none transition-all duration-150 ${
+            className={`group relative flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium select-none transition-colors duration-150 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
               isActive
                 ? "bg-primary/15 text-primary border border-primary/30 font-semibold shadow-[0_0_12px_hsl(var(--primary)/0.2)]"
                 : "text-muted-foreground/80 hover:text-foreground hover:bg-accent/50"
@@ -53,6 +51,7 @@ export function BottomTabItem({
           >
             <div className="relative flex items-center justify-center">
               <Icon
+                aria-hidden="true"
                 className={`w-4 h-4 transition-transform duration-200 ${
                   isActive ? "scale-110 text-primary" : "group-hover:scale-105"
                 }`}
@@ -76,7 +75,7 @@ export function BottomTabItem({
             {isActive && (
               <span className="absolute bottom-0 inset-x-2.5 h-0.5 bg-primary rounded-full shadow-[0_0_6px_hsl(var(--primary))]" />
             )}
-          </button>
+          </Link>
         </TooltipTrigger>
         <TooltipContent side="top" className="flex items-center gap-1.5 text-xs py-1 px-2.5">
           <span>{label}</span>
@@ -90,12 +89,12 @@ export function BottomTabItem({
 
   // Mobile & Foldable mode - Material 3 Navigation Bar Tab
   return (
-    <button
-      type="button"
+    <Link
+      to={tab.to}
       onClick={handleClick}
       aria-label={label}
       aria-current={isActive ? "page" : undefined}
-      className={`group/tab relative z-10 h-full flex-1 flex flex-col items-center justify-center gap-0.5 select-none active:scale-[0.94] transition-transform duration-200 ease-out min-w-0 ${className}`}
+      className={`group/tab relative z-10 h-full min-h-11 min-w-11 flex-1 flex flex-col items-center justify-center gap-0.5 select-none rounded-full touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${className}`}
     >
       {/* Material 3 Capsule Active Indicator (68px x 36px) */}
       <div
@@ -106,6 +105,7 @@ export function BottomTabItem({
         }`}
       >
         <Icon
+          aria-hidden="true"
           className={`w-[1.3rem] h-[1.3rem] transition-all duration-300 ease-out ${
             isActive
               ? "scale-110 stroke-[2.25] text-primary drop-shadow-[0_1px_4px_hsl(var(--primary)/0.35)]"
@@ -131,6 +131,6 @@ export function BottomTabItem({
         {shortLabel}
       </span>
 
-    </button>
+    </Link>
   );
 }
