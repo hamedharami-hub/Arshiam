@@ -17,6 +17,14 @@ This document describes reproducible checks, not a claim that every design-audit
 - Typecheck and production build were rerun after the final calendar/sidebar edits and passed; final build log: `arshiam-build-final-gate.log` (`BUILD_EXIT=0`).
 - A third full run, incorporating the deterministic test, is in progress in `arshiam-full-suite-final-gate.log`. Main integration still awaits its result.
 - Final gate completed successfully: **305 files / 1960 tests passed**, `SUITE_EXIT=0`, in `arshiam-full-suite-final-gate.log`. The earlier failed runs remain recorded above; only this final frozen-source run is the full-suite pass.
+
+## Main integration and post-integration verification
+
+- Commit `a649bde` was fast-forwarded from `design-remediation` into `main`; no push. The tested source is identical across this integration (no merge conflict or source rewrite).
+- On `main` at `a649bde`, reran the responsive matrix: **26 passed**. Artifacts: external `arshiam-main-responsive` directory.
+- On the same `main`, reran desktop layout: **10 passed**, zero obscured rows. Artifacts: external `arshiam-main-layout` directory.
+- Reviewed selected new screenshots (320px Persian/light editor, 390px Persian/dark-amber editor, 1280px RTL/right-expanded shell). No new reproducible visual defect was found in this limited sample. Remaining design proposals and explicit scope limits are in `docs/design-review-followup-fa.md`.
+- Only documentation changed after the tested integration. Full authenticated journeys, real keyboard/IME, assistive technology, composite contrast, and complete low-end list-render benchmarks remain outside verified scope.
 - These checks occurred on `design-remediation`, not after integration into `main`. The requested post-integration visual audit remains a separate verification step.
 
 ## Automated checks
