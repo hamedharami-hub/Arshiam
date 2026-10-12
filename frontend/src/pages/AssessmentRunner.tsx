@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCw, Save } from "lucide-react";
 import { HEXACO_ITEMS, scoreHexaco, analyzeHexaco } from "@/lib/assessments/hexaco";
 import { VIA_ITEMS, scoreVia, analyzeVia, VIA_LABELS, type ViaStrength } from "@/lib/assessments/via";
 import { ECR_ITEMS, scoreEcr, attachmentQuadrant, QUADRANT_LABELS, type AttachmentQuadrant } from "@/lib/assessments/ecr";
@@ -20,6 +20,13 @@ import {
 } from "@/lib/firestoreDataService";
 
 type Type = "hexaco" | "via" | "ecr";
+
+/** Clamp a persisted/restored cursor into the valid item range `[0, total - 1]`. */
+function clampIndex(raw: unknown, total: number): number {
+  const parsed = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.min(Math.floor(parsed), Math.max(0, total - 1));
+}
 
 const META: Record<Type, {
   title: string;
@@ -64,17 +71,24 @@ export default function AssessmentRunner() {
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  /** True when the last progress/finish write failed and has not been retried. */
+  const [saveError, setSaveError] = useState(false);
+  /** Distinguishes a failed final result write from a failed incremental progress write. */
+  const [failedFinish, setFailedFinish] = useState(false);
 
   const meta = type ? META[type as Type] : null;
 
   useEffect(() => {
     if (!user || !type) return;
+    const itemCount = META[type as Type]?.items.length ?? 0;
+    const maxIndex = Math.max(0, itemCount - 1);
     (async () => {
-      // Check Firestore progress
-      const progress = await getAssessmentProgress(user.id, type);
+      // Check Firestore progress (service normalizes current_index -> currentIndex + clamps)
+      const progress = await getAssessmentProgress(user.id, type, maxIndex);
       if (progress && !progress.completed) {
         setResponses(progress.responses || {});
-        setIndex(progress.currentIndex || 0);
+        setIndex(clampIndex(progress.currentIndex, itemCount));
       } else {
         // Fallback check firebaseStore
         const { data } = await firebaseStore
@@ -85,7 +99,8 @@ export default function AssessmentRunner() {
           .maybeSingle();
         if (data && !data.completed) {
           setResponses((data.responses as Record<number, number>) || {});
-          setIndex(data.current_index || 0);
+          const raw = (data as any).currentIndex ?? (data as any).current_index ?? 0;
+          setIndex(clampIndex(raw, itemCount));
         }
       }
       setLoading(false);
@@ -96,9 +111,10 @@ export default function AssessmentRunner() {
   const item = meta?.items[index];
   const progress = total ? ((index + 1) / total) * 100 : 0;
 
-  async function persist(newResp: Record<number, number>, newIdx: number, completed = false) {
-    if (!user || !type) return;
-    await saveAssessmentProgress(user.id, type, newResp, newIdx, completed);
+  async function persist(newResp: Record<number, number>, newIdx: number, completed = false): Promise<boolean> {
+    if (!user || !type) return false;
+    const ok = await saveAssessmentProgress(user.id, type, newResp, newIdx, completed);
+    // Best-effort mirror; the progress doc is the source of truth for resume.
     firebaseStore.from("assessment_responses").upsert({
       user_id: user.id,
       assessment_type: type,
@@ -106,6 +122,7 @@ export default function AssessmentRunner() {
       current_index: newIdx,
       completed,
     }, { onConflict: "user_id,assessment_type" }).catch(() => {});
+    return ok;
   }
 
   async function answer(val: number) {
@@ -115,9 +132,43 @@ export default function AssessmentRunner() {
     if (index < total - 1) {
       const nextIdx = index + 1;
       setIndex(nextIdx);
-      await persist(next, nextIdx);
+      setSaveError(false);
+      setFailedFinish(false);
+      const ok = await persist(next, nextIdx);
+      if (!ok) setSaveError(true);
     } else {
       await finish(next);
+    }
+  }
+
+  /** Re-attempt whichever write failed without discarding the user's answers. */
+  async function retrySave() {
+    if (failedFinish) {
+      await finish(responses);
+      return;
+    }
+    setSaveError(false);
+    const ok = await persist(responses, index);
+    if (!ok) setSaveError(true);
+  }
+
+  /** Persist the current cursor before leaving; never claim success on failure. */
+  async function handleSaveAndExit() {
+    if (exiting) return;
+    setExiting(true);
+    try {
+      const ok = await persist(responses, index);
+      if (!ok) {
+        setFailedFinish(false);
+        setSaveError(true);
+        toast.error(T("پیشرفت ذخیره نشد؛ پاسخهای شما حفظ شده است. دوباره تلاش کنید.", "Progress was not saved; your answers are kept. Please retry."));
+        return;
+      }
+      setSaveError(false);
+      toast.success(T("ذخیره شد. هر زمان ادامه بده.", "Saved. Continue anytime."));
+      navigate("/app/self");
+    } finally {
+      setExiting(false);
     }
   }
 
@@ -137,7 +188,7 @@ export default function AssessmentRunner() {
         analysis = { quadrant: attachmentQuadrant(scores) };
       }
 
-      await upsertAssessmentResult(user.id, {
+      const savedResult = await upsertAssessmentResult(user.id, {
         assessment_type: type,
         scores,
         analysis,
@@ -151,7 +202,15 @@ export default function AssessmentRunner() {
         analysis,
       }).catch(() => {});
 
-      await persist(final, total - 1, true);
+      const progressSaved = await persist(final, total - 1, true);
+
+      if (!savedResult || !progressSaved) {
+        // Keep the user's answers in place and let them retry; do not navigate or
+        // announce success when the result/progress could not be persisted.
+        setFailedFinish(true);
+        setSaveError(true);
+        return;
+      }
 
       // Update mh_profile with rich fields and human summary
       const profileUpdate: any = { user_id: user.id };
@@ -171,6 +230,8 @@ export default function AssessmentRunner() {
       }
       await firebaseStore.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
 
+      setSaveError(false);
+      setFailedFinish(false);
       toast.success(T("تست تکمیل شد ✨", "Assessment Completed ✨"));
       navigate(`/app/self/result/${type}`);
     } catch (e: any) {
@@ -239,12 +300,11 @@ export default function AssessmentRunner() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => {
-            toast.success(T("ذخیره شد. هر زمان ادامه بده.", "Saved. Continue anytime."));
-            navigate("/app/self");
-          }}
+          disabled={exiting || saving}
+          onClick={handleSaveAndExit}
         >
-          <Save className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("ذخیره و ادامه بعداً", "Save & Continue Later")}
+          <Save className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} />{" "}
+          {exiting ? T("در حال ذخیره…", "Saving…") : T("ذخیره و ادامه بعداً", "Save & Continue Later")}
         </Button>
         <Button disabled={!current || index === total - 1} onClick={() => setIndex(i => Math.min(total - 1, i + 1))}>
           {isEn ? (
@@ -254,6 +314,22 @@ export default function AssessmentRunner() {
           )}
         </Button>
       </div>
+
+      {saveError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm"
+        >
+          <span className="text-destructive">
+            {failedFinish
+              ? T("نتیجه ذخیره نشد؛ پاسخ‌های شما حفظ شده است. دوباره تلاش کنید.", "Results were not saved; your answers are kept. Please retry.")
+              : T("پیشرفت ذخیره نشد؛ پاسخ‌های شما حفظ شده است. دوباره تلاش کنید.", "Progress was not saved; your answers are kept. Please retry.")}
+          </span>
+          <Button size="sm" variant="outline" onClick={() => void retrySave()} disabled={saving || exiting}>
+            <RotateCw className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("تلاش دوباره", "Retry")}
+          </Button>
+        </div>
+      )}
 
       {saving && <div className="text-center text-sm text-muted-foreground">{T("در حال ذخیره نتایج…", "Saving results…")}</div>}
     </div>

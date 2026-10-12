@@ -1013,26 +1013,28 @@ export function QuickAddTask({
       ref={containerRef}
       className={`rounded-xl border transition-all duration-150 ${
         showOptions
-          ? "bg-card border-primary/40 shadow-xs p-2.5"
+          ? "bg-card border-primary/40 shadow-xs p-2.5 focus-within:ring-2 focus-within:ring-ring/60"
           : "bg-muted/40 hover:bg-muted/60 dark:bg-card/40 border-border/60 hover:border-border/80 px-3 py-2 cursor-text"
       } ${className}`}
       dir={isEn ? "ltr" : "rtl"}
     >
       {!showOptions ? (
         <div className="flex items-center justify-between gap-2">
-          <div
+          <button
+            type="button"
             onClick={() => {
               setFocused(true);
               setTimeout(() => inputRef.current?.focus(), 10);
             }}
-            className={`flex items-center gap-2 select-none group flex-1 cursor-text ${collapsedExtra ? "min-w-[8rem] basis-40" : "min-w-0"}`}
+            aria-label={T("افزودن کار سریع", "Quick add task")}
+            className={`flex items-center gap-2 select-none group flex-1 text-start cursor-text rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 ${collapsedExtra ? "min-w-[8rem] basis-40" : "min-w-0"}`}
             data-testid="quick-add-collapsed"
           >
-            <Plus className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+            <Plus className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" aria-hidden="true" />
             <span className="text-xs sm:text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors truncate">
               {title.trim() ? title : placeholderText}
             </span>
-          </div>
+          </button>
           {collapsedExtra && (
             <div className="flex min-w-0 shrink items-center" onClick={(e) => e.stopPropagation()}>
               {collapsedExtra}
@@ -1061,6 +1063,7 @@ export function QuickAddTask({
                   setFocused(false);
                 }
               }}
+              aria-label={T("عنوان کار", "Task title")}
               placeholder={placeholderText}
               className="flex-1 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0 min-h-[36px] max-h-[120px] py-1 px-1"
               dir="auto"

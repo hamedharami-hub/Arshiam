@@ -43,27 +43,37 @@ import { useBilingual } from "@/hooks/useBilingual";
 export default function AssessmentResult() {
   const { type } = useParams<{ type: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { T, isEn } = useBilingual();
   const BackIcon = isEn ? ArrowLeft : ArrowRight;
   const [data, setData] = useState<any>(null);
+  /** True once the results subscription has produced its first snapshot (even if empty). */
+  const [loaded, setLoaded] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [addedHabitKeys, setAddedHabitKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!user || !type) return;
+    if (authLoading) return;
+    if (!user || !type) {
+      setLoaded(true);
+      return;
+    }
+    setLoaded(false);
     const unsub = subscribeAssessmentResults(user.id, type, (results) => {
+      setLoaded(true);
       if (results && results.length > 0) {
         setData(results[0]);
         const docId = results[0].id || results[0].created_at || "latest";
         const cachedKey = `assessment_ai_${type}_${docId}_${isEn ? "en" : "fa"}`;
         const cached = localStorage.getItem(cachedKey);
         if (cached) setAiAnalysis(cached);
+      } else {
+        setData(null);
       }
     });
     return () => unsub();
-  }, [user, type, isEn]);
+  }, [user, type, isEn, authLoading]);
 
   async function handleAddHabit(habitName: string, habitDesc: string, key: string) {
     if (!user) return;
@@ -159,7 +169,7 @@ export default function AssessmentResult() {
         onDone: () => {
           const docId = data.id || data.created_at || "latest";
           localStorage.setItem(`assessment_ai_${type}_${docId}_${isEn ? "en" : "fa"}`, accumulated);
-          toast.success(T("تحلیل جامع آماده شد", "Comprehensive analysis ready"));
+          toast.success(T("بازتاب کمک‌شده با AI آماده شد", "AI-assisted reflection ready"));
         },
       });
     } catch (e: any) {
@@ -181,8 +191,34 @@ export default function AssessmentResult() {
 
   if (!data)
     return (
-      <div dir={isEn ? "ltr" : "rtl"} className="p-8 text-center text-muted-foreground">
-        {T("در حال بارگذاری…", "Loading…")}
+      <div dir={isEn ? "ltr" : "rtl"} className="max-w-3xl mx-auto p-4 md:p-8">
+        {!loaded ? (
+          <div className="p-8 text-center text-muted-foreground">{T("در حال بارگذاری…", "Loading…")}</div>
+        ) : (
+          <Card className="rounded-3xl border-border/70 text-center">
+            <CardContent className="p-8 space-y-4">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+                <Brain className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <div>
+                <h2 className="font-bold text-lg text-foreground">
+                  {T("نتیجه‌ای برای این آزمون پیدا نشد", "No result found for this assessment")}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1 leading-7">
+                  {T(
+                    "هنوز این آزمون را کامل نکرده‌اید یا نتیجه ذخیره نشده است. می‌توانید آزمون را انجام دهید تا نتیجه در همین صفحه نمایش داده شود.",
+                    "You have not completed this assessment yet, or the result was not saved. Take the assessment and the result will appear here."
+                  )}
+                </p>
+              </div>
+              <div className="flex justify-center">
+                <Button onClick={() => navigate("/app/self")}>
+                  <BackIcon className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("بازگشت به خودشناسی", "Back to Self-Knowledge")}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
 
@@ -286,12 +322,12 @@ export default function AssessmentResult() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <Sparkles className="w-5 h-5 text-primary" />
-            {T("تحلیل جامع شخصی‌سازی‌شده AI", "Personalized Comprehensive AI Analysis")}
+            {T("بازتاب کمک‌شده با AI (اختیاری)", "AI-Assisted Reflection (Optional)")}
           </CardTitle>
           <CardDescription className="leading-7">
             {T(
-              "یک گزارش تفصیلی بالینی بر اساس نمره‌های دقیق شما — تحلیل ابعاد، نقاط قوت و سایه‌هایشان، الگوهای ریسک و تمرین‌های هفتگی.",
-              "An in-depth clinical report grounded in your exact scores — dimension breakdown, shadow sides, risk patterns, and targeted practices."
+              "یک بازتاب شخصی‌سازی‌شده و اختیاری بر اساس نمره‌های شما — تحلیل ابعاد، نقاط قوت و سایه‌هایشان، الگوهای احتمالی و تمرین‌های پیشنهادی. این یک ارزیابی بالینی یا تشخیص پزشکی نیست و ممکن است نادرست باشد.",
+              "An optional, personalized reflection grounded in your scores — dimension breakdown, strengths and their shadow sides, possible patterns, and suggested practices. This is not a clinical assessment or a medical diagnosis, and it may be inaccurate."
             )}
           </CardDescription>
         </CardHeader>
@@ -306,7 +342,7 @@ export default function AssessmentResult() {
               ) : (
                 <>
                   <Sparkles className={`w-4 h-4 ${isEn ? "me-2" : "ms-2"}`} />
-                  {T("دریافت تحلیل جامع AI", "Get Comprehensive AI Analysis")}
+                  {T("دریافت بازتاب کمک‌شده با AI", "Get AI-Assisted Reflection")}
                 </>
               )}
             </Button>

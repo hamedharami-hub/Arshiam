@@ -285,9 +285,9 @@ export default function KanbanView() {
       haptic("light");
     }
     if (newCompleted && isRecurringTask(task)) {
-      awardTaskWatering(task.title, Boolean(task.parent_id));
       const res = await advanceRecurringTask(user.id, task, { allKnownTasks: [...allTasks, ...subtasks] });
       if (res.success && res.patch) {
+        awardTaskWatering(task.title, Boolean(task.parent_id));
         setSubtasks(prev => prev.map(t => t.id === task.id ? ({ ...t, ...res.patch } as Task) : t));
         setAllTasks((prev) =>
           prev.map((t) => (t.id === task.id ? ({ ...t, ...res.patch } as Task) : t))
@@ -300,6 +300,15 @@ export default function KanbanView() {
         );
         return;
       }
+      // Advancing the recurrence failed — do NOT fall through to a normal "done"
+      // completion, which would silently stop the repeating task.
+      toast.error(
+        T(
+          "نمونه بعدی ساخته نشد؛ کار باز ماند. دوباره تلاش کنید.",
+          "Could not schedule the next instance; the task stays open. Please retry."
+        )
+      );
+      return;
     }
     const newStatus: Status = newCompleted ? "done" : "todo";
     const updatedTask: Task = {
@@ -327,10 +336,10 @@ export default function KanbanView() {
     const t = allTasks.find((x) => x.id === taskId);
     if (!t || t.status === newStatus) return;
     if (newStatus === "done" && isRecurringTask(t)) {
-      awardTaskWatering(t.title, Boolean(t.parent_id));
       const res = await advanceRecurringTask(user.id, t, { allKnownTasks: [...allTasks, ...subtasks] });
       if (res.success && res.patch) {
-        setSubtasks(prev => prev.map(t => t.id === taskId ? ({ ...t, ...res.patch } as Task) : t));
+        awardTaskWatering(t.title, Boolean(t.parent_id));
+        setSubtasks(prev => prev.map(t2 => t2.id === taskId ? ({ ...t2, ...res.patch } as Task) : t2));
         setAllTasks((prev) =>
           prev.map((x) => (x.id === taskId ? ({ ...x, ...res.patch } as Task) : x))
         );
@@ -342,6 +351,14 @@ export default function KanbanView() {
         );
         return;
       }
+      // Recurrence failed — keep the task open instead of marking it done.
+      toast.error(
+        T(
+          "نمونه بعدی ساخته نشد؛ کار باز ماند. دوباره تلاش کنید.",
+          "Could not schedule the next instance; the task stays open. Please retry."
+        )
+      );
+      return;
     }
     const completed = newStatus === "done";
     const updatedTask: Task = {

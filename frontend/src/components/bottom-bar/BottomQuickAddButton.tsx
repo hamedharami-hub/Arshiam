@@ -80,8 +80,8 @@ export function BottomQuickAddButton({ mode = "mobile", className = "" }: Bottom
       <div className="relative z-10 h-full flex-1 flex items-center justify-center select-none min-w-0">
         <button
           type="button"
-          onClick={handleQuickAdd}
-          {...longPressProps}
+          onClick={() => { if (!longPressProps.didFire()) handleQuickAdd(); }}
+          {...longPressProps.handlers}
           aria-label={label}
           title={label}
           className={`group/add relative flex items-center justify-center h-10 w-[4rem] max-w-full overflow-hidden rounded-full bg-primary text-primary-foreground shadow-[0_5px_15px_hsl(var(--primary)/0.32),inset_0_1px_0_hsl(var(--primary-foreground)/0.32)] active:scale-[0.96] hover:scale-[1.03] hover:shadow-[0_7px_20px_hsl(var(--primary)/0.42),inset_0_1px_0_hsl(var(--primary-foreground)/0.4)] transition-all duration-200 ease-out border border-primary/45 ring-1 ring-primary/15 select-none ${className}`}

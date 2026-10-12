@@ -17,9 +17,11 @@ import { parseTaskDueDate, taskDueTimestamp } from "@/lib/taskDate";
 import { isAllDayCalendarDate, type CalendarTask } from "./CalendarTask";
 import DeadlineMarker from "./DeadlineMarker";
 import { useBilingual } from "@/hooks/useBilingual";
+import { PRIORITY_META, normalizeTaskPriority } from "@/lib/priority";
 
-const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, none: 3 };
+const priorityRank = (value: unknown): number => PRIORITY_META[normalizeTaskPriority(value)].rank;
 const PRIORITY_COLOR: Record<string, string> = {
+  urgent: "hsl(var(--destructive))",
   high: "hsl(var(--destructive))",
   medium: "hsl(var(--primary))",
   low: "hsl(var(--muted-foreground))",
@@ -68,8 +70,8 @@ export default function DayDetailSheet({
       return !!due && isSameDay(due, date);
     })
     .sort((a, b) => {
-      const pa = PRIORITY_ORDER[a.priority] ?? 3;
-      const pb = PRIORITY_ORDER[b.priority] ?? 3;
+      const pa = priorityRank(a.priority);
+      const pb = priorityRank(b.priority);
       if (pa !== pb) return pa - pb;
       return taskDueTimestamp(a.due_date) - taskDueTimestamp(b.due_date);
     });
@@ -139,7 +141,7 @@ export default function DayDetailSheet({
                 onClick={() => { onOpenChange(false); navigate(`/app/tasks/${t.id}`); }}
                 className="flex items-center gap-2 w-full text-end px-3 py-2 text-sm hover:bg-accent/30 transition"
               >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[t.priority] || PRIORITY_COLOR.none }} />
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PRIORITY_COLOR[normalizeTaskPriority(t.priority)] || PRIORITY_COLOR.none }} />
                 <span className="truncate flex-1">{t.title}</span>
                 <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
                 <span className="text-[10px] text-muted-foreground tabular-nums">

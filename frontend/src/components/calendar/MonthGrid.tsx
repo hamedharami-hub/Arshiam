@@ -9,6 +9,7 @@ import DeadlineMarker from "./DeadlineMarker";
 type WeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const PRIORITY_COLOR: Record<string, string> = {
+  urgent: "hsl(var(--destructive))",
   high: "hsl(var(--destructive))",
   medium: "hsl(var(--primary))",
   low: "hsl(var(--muted-foreground))",
@@ -35,9 +36,14 @@ export default function MonthGrid({
     end: endOfWeek(fromLocalISO(mp.end), { weekStartsOn }),
   });
   const inMonth = (d: Date) => { const k = toLocalISO(d); return k >= mp.start && k <= mp.end; };
-  const weekdayLabels = system === "jalali"
-    ? (weekStartsOn === 6 ? WEEKDAY_SHORT_FA : [...WEEKDAY_SHORT_FA.slice(2), ...WEEKDAY_SHORT_FA.slice(0, 2)])
-    : (weekStartsOn === 1 ? ["M", "T", "W", "T", "F", "S", "S"] : ["S", "M", "T", "W", "T", "F", "S"]);
+  // Derive the seven column labels from the actual week start. JS weekday index is
+  // 0=Sunday…6=Saturday; the Persian short names are ordered 0=Saturday…6=Friday,
+  // so a JS weekday maps to Persian index (day + 1) % 7.
+  const EN_WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+  const weekdayLabels = Array.from({ length: 7 }, (_, i) => {
+    const day = (weekStartsOn + i) % 7;
+    return system === "jalali" ? WEEKDAY_SHORT_FA[(day + 1) % 7] : EN_WEEKDAYS[day];
+  });
   return (
     <div>
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground mb-2">

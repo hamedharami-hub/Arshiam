@@ -175,7 +175,6 @@ export default function AboutMeView() {
     const saved = await persist();
     if (!saved) return;
     if (step < ABOUT_SECTIONS.length) setStep(step + 1);
-    else await analyze();
   };
 
   const analyze = async () => {
@@ -673,20 +672,37 @@ export default function AboutMeView() {
           onClick={() => setStep((s) => Math.max(0, s - 1))} className="gap-1">
           {isEn ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />} {T("قبلی", "Previous")}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => persist(true)} className="gap-1 text-xs">
-          <Save className="w-3 h-3" /> {T("ذخیره", "Save")}
-        </Button>
         {step < ABOUT_SECTIONS.length ? (
-          <Button onClick={next} disabled={busy} className="gap-1">
-            {T("بعدی", "Next")} {isEn ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
+          <>
+            <Button variant="ghost" size="sm" onClick={() => persist(true)} className="gap-1 text-xs">
+              <Save className="w-3 h-3" /> {T("ذخیره", "Save")}
+            </Button>
+            <Button onClick={next} disabled={busy} className="gap-1">
+              {T("بعدی", "Next")} {isEn ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </Button>
+          </>
         ) : (
-          <Button onClick={analyze} disabled={busy} className="gap-1">
-            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {T("ذخیره و ثبت پاسخ‌ها", "Save & Finish")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => persist(true)} disabled={busy} className="gap-1">
+              <Save className="w-4 h-4" />
+              {T("ذخیره و پایان", "Save & Finish")}
+            </Button>
+            <Button onClick={analyze} disabled={busy} className="gap-1">
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {T("تحلیل هوشمند", "Run AI Analysis")}
+            </Button>
+          </div>
         )}
       </div>
+
+      {step === ABOUT_SECTIONS.length && (
+        <p className="text-xs text-muted-foreground text-center leading-relaxed">
+          {T(
+            "«ذخیره و پایان» فقط پاسخ‌ها را در حساب شما ذخیره می‌کند. «تحلیل هوشمند» پاسخ‌های شما را برای تحلیل به سرویس هوش مصنوعی پیکربندی‌شده (BYOK) ارسال می‌کند.",
+            "“Save & Finish” only stores your answers in your account. “Run AI Analysis” sends your answers to your configured BYOK AI provider for analysis."
+          )}
+        </p>
+      )}
     </div>
   );
 }

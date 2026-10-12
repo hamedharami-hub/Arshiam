@@ -1,17 +1,26 @@
 export type SupportRegion = "au" | "ir" | "us" | "international";
 
+/**
+ * Delivery channel for a crisis resource. Modeled explicitly so a text-only
+ * resource is never rendered as a voice call.
+ */
+export type CrisisChannel = "call" | "sms" | "url";
+
 export interface CrisisResource {
   id: string;
   name: string;
   name_en: string;
   description: string;
   description_en: string;
-  phone: string; // Sanitized digits for tel: link, e.g. "000", "131114"
+  phone: string; // Sanitized digits for tel: link, e.g. "000", "131114". Empty when voice is not offered.
   displayPhone: string; // Formatted number for UI, e.g. "000", "13 11 14"
   available: string;
   available_en: string;
   sms?: string; // Digits for sms: link if applicable
+  smsBody?: string; // Optional pre-filled SMS message body (e.g. "HOME")
   url?: string;
+  /** Explicit primary action channel. When omitted, inferred from available channels. */
+  primaryChannel?: CrisisChannel;
   isEmergency?: boolean; // Highlighted for imminent life danger
 }
 
@@ -174,13 +183,15 @@ export const REGIONAL_CRISIS_RESOURCES: Record<SupportRegion, CrisisResource[]> 
       id: "us-crisis-text",
       name: "سامانه پیامکی بحران (ارسال پیام کوتاه)",
       name_en: "Crisis Text Line",
-      description: "ارسال پیامک برای ارتباط مستقیم با مشاور داوطلب بحران",
+      description: "ارسال پیامک «HOME» به شماره ۷۴۱۷۴۱ برای گفتگو با مشاور بحران",
       description_en: "Text HOME to 741741 to connect with a crisis counselor 24/7",
-      phone: "741741",
+      phone: "",
       displayPhone: "741741",
       available: "۲۴ ساعته پیامکی",
       available_en: "24/7 via SMS",
       sms: "741741",
+      smsBody: "HOME",
+      primaryChannel: "sms",
       url: "https://www.crisistextline.org",
     },
   ],
@@ -266,6 +277,29 @@ export function resolveSupportRegion(currentLanguage: string): SupportRegion {
   if (stored) return stored;
   const isFa = currentLanguage.toLowerCase().startsWith("fa");
   return isFa ? "ir" : "au";
+}
+
+/**
+ * Resolve the channel that should be presented as a resource's primary action.
+ * A text-only resource (SMS, no phone) is never presented as a voice call.
+ */
+export function getPrimaryChannel(res: CrisisResource): CrisisChannel {
+  if (res.primaryChannel) return res.primaryChannel;
+  if (res.phone) return "call";
+  if (res.sms) return "sms";
+  if (res.url) return "url";
+  return "call";
+}
+
+/**
+ * Build an `sms:` href for a resource, including a pre-filled body when provided.
+ * e.g. "sms:741741?body=HOME"
+ */
+export function buildSmsHref(res: CrisisResource): string {
+  if (!res.sms) return "";
+  return res.smsBody
+    ? `sms:${res.sms}?body=${encodeURIComponent(res.smsBody)}`
+    : `sms:${res.sms}`;
 }
 
 /**

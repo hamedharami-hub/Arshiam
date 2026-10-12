@@ -29,6 +29,8 @@ import {
   resolveSupportRegion,
   setStoredSupportRegion,
   getCrisisResources,
+  getPrimaryChannel,
+  buildSmsHref,
   type SupportRegion,
   type CrisisResource,
 } from "@/lib/crisisResources";
@@ -264,7 +266,9 @@ export default function CrisisView() {
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {helplineResources.map((res) => (
+          {helplineResources.map((res) => {
+            const primaryChannel = getPrimaryChannel(res);
+            return (
             <Card
               key={res.id}
               className="border-border/60 bg-card/60 hover:bg-card/90 transition shadow-xs flex flex-col justify-between"
@@ -287,7 +291,7 @@ export default function CrisisView() {
 
                 <div className="space-y-2 pt-2">
                   <div className="flex items-center gap-2">
-                    {res.phone ? (
+                    {primaryChannel === "call" && res.phone && (
                       <Button
                         asChild
                         size="sm"
@@ -299,7 +303,27 @@ export default function CrisisView() {
                           <span>{T(`تماس: ${res.displayPhone}`, `Call: ${res.displayPhone}`)}</span>
                         </a>
                       </Button>
-                    ) : res.url ? (
+                    )}
+
+                    {primaryChannel === "sms" && res.sms && (
+                      <Button
+                        asChild
+                        size="sm"
+                        className="flex-1 font-semibold text-xs gap-1.5"
+                        data-testid={`sms-btn-${res.id}`}
+                      >
+                        <a href={buildSmsHref(res)}>
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>
+                            {res.smsBody
+                              ? T(`پیامک: ${res.smsBody} به ${res.displayPhone}`, `Text ${res.smsBody} to ${res.displayPhone}`)
+                              : T(`پیامک: ${res.displayPhone}`, `Text: ${res.displayPhone}`)}
+                          </span>
+                        </a>
+                      </Button>
+                    )}
+
+                    {primaryChannel === "url" && res.url && (
                       <Button
                         asChild
                         size="sm"
@@ -311,7 +335,7 @@ export default function CrisisView() {
                           <span>{T("ورود به وب‌سایت راهنما", "Open Resource Website")}</span>
                         </a>
                       </Button>
-                    ) : null}
+                    )}
 
                     {res.phone && (
                       <Button
@@ -329,7 +353,7 @@ export default function CrisisView() {
                       </Button>
                     )}
 
-                    {res.sms && (
+                    {res.sms && primaryChannel !== "sms" && (
                       <Button
                         asChild
                         variant="outline"
@@ -337,14 +361,14 @@ export default function CrisisView() {
                         className="text-xs gap-1 shrink-0"
                         title={T("ارسال پیامک", "Send SMS")}
                       >
-                        <a href={`sms:${res.sms}`}>
+                        <a href={buildSmsHref(res)}>
                           <MessageSquare className="w-3.5 h-3.5" />
                           <span>SMS</span>
                         </a>
                       </Button>
                     )}
 
-                    {res.url && res.phone && (
+                    {res.url && primaryChannel !== "url" && (
                       <Button
                         asChild
                         variant="ghost"
@@ -361,7 +385,8 @@ export default function CrisisView() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </div>
 

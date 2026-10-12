@@ -149,7 +149,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   readOnlyRef.current = readOnly;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const insertFileRef = useRef<(file: File) => Promise<void>>(async () => {});
+  const insertFileRef = useRef<(file: File) => Promise<unknown>>(async () => {});
   // TipTap reapplies options after every render. A saved note must not feed
   // that conversion back in, or opening it retriggers until the page freezes.
   const seededContent = useRef<string | null>(null);
@@ -189,7 +189,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     handleDrop: (_view: unknown, event: any, _slice: unknown, moved: boolean) => {
       if (readOnlyRef.current) { event.preventDefault(); return true; }
       if (moved) return false;
-      const files = Array.from(event.dataTransfer?.files || []);
+      const files = Array.from(event.dataTransfer?.files || []) as File[];
       if (!files.length) return false;
       event.preventDefault();
       void (async () => { for (const file of files) await insertFileRef.current(file); })();
@@ -197,7 +197,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     },
     handlePaste: (_view: unknown, event: any) => {
       if (readOnlyRef.current) { event.preventDefault(); return true; }
-      const files = Array.from(event.clipboardData?.files || []);
+      const files = Array.from(event.clipboardData?.files || []) as File[];
       if (!files.length) return false;
       event.preventDefault();
       void (async () => { for (const file of files) await insertFileRef.current(file); })();

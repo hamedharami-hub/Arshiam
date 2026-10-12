@@ -2,7 +2,7 @@ import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
+import { format, addMonths, subMonths, startOfWeek, endOfWeek, addWeeks, subWeeks, addDays, subDays } from "date-fns";
 import { ChevronLeft, ChevronRight, CheckCircle2, Filter, RotateCcw } from "lucide-react";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -178,7 +178,12 @@ export default function CalendarView() {
     if (view === "month") { const mp = periodFor("month", date, ts); start = subDays(fromLocalISO(mp.start), 7); end = addDays(fromLocalISO(mp.end), 7); end.setHours(23, 59, 59, 999); }
     else if (view === "week") { const wp = periodFor("week", date, ts); start = fromLocalISO(wp.start); end = fromLocalISO(wp.end); end.setHours(23, 59, 59, 999); }
     else if (view === "day") { start = new Date(date); start.setHours(0,0,0,0); end = new Date(date); end.setHours(23,59,59,999); }
-    else { start = startOfMonth(date); end = endOfMonth(date); }
+    else {
+      // Agenda must use the same calendar-aware month boundaries as the heading and
+      // the month grid, otherwise a Jalali month silently shows Gregorian-range tasks.
+      const ap = periodFor("month", date, ts);
+      start = fromLocalISO(ap.start); end = fromLocalISO(ap.end); end.setHours(23, 59, 59, 999);
+    }
 
     const startTime = start.getTime();
     const endTime = end.getTime();
@@ -416,7 +421,7 @@ export default function CalendarView() {
 
         <TabsContent value="agenda">
           <Card className="p-4 bg-card/60 border-border/60 shadow-sm">
-            <AgendaView start={startOfMonth(date)} end={endOfMonth(date)} tasks={visibleTasks}
+            <AgendaView start={fromLocalISO(listPeriod.start)} end={fromLocalISO(listPeriod.end)} tasks={visibleTasks}
               holidays={holidays} system={system} />
           </Card>
         </TabsContent>

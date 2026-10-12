@@ -143,7 +143,7 @@ export default function FirebaseSyncCard() {
                 )}
               </div>
               <CardDescription className="text-xs mt-0.5 text-muted-foreground">
-                پایگاه داده ابری بلادرنگ با رمزنگاری سرتاسری، پشتیبان‌گیری خودکار و قوانین امنیتی ایزوله
+                پایگاه داده ابری بلادرنگ Firebase Firestore با انتقال امن (TLS) و پشتیبان‌گیری دستی؛ دسترسی داده‌ها با قوانین امنیتی پروژه کنترل می‌شود.
               </CardDescription>
             </div>
           </div>
@@ -203,9 +203,8 @@ export default function FirebaseSyncCard() {
               <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
               <span>قوانین امنیتی Firestore</span>
             </div>
-            <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block"></span>
-              منتشر شده و فعال
+            <div className="font-semibold text-muted-foreground">
+              وضعیت از این‌جا قابل تأیید نیست
             </div>
           </div>
 
@@ -267,8 +266,20 @@ export default function FirebaseSyncCard() {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-muted-foreground gap-2 pt-1 border-t border-border/30">
           <div className="flex items-center gap-1.5">
-            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-            <span>دیتابیس ابری آماده ذخیره داده‌های تسک‌ها، یادداشت‌ها و عادت‌ها است.</span>
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                status === "connected"
+                  ? "bg-emerald-500"
+                  : status === "error"
+                    ? "bg-destructive"
+                    : "bg-muted-foreground"
+              }`}
+            ></span>
+            <span>
+              {status === "error"
+                ? "اتصال ابری برقرار نیست؛ برای همگام‌سازی ابتدا «بررسی وضعیت» را اجرا کنید."
+                : "برای ذخیره داده‌های تسک‌ها، یادداشت‌ها و عادت‌ها از «همگام‌سازی ابری اکنون» استفاده کنید."}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <Button

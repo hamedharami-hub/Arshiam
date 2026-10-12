@@ -34,6 +34,11 @@ import { createMindAIContext, executeMindAI, type WorryBrainstormOutput } from "
 
 type Stage = "intake" | "triage" | "partial_split" | "solve" | "accept" | "confirm_task" | "done";
 
+/** A fresh id per worry keeps each thought record/task distinct while retries reuse the same id. */
+function generateWorrySessionId(): string {
+  return `worry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export default function WorryView() {
   const { user } = useAuth();
   const { T, isEn } = useBilingual();
@@ -50,7 +55,7 @@ export default function WorryView() {
     seededRef.current = true;
     setWorryState((prev) => prev || mindDraft.text);
   }, [mindDraft]);
-  const sessionIdRef = useRef(`worry_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+  const sessionIdRef = useRef(generateWorrySessionId());
   // Branch: "actionable" | "partial" | "uncontrollable"
   const [controlBranch, setControlBranch] = useState<"actionable" | "partial" | "uncontrollable" | null>("actionable");
   const triageChoice = controlBranch;
@@ -215,6 +220,26 @@ export default function WorryView() {
     } else {
       toast.error(T("خطا در ذخیره یادداشت پذیرش", "Error saving acceptance record"));
     }
+  }
+
+  /** Deliberately begin a brand-new worry: new session id + full state reset. */
+  function resetForNewWorry() {
+    sessionIdRef.current = generateWorrySessionId();
+    setStage("intake");
+    setWorry("");
+    setTriageChoice(null);
+    setProblem("");
+    setControllablePart("");
+    setUncontrollablePart("");
+    setSolutions([""]);
+    setChosenSolution(null);
+    setTaskTitle("");
+    setTaskDueDateDays(1);
+    setAcceptanceText("");
+    setDistressBefore(null);
+    setDistressAfter(null);
+    setAiBusy(false);
+    clearMindDraft();
   }
 
   return (
@@ -676,22 +701,7 @@ export default function WorryView() {
               )}
             </p>
             <div className="flex gap-2 justify-center pt-2">
-              <Button
-                onClick={() => {
-                  setStage("intake");
-                  setWorry("");
-                  setTriageChoice(null);
-                  setProblem("");
-                  setControllablePart("");
-                  setUncontrollablePart("");
-                  setSolutions([""]);
-                  setChosenSolution(null);
-                  setTaskTitle("");
-                  setAcceptanceText("");
-                  setDistressBefore(null);
-                  setDistressAfter(null);
-                }}
-              >
+              <Button onClick={resetForNewWorry}>
                 {T("بررسی نگرانی دیگر", "Process Another Worry")}
               </Button>
               <Button variant="outline" onClick={() => navigate("/app/mind")}>

@@ -505,8 +505,8 @@ export function AISettingsTab({
                 </Label>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {isEn
-                    ? "By default, zero profile notes, mental health data, or task histories are sent to external models. When opted in, only a minimal, relevant summary is included:"
-                    : "در حالت پیش‌فرض، هیچ داده‌ای از ذهن، درباره من، نوت‌ها یا تاریخچه تسک‌ها به مدل خارجی ارسال نمی‌شود. در صورت فعال‌سازی، فقط خلاصه حداقلی زیر همراه پرامپت ارسال خواهد شد:"}
+                    ? "By default, your About Me profile, mind/mental-health summary, and goals are not attached to AI prompts. When opted in, only a minimal, relevant summary is included:"
+                    : "در حالت پیش‌فرض، پروفایل «درباره من»، خلاصهٔ ذهن/سلامت روان و اهداف شما به پرامپت‌های هوش مصنوعی پیوست نمی‌شود. در صورت فعال‌سازی، فقط خلاصهٔ حداقلی و مرتبط زیر همراه پرامپت ارسال می‌شود:"}
                 </p>
               </div>
               <Switch
@@ -533,12 +533,12 @@ export function AISettingsTab({
                 <li>{isEn ? "Primary goals & focus life areas (from About Me)" : "اهداف اصلی و حوزه‌های تمرکز (از پرسشنامه درباره من)"}</li>
                 <li>{isEn ? "Communication & energy style preferences" : "ترجیحات ارتباطی و زمان اوج انرژی روزانه"}</li>
                 <li>{isEn ? "Mind profile summary (if previously recorded by you)" : "خلاصه پروفایل ذهن (در صورت ثبت قبلی توسط خودتان)"}</li>
-                <li className="font-semibold text-foreground/80">
-                  {isEn
-                    ? "Never sent: raw private notes, full task lists, or past chat history."
-                    : "هرگز ارسال نمی‌شوند: متن خام نوت‌های خصوصی، لیست کامل تسک‌ها یا تاریخچه چت‌های گذشته."}
-                </li>
               </ul>
+              <p className="pt-0.5 text-[11px] leading-relaxed border-t border-border/40">
+                {isEn
+                  ? "Independent of this switch: when you use Chat, the conversation history in that thread is sent to the selected provider so it can follow the discussion; when you use Daily/Weekly Planning, a compact summary of the relevant tasks (titles, priority, schedule) is sent. Turning personalization off does not stop these feature-specific payloads."
+                  : "مستقل از این گزینه: هنگام استفاده از چت، تاریخچهٔ گفتگوی همان گفتگو برای پیگیری بحث به سرویس‌دهندهٔ انتخابی ارسال می‌شود؛ و هنگام «برنامه‌ریزی روزانه/هفتگی»، خلاصهٔ فشرده‌ای از تسک‌های مرتبط (عنوان، اولویت، زمان‌بندی) ارسال می‌گردد. غیرفعال‌کردن شخصی‌سازی این ارسال‌های مربوط به خود قابلیت را متوقف نمی‌کند."}
+              </p>
             </div>
           </div>
         </div>

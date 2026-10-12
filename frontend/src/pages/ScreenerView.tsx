@@ -189,6 +189,13 @@ export default function ScreenerView() {
       });
   }, [uniqueHistory, isEn]);
 
+  // Live self-harm flag derived from the answers already selected — available
+  // before final submission and independent of whether saving succeeds.
+  const liveFlags = useMemo(
+    () => (type ? scoreScreener(type, answers).flags : []),
+    [type, answers]
+  );
+
   const [submitting, setSubmitting] = useState(false);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
 
@@ -292,28 +299,92 @@ export default function ScreenerView() {
   const activeRegion = resolveSupportRegion(isEn ? "en" : "fa");
   const crisisResources = getCrisisResources(activeRegion);
 
+  // Combined self-harm signal: the live answer selection and/or the last saved
+  // result. This keeps support visible during review and even if saving fails.
+  const hasSelfHarmFlag =
+    liveFlags.includes("suicidal_ideation") ||
+    Boolean(lastAnalysis?.flags?.includes("suicidal_ideation"));
+
+  // Shared safety card, reused in both review and result stages.
+  const selfHarmSupportCard = (
+    <Card className="border-2 border-destructive bg-destructive/5 animate-pulse" data-testid="self-harm-support-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive text-base">
+          <AlertTriangle className="w-5 h-5" />
+          {T("پیام حمایت و همیاری — لطفاً بخوان", "Support & Helpline Message — Please Read")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm leading-7">
+        <p>
+          {T(
+            "پاسخ تو به پرسش مرتبط با افکار آسیب به خود یا مرگ نشان‌دهندهٔ فشاری است که تجربه می‌کنی. تجربه این افکار نیازمند شنیده شدن و همراهی است و تنها نیستی. کمک تخصصی و محرمانه همواره در دسترس است:",
+            "Your response to the question regarding thoughts of self-harm or distress indicates that you may be going through a very challenging time. You do not have to carry this alone. Free, confidential support is available:"
+          )}
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {crisisResources.filter((r) => Boolean(r.phone)).map((r) => (
+            <a
+              key={r.id || r.phone}
+              href={`tel:${r.phone}`}
+              className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted transition"
+            >
+              <span className="font-medium text-xs">{isEn ? r.name_en : r.name}</span>
+              <span className="font-mono text-xs flex items-center gap-1 text-primary font-bold">
+                <Phone className="w-3.5 h-3.5" /> {r.displayPhone}
+              </span>
+            </a>
+          ))}
+        </div>
+
+        <div className="pt-2 flex justify-end">
+          <Button asChild variant="destructive" size="sm" className="gap-1.5 font-bold shadow-xs">
+            <Link to="/app/crisis">
+              <ShieldAlert className="w-4 h-4" />
+              <span>{T("مشاهده صفحه پشتیبانی بحران و خطوط کامل (SOS)", "Open Crisis Support & Helplines (SOS)")}</span>
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div
       dir={isEn ? "ltr" : "rtl"}
       className="page-shell page-shell--narrow space-y-5 animate-fade-in"
     >
       {/* Header Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate("/app/mind")}>
           <BackIcon className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> Mind
         </Button>
-        {stage === "run" && (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs bg-muted/50">
-              <Info className="w-3 h-3 me-1 text-primary" /> {timeframe}
-            </Badge>
-            <span className="text-xs text-muted-foreground font-mono">
-              {isEn
-                ? `${index + 1} / ${meta.items.length}`
-                : `${toPersianDigits(index + 1)} / ${toPersianDigits(meta.items.length)}`}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {stage === "run" && (
+            <>
+              <Badge variant="outline" className="text-xs bg-muted/50">
+                <Info className="w-3 h-3 me-1 text-primary" /> {timeframe}
+              </Badge>
+              <span className="text-xs text-muted-foreground font-mono">
+                {isEn
+                  ? `${index + 1} / ${meta.items.length}`
+                  : `${toPersianDigits(index + 1)} / ${toPersianDigits(meta.items.length)}`}
+              </span>
+            </>
+          )}
+          {/* Persistent SOS action, always reachable in any stage */}
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            data-testid="sos-button"
+          >
+            <Link to="/app/crisis">
+              <ShieldAlert className="w-4 h-4" />
+              <span>{T("SOS", "SOS")}</span>
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <HeaderTitlePortal title={title} />
@@ -621,6 +692,9 @@ export default function ScreenerView() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Immediate support as soon as a self-harm-related answer is selected */}
+            {hasSelfHarmFlag && selfHarmSupportCard}
+
             {!validation.isComplete && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700 dark:text-amber-300 leading-relaxed flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -823,47 +897,7 @@ export default function ScreenerView() {
           </Card>
 
           {/* CRITICAL SAFETY CARD: Independent of total score */}
-          {lastAnalysis?.flags?.includes("suicidal_ideation") && (
-            <Card className="border-2 border-destructive bg-destructive/5 animate-pulse">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive text-base">
-                  <AlertTriangle className="w-5 h-5" />
-                  {T("پیام حمایت و همیاری — لطفاً بخوان", "Support & Helpline Message — Please Read")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm leading-7">
-                <p>
-                  {T(
-                    "پاسخ تو به پرسش مرتبط با افکار آسیب به خود یا مرگ نشان‌دهندهٔ فشاری است که تجربه می‌کنی. تجربه این افکار نیازمند شنیده شدن و همراهی است و تنها نیستی. کمک تخصصی و محرمانه همواره در دسترس است:",
-                    "Your response to the question regarding thoughts of self-harm or distress indicates that you may be going through a very challenging time. You do not have to carry this alone. Free, confidential support is available:"
-                  )}
-                </p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {crisisResources.filter((r) => Boolean(r.phone)).map((r) => (
-                    <a
-                      key={r.id || r.phone}
-                      href={`tel:${r.phone}`}
-                      className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted transition"
-                    >
-                      <span className="font-medium text-xs">{isEn ? r.name_en : r.name}</span>
-                      <span className="font-mono text-xs flex items-center gap-1 text-primary font-bold">
-                        <Phone className="w-3.5 h-3.5" /> {r.displayPhone}
-                      </span>
-                    </a>
-                  ))}
-                </div>
-
-                <div className="pt-2 flex justify-end">
-                  <Button asChild variant="destructive" size="sm" className="gap-1.5 font-bold shadow-xs">
-                    <Link to="/app/crisis">
-                      <ShieldAlert className="w-4 h-4" />
-                      <span>{T("مشاهده صفحه پشتیبانی بحران و خطوط کامل (SOS)", "Open Crisis Support & Helplines (SOS)")}</span>
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {hasSelfHarmFlag && selfHarmSupportCard}
 
           {/* Optional Action Next Steps */}
           <Card>

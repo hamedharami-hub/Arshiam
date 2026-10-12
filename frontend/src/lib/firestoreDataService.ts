@@ -1275,16 +1275,45 @@ export async function upsertAssessmentResult(
   }
 }
 
+/**
+ * Normalizes a persisted assessment-progress document into the canonical
+ * shape consumed by the runner. The write path stores the cursor as
+ * `current_index`, while callers expect `currentIndex`; without this
+ * normalization a resume always returned to question 1. Legacy/aliased
+ * fields are tolerated and the cursor is clamped to `[0, maxIndex]`.
+ */
+function normalizeAssessmentProgress(
+  raw: Record<string, any> | null | undefined,
+  maxIndex?: number
+): { responses: Record<number, number>; currentIndex: number; completed: boolean } {
+  const responses =
+    raw && typeof raw.responses === "object" && raw.responses !== null
+      ? (raw.responses as Record<number, number>)
+      : {};
+
+  const rawIndex = raw?.currentIndex ?? raw?.current_index ?? raw?.index ?? 0;
+  const parsed = typeof rawIndex === "number" ? rawIndex : Number(rawIndex);
+  let currentIndex = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+
+  if (typeof maxIndex === "number" && Number.isFinite(maxIndex) && maxIndex >= 0) {
+    currentIndex = Math.min(currentIndex, Math.floor(maxIndex));
+  }
+
+  return { responses, currentIndex, completed: Boolean(raw?.completed) };
+}
+
 export async function getAssessmentProgress(
   userId: string,
-  type: string
+  type: string,
+  /** Highest valid zero-based cursor for this instrument; the restored index is clamped to it. */
+  maxIndex?: number
 ): Promise<{ responses: Record<number, number>; currentIndex: number; completed: boolean } | null> {
   if (!userId || !type) return null;
   try {
     const docRef = doc(db, "users", userId, "assessment_progress", type);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
-      return snap.data() as any;
+      return normalizeAssessmentProgress(snap.data() as any, maxIndex);
     }
   } catch (err) {
     console.warn("[FirestoreData] getAssessmentProgress error:", err);
