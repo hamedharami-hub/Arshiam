@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Bot,
@@ -106,6 +114,18 @@ const READONLY_SCOPES: Scope[] = [
   "calendar:read",
 ];
 
+/** The narrowest useful preset: an agent can only read tasks. Least privilege by default. */
+const TASK_READ_PRESET: Scope[] = ["tasks:read"];
+
+/** Human-readable label for a scope, used in the plain-language review step. */
+function scopeLabel(scope: Scope, isEn: boolean): string {
+  for (const group of SCOPE_GROUPS) {
+    const match = group.scopes.find((s) => s.id === scope);
+    if (match) return isEn ? match.labelEn : match.labelFa;
+  }
+  return scope;
+}
+
 async function request(path: string, isEn: boolean, init: RequestInit = {}) {
   const user = auth.currentUser;
   if (!user) throw new Error("لطفاً برای مدیریت عامل‌ها وارد حساب خود شوید.");
@@ -128,10 +148,11 @@ export function AssistantAccessSettings() {
 
   const [grants, setGrants] = useState<Grant[]>([]);
   const [name, setName] = useState("");
-  const [days, setDays] = useState(90);
-  const [scopes, setScopes] = useState<Scope[]>(ALL_SCOPES);
+  const [days, setDays] = useState(7);
+  const [scopes, setScopes] = useState<Scope[]>(TASK_READ_PRESET);
   const [newToken, setNewToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -165,7 +186,7 @@ export function AssistantAccessSettings() {
     setScopes((prev) => (checked ? [...prev, scope] : prev.filter((s) => s !== scope)));
   };
 
-  const createToken = async () => {
+  const openReview = () => {
     if (!name.trim()) {
       toast.error(T("لطفاً یک نام برای توکن عامل وارد کنید", "Please enter a token name"));
       return;
@@ -174,6 +195,11 @@ export function AssistantAccessSettings() {
       toast.error(T("حداقل یک مجوز باید انتخاب شود", "Select at least one scope"));
       return;
     }
+    setReviewOpen(true);
+  };
+
+  const createToken = async () => {
+    setReviewOpen(false);
 
     setBusy(true);
     setNewToken("");
@@ -360,7 +386,7 @@ export function AssistantAccessSettings() {
               {T("مدت اعتبار (روز)", "Expires In (Days)")}
             </label>
             <div className="flex items-center gap-1.5">
-              {[30, 90, 180, 365].map((d) => (
+              {[1, 7, 30, 90, 180, 365].map((d) => (
                 <button
                   key={d}
                   type="button"
@@ -383,6 +409,12 @@ export function AssistantAccessSettings() {
           <label className="text-xs font-semibold text-foreground block">
             {T("مجوزهای دسترسی (Scopes)", "Access Permissions (Scopes)")}
           </label>
+          <p className="text-[11px] leading-5 text-muted-foreground">
+            {T(
+              "به‌صورت پیش‌فرض فقط «خواندن وظایف» فعال است. کمترین دسترسی لازم را بده و برای هر عامل یک توکن جدا بساز.",
+              "Only task reading is enabled by default. Grant the least access needed, and create a separate token per agent."
+            )}
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {SCOPE_GROUPS.map((group) => {
               const Icon = group.icon;
@@ -413,16 +445,59 @@ export function AssistantAccessSettings() {
           </div>
         </div>
 
-        <Button
-          type="button"
-          disabled={busy || !name.trim() || scopes.length === 0}
-          onClick={createToken}
-          className="w-full sm:w-auto h-9 text-xs px-5 gap-1.5 rounded-xl"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>{T("ایجاد توکن دسترسی عامل", "Generate Agent Token")}</span>
-        </Button>
+        <div className="space-y-1.5">
+          <Button
+            type="button"
+            disabled={busy || !name.trim() || scopes.length === 0}
+            onClick={openReview}
+            className="w-full sm:w-auto h-9 text-xs px-5 gap-1.5 rounded-xl"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{T("بازبینی و ساخت توکن", "Review & create token")}</span>
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            {T("پیش از ساخت، خلاصه‌ای از دسترسی‌ها را به زبان ساده می‌بینی.", "You'll see a plain-language summary of the access before it is created.")}
+          </p>
+        </div>
       </div>
+
+      {/* Plain-language review before creating a token */}
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{T("بازبینی دسترسی توکن", "Review token access")}</DialogTitle>
+            <DialogDescription className="leading-6">
+              {T(
+                "با تأیید، یک عامل هوش مصنوعی می‌تواند با این توکن موارد زیر را انجام دهد. هر زمان می‌توانی توکن را لغو کنی.",
+                "If you confirm, an AI agent with this token can do the following. You can revoke the token at any time."
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 rounded-lg bg-muted/50 p-3 text-sm">
+            <p className="font-medium" dir="auto">{name.trim()}</p>
+            <ul className="list-disc space-y-1 ps-5 text-xs text-muted-foreground">
+              {scopes.map((scope) => (
+                <li key={scope} dir="auto">{scopeLabel(scope, isEn)}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground">
+              {T(
+                `مدت اعتبار: ${days} روز (تا ${new Date(Date.now() + days * 86_400_000).toLocaleDateString()})`,
+                `Valid for ${days} day(s) (until ${new Date(Date.now() + days * 86_400_000).toLocaleDateString()})`
+              )}
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setReviewOpen(false)}>
+              {T("انصراف", "Cancel")}
+            </Button>
+            <Button type="button" disabled={busy} onClick={() => void createToken()}>
+              <Sparkles className="w-3.5 h-3.5" />
+              {T("ساخت توکن", "Create token")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Newly Created Token Display (Shown Once) */}
       {newToken && (

@@ -1,4 +1,4 @@
-import { createDebouncedWrites } from "@/lib/debouncedWrites";
+import { createDebouncedWrites, readNoteDraft, writeNoteDraft, clearNoteDraft } from "@/lib/debouncedWrites";
 import { useResizableSplit } from "@/hooks/useResizableSplit";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
@@ -27,6 +27,7 @@ import {
   BookOpen,
   FileCode,
   Eye, PanelLeftClose, PanelLeftOpen, Minimize2, Inbox, ListPlus,
+  Copy, Save,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import ShareDialog from "@/components/ShareDialog";
@@ -99,6 +100,7 @@ type Note = {
 type FolderItem = { id: string; name: string; color?: string };
 type TagItem = { id: string; name: string; color?: string };
 type ActionItemDraft = { id: string; ownerId: string; noteId: string; createdAt: string; title: string; description: string };
+type NoteAIProposal = { noteId: string; ownerId: string; baseRevision: number; action: string; md: string; html: string };
 
 export default function NotesView() {
   const { user } = useAuth();
@@ -180,6 +182,22 @@ export default function NotesView() {
   const creatingActionItemRef = useRef(false);
   const [confirmDel, setConfirmDel] = useState<Note | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiProposal, setAiProposal] = useState<NoteAIProposal | null>(null);
+  const [editorRevision, setEditorRevision] = useState(0);
+  const [contentRevision, setContentRevision] = useState(0);
+  const [noteSaveState, setNoteSaveState] = useState<"idle" | "saving" | "device" | "failed">("idle");
+  const contentRevisionRef = useRef(0);
+  const noteRevisionsRef = useRef<Map<string, number>>(new Map());
+  const selectedIdRef = useRef<string | undefined>(undefined);
+  const durableCopyRef = useRef(true);
+  const unsyncedEditsRef = useRef(false);
+  const aiControllerRef = useRef<AbortController | null>(null);
+  selectedIdRef.current = selected?.id;
+  const bumpContentRevision = useCallback(() => {
+    contentRevisionRef.current += 1;
+    setContentRevision(contentRevisionRef.current);
+    return contentRevisionRef.current;
+  }, []);
   const [aiLang, setAiLang] = useState<AILanguage>(getAILanguage());
   const [moveOpen, setMoveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -188,7 +206,50 @@ export default function NotesView() {
   useEffect(() => {
     setSelectedText("");
     setActionItemDraft(null);
+    setAiProposal(null);
+    aiControllerRef.current?.abort();
+    aiControllerRef.current = null;
+    setAiBusy(false);
+    setNoteSaveState("idle");
+    durableCopyRef.current = true;
+    unsyncedEditsRef.current = false;
   }, [selected?.id, user?.id]);
+
+  // Recover a device-only draft that was retained when the cloud write failed.
+  useEffect(() => {
+    const noteId = selected?.id;
+    const accountId = user?.id;
+    if (!noteId || !accountId) return;
+    let active = true;
+    const revisionAtStart = contentRevisionRef.current;
+    void readNoteDraft(accountId, noteId).then((record) => {
+      if (!active || accountRef.current !== accountId || selectedIdRef.current !== noteId) return;
+      if (contentRevisionRef.current !== revisionAtStart) return; // newer typing wins
+      const note = notesRef.current.find((item) => item.id === noteId);
+      if (record && record.md !== (note?.content ?? "")) {
+        setDraft({ md: record.md, html: record.html });
+        const revision = bumpContentRevision();
+        noteRevisionsRef.current.set(noteId, revision);
+        durableCopyRef.current = true;
+        unsyncedEditsRef.current = true;
+        setNoteSaveState("device");
+        if (note) scheduleCloudContent(noteId, accountId, record.md, note, revision);
+      }
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [selected?.id, user?.id, bumpContentRevision]);
+
+  // Block reload only while the text has no durable device copy to recover from.
+  useEffect(() => {
+    const guard = (event: BeforeUnloadEvent) => {
+      if (unsyncedEditsRef.current && !durableCopyRef.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, []);
   // Folder / tag pickers open inline under the note header (one at a time; Escape closes).
   const [notePanel, setNotePanel] = useState<"folder" | "tags" | null>(null);
   useEffect(() => {
@@ -606,26 +667,124 @@ export default function NotesView() {
     }
   };
 
+  // Write the device-only copy first so a failed cloud write never loses text.
+  const stageLocalDraft = (noteId: string, accountId: string, md: string, html: string) => {
+    setNoteSaveState("saving");
+    void writeNoteDraft({ accountId, noteId, md, html, updatedAt: Date.now() }).then((durable) => {
+      if (accountRef.current !== accountId || selectedIdRef.current !== noteId) return;
+      durableCopyRef.current = durable;
+      setNoteSaveState(durable ? "device" : "failed");
+    }).catch(() => {
+      if (accountRef.current === accountId && selectedIdRef.current === noteId) {
+        durableCopyRef.current = false;
+        setNoteSaveState("failed");
+      }
+    });
+  };
+
+  // Debounced cloud write; the draft clears only for the newest acknowledged revision.
+  const scheduleCloudContent = (noteId: string, accountId: string, md: string, target: Note, revision: number) => {
+    writes.schedule(noteId, async () => {
+      const saved = await persistNote(target, { content: md }, accountId, true);
+      if (accountRef.current !== accountId) return saved;
+      if (saved && noteRevisionsRef.current.get(noteId) === revision) {
+        await clearNoteDraft(accountId, noteId);
+        durableCopyRef.current = true;
+        unsyncedEditsRef.current = false;
+        if (selectedIdRef.current === noteId) setNoteSaveState("idle");
+      } else if (!saved && selectedIdRef.current === noteId) {
+        setNoteSaveState("failed");
+      }
+      return saved;
+    });
+  };
+
+  const retryNoteSave = () => {
+    if (!selected || !user || !canEdit) return;
+    const noteId = selected.id;
+    const accountId = user.id;
+    const md = draft?.md ?? selected.content ?? "";
+    const html = draft?.html ?? markdownToHtml(md);
+    const target = notesRef.current.find((item) => item.id === noteId) ?? selected;
+    const revision = noteRevisionsRef.current.get(noteId) ?? bumpContentRevision();
+    unsyncedEditsRef.current = true;
+    stageLocalDraft(noteId, accountId, md, html);
+    scheduleCloudContent(noteId, accountId, md, target, revision);
+  };
+
+  const copyDraft = async () => {
+    try {
+      await navigator.clipboard.writeText(draft?.md ?? selected?.content ?? "");
+      toast.success(T("کپی شد", "Copied"));
+    } catch {
+      toast.error(T("کپی نشد", "Copy failed"));
+    }
+  };
+
   const runNoteAI = async (action: string) => {
     if (!selected) return;
     if (!canEdit) {
       toast(T("دسترسی ویرایش ندارید", "You don't have edit permission"));
       return;
     }
+    const ownerId = user?.id;
+    if (!ownerId) return;
+    const noteId = selected.id;
+    const baseRevision = contentRevisionRef.current;
     const md = (draft?.md ?? selected.content ?? "").trim();
     if (!md) return toast.error(T("نوت خالی است", "Note is empty"));
+    aiControllerRef.current?.abort();
+    const controller = new AbortController();
+    aiControllerRef.current = controller;
     setAiBusy(true);
+    setAiProposal(null);
     try {
-      const r = await callAI("inline_edit", md, undefined, action, aiLang);
+      const r = await callAI("inline_edit", md, undefined, action, aiLang, { signal: controller.signal });
+      if (controller.signal.aborted || aiControllerRef.current !== controller) return;
+      if (accountRef.current !== ownerId || selectedIdRef.current !== noteId) return;
       const newMd = (r.text || "").trim();
       if (!newMd) throw new Error(T("نتیجه خالی", "Empty result"));
-      setDraft({ md: newMd, html: markdownToHtml(newMd) });
-      if (await save({ content: newMd })) toast.success(T("اعمال شد ✨", "Applied ✨"));
+      // Reviewable proposal: nothing is written until Apply.
+      setAiProposal({ noteId, ownerId, baseRevision, action, md: newMd, html: markdownToHtml(newMd) });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
+      if (!(e instanceof Error && e.name === "AbortError") && accountRef.current === ownerId) {
+        toast.error(e instanceof Error ? e.message : T("خطا", "Error"));
+      }
     } finally {
-      setAiBusy(false);
+      if (aiControllerRef.current === controller) {
+        aiControllerRef.current = null;
+        setAiBusy(false);
+      }
     }
+  };
+
+  const applyAiProposal = () => {
+    const proposal = aiProposal;
+    if (!proposal || !selected) return;
+    if (accountRef.current !== proposal.ownerId || selected.id !== proposal.noteId) {
+      setAiProposal(null);
+      toast(T("نوت تغییر کرده؛ پیشنهاد لغو شد", "The note changed; the suggestion was discarded"));
+      return;
+    }
+    if (contentRevisionRef.current !== proposal.baseRevision) {
+      toast.error(T("از زمان ساخت پیشنهاد، متن تغییر کرده؛ دوباره تولید کن", "The text changed since this suggestion was created; regenerate it."));
+      return;
+    }
+    setAiProposal(null);
+    const { noteId, ownerId, md, html } = proposal;
+    setDraft({ md, html });
+    setEditorRevision((current) => current + 1);
+    const nextNotes = notesRef.current.map((note) => note.id === noteId ? { ...note, content: md } : note);
+    notesRef.current = nextNotes;
+    setNotes(nextNotes);
+    setSelected((current) => current?.id === noteId ? { ...current, content: md } : current);
+    const target = nextNotes.find((note) => note.id === noteId) ?? selected;
+    const revision = bumpContentRevision();
+    noteRevisionsRef.current.set(noteId, revision);
+    unsyncedEditsRef.current = true;
+    stageLocalDraft(noteId, ownerId, md, html);
+    scheduleCloudContent(noteId, ownerId, md, target, revision);
+    toast.success(T("اعمال شد ✨", "Applied ✨"));
   };
 
   const togglePin = async (n: Note) => {
@@ -764,6 +923,8 @@ export default function NotesView() {
   );
 
   const currentFolder = selected?.folder_id ? folderMap.get(selected.folder_id) : null;
+
+  const proposalStale = aiProposal !== null && contentRevision !== aiProposal.baseRevision;
 
   const editor = selected ? (
     <div className="px-2 sm:px-4 py-1 w-full min-h-0 flex flex-col">
@@ -993,20 +1154,67 @@ export default function NotesView() {
         </div>
       )}
 
+      {aiProposal && aiProposal.noteId === selected.id && (
+        <div role="region" aria-label={T("پیشنهاد هوش مصنوعی", "AI suggestion")} data-testid="note-ai-proposal" className="mb-2 rounded-lg border border-primary/40 bg-primary/5 p-2.5 text-xs">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+            <span className="flex items-center gap-1 font-medium text-primary"><Sparkles className="h-3.5 w-3.5" />{T("پیشنهاد هوش مصنوعی", "AI suggestion")}</span>
+            <span className="text-[11px] text-muted-foreground">{proposalStale ? T("متن از زمان ساخت تغییر کرده", "Text changed since generated") : T("بررسی و اعمال کن", "Review and apply")}</span>
+          </div>
+          <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md bg-background/70 p-2 text-[11px] leading-5" dir="auto">{aiProposal.md}</pre>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Button size="sm" className="h-7 px-2 text-xs" onClick={applyAiProposal} disabled={proposalStale} data-testid="note-ai-apply">{T("اعمال", "Apply")}</Button>
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setAiProposal(null)} data-testid="note-ai-discard">{T("صرف‌نظر", "Discard")}</Button>
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => void runNoteAI(aiProposal.action)} disabled={aiBusy} data-testid="note-ai-regenerate">{T("تولید دوباره", "Regenerate")}</Button>
+          </div>
+        </div>
+      )}
+
+      {canEdit && noteSaveState !== "idle" && (
+        <div
+          role="status"
+          data-testid="note-save-status"
+          data-state={noteSaveState}
+          className="sticky top-0 z-20 -mx-2 mb-1 flex flex-wrap items-center gap-2 rounded-md border border-border/60 bg-background/95 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur"
+        >
+          {noteSaveState === "saving" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          <span className="min-w-0 flex-1">
+            {noteSaveState === "saving"
+              ? T("در حال ذخیره…", "Saving…")
+              : noteSaveState === "device"
+                ? T("روی این دستگاه ذخیره شد · در انتظار همگام‌سازی", "Saved on this device · Awaiting sync")
+                : durableCopyRef.current
+                  ? T("همگام‌سازی ناموفق؛ روی این دستگاه ذخیره شده", "Sync failed; saved on this device")
+                  : T("ذخیره ناموفق؛ متن هنوز روی این دستگاه ذخیره نشده", "Save failed; not yet saved on this device")}
+          </span>
+          {noteSaveState === "failed" && (
+            <>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={retryNoteSave} data-testid="note-save-retry">{T("تلاش دوباره", "Retry")}</Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => void copyDraft()} data-testid="note-save-copy"><Copy className="h-3 w-3 me-1" />{T("کپی", "Copy")}</Button>
+            </>
+          )}
+        </div>
+      )}
+
       <NoteEditorTabs
         noteId={selected.id}
         markdown={draft?.md ?? selected.content ?? ""}
+        contentRevision={editorRevision}
         onChange={(md, html) => {
           setDraft({ html, md });
-          if (user && canEdit) {
-            const nextNotes = notesRef.current.map(note => note.id === selected.id ? { ...note, content: md } : note);
-            notesRef.current = nextNotes;
-            setNotes(nextNotes);
-            setSelected(current => current?.id === selected.id ? { ...current, content: md } : current);
-            const target = selected;
-            const accountId = user.id;
-            writes.schedule(target.id, () => persistNote(target, { content: md }, accountId, true));
-          }
+          if (!user || !canEdit) return;
+          const accountId = user.id;
+          const noteId = selected.id;
+          bumpContentRevision();
+          const nextNotes = notesRef.current.map(note => note.id === noteId ? { ...note, content: md } : note);
+          notesRef.current = nextNotes;
+          setNotes(nextNotes);
+          setSelected(current => current?.id === noteId ? { ...current, content: md } : current);
+          const target = nextNotes.find(note => note.id === noteId) ?? selected;
+          const revision = contentRevisionRef.current;
+          noteRevisionsRef.current.set(noteId, revision);
+          unsyncedEditsRef.current = true;
+          stageLocalDraft(noteId, accountId, md, html);
+          scheduleCloudContent(noteId, accountId, md, target, revision);
         }}
         readOnly={!canEdit}
         mode={editorMode}

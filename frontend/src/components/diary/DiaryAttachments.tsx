@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Image as ImageIcon, Loader2, Mic, Music, Paperclip, Square, Trash2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useBilingual } from "@/hooks/useBilingual";
 import { uploadMediaFull, type MediaKind } from "@/lib/uploadMedia";
@@ -41,6 +42,7 @@ export function DiaryAttachments({ attachments, onChange, entryId = "", onInsert
   const [uploading, setUploading] = useState(0);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [pendingRemove, setPendingRemove] = useState<DiaryAttachment | null>(null);
 
   useEffect(() => {
     if (!recording) return;
@@ -105,6 +107,25 @@ export function DiaryAttachments({ attachments, onChange, entryId = "", onInsert
     setRecording(false);
   };
 
+  // Detach the attachment from this entry only. The stored file is left intact and
+  // the action is reversible, so a stray click can never destroy a memory.
+  const confirmRemove = () => {
+    const item = pendingRemove;
+    if (!item) return;
+    setPendingRemove(null);
+    onChangeRef.current(attachmentsRef.current.filter((entry) => entry.id !== item.id));
+    toast(T("پیوست از این خاطره جدا شد؛ فایل ذخیره‌شده پاک نشد.", "Attachment removed from this entry; the stored file was not deleted."), {
+      action: {
+        label: T("بازگرداندن", "Undo"),
+        onClick: () => {
+          const current = attachmentsRef.current;
+          if (current.some((entry) => entry.id === item.id)) return;
+          onChangeRef.current([...current, item]);
+        },
+      },
+    });
+  };
+
   return (
     <div className="space-y-3" data-testid="diary-attachments">
       <input ref={fileRef} type="file" multiple className="hidden" onChange={(event) => void upload(Array.from(event.target.files || []))} />
@@ -130,7 +151,7 @@ export function DiaryAttachments({ attachments, onChange, entryId = "", onInsert
                 <div className="mb-1.5 flex items-center gap-2 text-xs">
                   <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                   <span className="truncate font-medium" dir="ltr">{item.name}</span>
-                  <button type="button" aria-label={T("حذف پیوست", "Remove attachment")} data-testid={`diary-attachment-remove-${item.id}`} onClick={() => onChange(attachments.filter((entry) => entry.id !== item.id))} className="ms-auto rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" aria-label={T("جدا کردن پیوست از خاطره", "Remove attachment from entry")} title={T("فقط از این خاطره جدا می‌شود؛ فایل ذخیره‌شده پاک نمی‌گردد", "Removes it from this entry only; the stored file is kept")} data-testid={`diary-attachment-remove-${item.id}`} onClick={() => setPendingRemove(item)} className="ms-auto rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
                 {onInsert && <Button type="button" size="sm" variant="ghost" className="mb-2 text-xs" onClick={() => onInsert(item)}>{T("درج در متن", "Insert into text")}</Button>}
                 {item.kind === "image" && <img src={item.url} alt={item.name} className="max-h-64 w-full rounded-lg object-cover" loading="lazy" />}
@@ -142,6 +163,19 @@ export function DiaryAttachments({ attachments, onChange, entryId = "", onInsert
           })}
         </ul>
       )}
+
+      <AlertDialog open={Boolean(pendingRemove)} onOpenChange={(open) => { if (!open) setPendingRemove(null); }}>
+        <AlertDialogContent data-testid="diary-attachment-remove-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("این پیوست از خاطره جدا شود؟", "Remove this attachment from the entry?")}</AlertDialogTitle>
+            <AlertDialogDescription>{T("فایل ذخیره‌شده پاک نمی‌شود؛ فقط ارتباط آن با این خاطره برداشته می‌شود و می‌توانی بازگردانی کنی.", "The stored file is not deleted; only its link to this entry is removed, and you can undo this.")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="diary-attachment-remove-cancel">{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction data-testid="diary-attachment-remove-confirm" onClick={(event) => { event.preventDefault(); confirmRemove(); }}>{T("جدا کن", "Remove")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -26,6 +26,7 @@ export function NoteEditorTabs({
   hideTabsList = false,
   onBusyChange,
   onSelectedTextChange,
+  contentRevision,
 }: {
   noteId: string;
   markdown: string;
@@ -36,6 +37,8 @@ export function NoteEditorTabs({
   hideTabsList?: boolean;
   onBusyChange?: (busy: boolean) => void;
   onSelectedTextChange?: (text: string) => void;
+  /** Bump to push an external markdown change (e.g. an applied AI proposal). */
+  contentRevision?: number;
 }) {
   const { T, isEn } = useBilingual();
   const { user } = useAuth();
@@ -74,6 +77,8 @@ export function NoteEditorTabs({
             key={`${user?.id ?? "signed-out"}:${noteId}`}
             attachmentScopeId={noteId}
             initialMarkdown={markdown}
+            externalMarkdown={markdown}
+            externalRevision={contentRevision}
             onChange={(html, md) => onChange(md, html)}
             readOnly={readOnly}
             onBusyChange={handleBusy}

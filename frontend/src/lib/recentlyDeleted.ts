@@ -6,7 +6,8 @@ export type DeletedEntry = {
   label: string;         // e.g. task title
   kind: "task" | "note" | "folder" | "tag" | "habit";
   deletedAt: number;
-  restore: () => Promise<void> | void;
+  /** Resolve false (or throw) when the restore did not fully succeed; the entry is then kept. */
+  restore: () => Promise<boolean | void> | boolean | void;
 };
 
 const TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -46,7 +47,10 @@ export async function restoreDeleted(id: string) {
   const idx = items.findIndex((x) => x.id === id);
   if (idx === -1) return false;
   const e = items[idx];
-  await e.restore();
+  const result = await e.restore();
+  // Keep the entry until the restore is confirmed, so a partial/failed restore
+  // stays visible and retryable instead of silently disappearing.
+  if (result === false) throw new Error("Restore failed; the item was kept");
   items.splice(idx, 1);
   notify();
   return true;

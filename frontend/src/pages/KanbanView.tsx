@@ -1,7 +1,7 @@
 import { TaskSplitScreen } from "@/components/TaskSplitScreen";
 import { QuickAddTask } from "@/components/QuickAddTask";
 import { SharedTaskRow, SharedTaskRowsProvider } from "@/components/SharedTaskRow";
-import type { Task as FullTask } from "@/lib/taskTypes";
+import type { Task as FullTask, TaskOutcome } from "@/lib/taskTypes";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -50,10 +50,19 @@ import { PRIORITY_META, type Priority } from "@/lib/priority";
 import { haptic } from "@/lib/haptics";
 import { toPersianDigits } from "@/lib/persianDigits";
 import { playCompletionFeedback } from "@/lib/completionFeedback";
-import { awardTaskWatering } from "@/lib/garden";
-import { isRecurringTask, advanceRecurringTask } from "@/lib/recurringTaskService";
 import { filterTasksForVisibility, useShowCompletedTasks } from "@/lib/completedTaskVisibility";
 import { getCachedTasks, applyPendingTaskOperations } from "@/features/tasks/taskService";
+import { setTaskCompletion, type CompletionOutcome } from "@/features/tasks/taskCompletion";
+import { listTaskOutcomes, executeTaskOutcome } from "@/lib/taskOutcomes";
+import { OutcomePicker } from "@/components/OutcomePicker";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   type GoalKanban,
   type OwnedGoal,
@@ -109,6 +118,7 @@ const COLUMNS: { id: Status; labelFa: string; labelEn: string; icon: any; accent
   { id: "done", labelFa: "انجام شده", labelEn: "Done", icon: CheckCircle2, accent: "border-t-success" },
 ];
 const COL_ORDER: Status[] = ["todo", "in_progress", "done"];
+const UNASSIGN_GOAL = "__unassign";
 
 export default function KanbanView() {
   const { user } = useAuth();
@@ -276,105 +286,104 @@ export default function KanbanView() {
     }
   };
 
-  const toggleTask = async (task: Task) => {
-    if (!user) return;
-    const newCompleted = !task.completed;
-    if (newCompleted) {
-      playCompletionFeedback();
-    } else {
-      haptic("light");
-    }
-    if (newCompleted && isRecurringTask(task)) {
-      const res = await advanceRecurringTask(user.id, task, { allKnownTasks: [...allTasks, ...subtasks] });
-      if (res.success && res.patch) {
-        awardTaskWatering(task.title, Boolean(task.parent_id));
-        setSubtasks(prev => prev.map(t => t.id === task.id ? ({ ...t, ...res.patch } as Task) : t));
-        setAllTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? ({ ...t, ...res.patch } as Task) : t))
-        );
-        toast.success(
-          T(
-            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
-            `Next instance moved to ${res.formattedNextDate} 🔁`
-          )
-        );
-        return;
+  const applyCompletionPatch = (taskId: string, patch: Partial<FullTask>) => {
+    setSubtasks((prev) => prev.map((t) => t.id === taskId ? ({ ...t, ...patch } as Task) : t));
+    setAllTasks((prev) => prev.map((t) => t.id === taskId ? ({ ...t, ...patch } as Task) : t));
+  };
+
+  const handleCompletionResult = (task: Task, result: CompletionOutcome) => {
+    if (result.kind === "saved" || result.kind === "queued" || result.kind === "advanced") {
+      applyCompletionPatch(task.id, result.patch);
+      if (result.kind === "advanced") {
+        toast.success(T(`نمونه بعدی به ${result.nextLabel} منتقل شد 🔁`, `Next instance moved to ${result.nextLabel} 🔁`));
+      } else if (result.kind === "queued") {
+        toast.info(T("تغییر ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Saved locally — will sync when online"));
       }
-      // Advancing the recurrence failed — do NOT fall through to a normal "done"
-      // completion, which would silently stop the repeating task.
-      toast.error(
-        T(
-          "نمونه بعدی ساخته نشد؛ کار باز ماند. دوباره تلاش کنید.",
-          "Could not schedule the next instance; the task stays open. Please retry."
-        )
-      );
       return;
     }
-    const newStatus: Status = newCompleted ? "done" : "todo";
-    const updatedTask: Task = {
-      ...task,
-      completed: newCompleted,
-      status: newStatus,
-      completed_at: newCompleted ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    };
-    setAllTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? updatedTask : t))
-    );
-    setSubtasks((prev) => prev.map((t) => t.id === task.id ? updatedTask : t));
-    if (newCompleted) awardTaskWatering(task.title, Boolean(task.parent_id));
-    const ok = await upsertTask(user.id, updatedTask);
-    if (!ok) {
-      setAllTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
-      setSubtasks((prev) => prev.map((t) => (t.id === task.id ? task : t)));
-      toast.error(T("خطا در تغییر وضعیت تسک", "Failed to update task"));
+    // Study is handled by the caller (it navigates). A failure keeps the task
+    // open instead of silently changing its state.
+    if (result.kind === "failed") {
+      toast.error(T("تغییر وضعیت تسک ذخیره نشد؛ کار باز ماند. دوباره تلاش کنید.", "Could not save the task state; it stays open. Please retry."));
     }
+  };
+
+  // One completion contract for the row checkbox and the column move: study
+  // redirect, recurrence advancement and configured outcomes all run first.
+  const completeTask = async (task: Task) => {
+    if (!user) return;
+    let outcomes: TaskOutcome[] = [];
+    try { outcomes = await listTaskOutcomes(task.id); } catch { outcomes = []; }
+    const result = await setTaskCompletion(user.id, task as unknown as FullTask, true, {
+      allKnownTasks: [...allTasks, ...subtasks] as unknown as FullTask[],
+      outcomes,
+    });
+    if (result.kind === "study") { navigate(result.navUrl); return; }
+    if (result.kind === "outcomes") {
+      setOutcomeTask(task);
+      setOutcomes(result.outcomes);
+      setOutcomeOpen(true);
+      return;
+    }
+    handleCompletionResult(task, result);
+  };
+
+  const toggleTask = async (task: Task) => {
+    if (!user) return;
+    if (!task.completed) {
+      playCompletionFeedback();
+      await completeTask(task);
+      return;
+    }
+    haptic("light");
+    const result = await setTaskCompletion(user.id, task as unknown as FullTask, false, {
+      allKnownTasks: [...allTasks, ...subtasks] as unknown as FullTask[],
+    });
+    handleCompletionResult(task, result);
+  };
+
+  const confirmOutcome = async (outcome: TaskOutcome | null) => {
+    setOutcomeOpen(false);
+    const task = outcomeTask;
+    setOutcomeTask(null);
+    if (!user || !task) return;
+    if (outcome) {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        toast.info(T("اتصال اینترنت برای اجرای سناریو لازم است", "Internet connection required to run outcome scenario"));
+      } else {
+        try {
+          await executeTaskOutcome(outcome, user.id, task as unknown as FullTask);
+          toast.success(`${outcome.actions.length} ${T("تسک ساخته شد", "follow-up tasks created")}`);
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : T("خطا در ساخت تسک‌ها", "Error creating tasks"));
+          return;
+        }
+      }
+    }
+    const result = await setTaskCompletion(user.id, task as unknown as FullTask, true, {
+      allKnownTasks: [...allTasks, ...subtasks] as unknown as FullTask[],
+    });
+    handleCompletionResult(task, result);
   };
 
   const moveTaskColumn = async (taskId: string, newStatus: Status) => {
     if (!user) return;
     const t = allTasks.find((x) => x.id === taskId);
     if (!t || t.status === newStatus) return;
-    if (newStatus === "done" && isRecurringTask(t)) {
-      const res = await advanceRecurringTask(user.id, t, { allKnownTasks: [...allTasks, ...subtasks] });
-      if (res.success && res.patch) {
-        awardTaskWatering(t.title, Boolean(t.parent_id));
-        setSubtasks(prev => prev.map(t2 => t2.id === taskId ? ({ ...t2, ...res.patch } as Task) : t2));
-        setAllTasks((prev) =>
-          prev.map((x) => (x.id === taskId ? ({ ...x, ...res.patch } as Task) : x))
-        );
-        toast.success(
-          T(
-            `نمونه بعدی به ${res.formattedNextDate} منتقل شد 🔁`,
-            `Next instance moved to ${res.formattedNextDate} 🔁`
-          )
-        );
-        return;
-      }
-      // Recurrence failed — keep the task open instead of marking it done.
-      toast.error(
-        T(
-          "نمونه بعدی ساخته نشد؛ کار باز ماند. دوباره تلاش کنید.",
-          "Could not schedule the next instance; the task stays open. Please retry."
-        )
-      );
+    if (newStatus === "done") {
+      // Same completion contract as the row checkbox, so a configured outcome,
+      // recurrence or study task is not silently marked done by a drop.
+      await completeTask(t);
       return;
     }
-    const completed = newStatus === "done";
     const updatedTask: Task = {
       ...t,
       status: newStatus,
-      completed,
-      completed_at: completed ? new Date().toISOString() : null,
+      completed: false,
+      completed_at: null,
       updated_at: new Date().toISOString(),
     };
-    setAllTasks((prev) =>
-      prev.map((x) => (x.id === taskId ? updatedTask : x))
-    );
-    if (newStatus === "done" && t.status !== "done") {
-      playCompletionFeedback();
-      awardTaskWatering(t.title, Boolean(t.parent_id));
-    }
+    setAllTasks((prev) => prev.map((x) => (x.id === taskId ? updatedTask : x)));
     const ok = await upsertTask(user.id, updatedTask);
     if (!ok) {
       setAllTasks((prev) => prev.map((x) => (x.id === taskId ? t : x)));
@@ -425,11 +434,13 @@ export default function KanbanView() {
     toast.success(T("هدف جدید ایجاد شد", "New goal created"));
   };
 
+  // Deleting a goal never destroys its tasks silently: we open a confirm dialog
+  // showing how many tasks are attached and let the user reassign them first.
   const handleDeleteGoal = (goalId: string) => {
-    const fid = ownGoals.find((g) => g.id === goalId)?.folderId ?? null;
-    saveKanbanGoals(readStoredGoals(fid, user?.id).filter((g) => g.id !== goalId), fid, user?.id);
-    setSelectedGoalId(null);
-    toast.success(T("هدف با موفقیت حذف شد", "Goal deleted successfully"));
+    const target = ownGoals.find((g) => g.id === goalId) ?? null;
+    if (!target) return;
+    setReassignGoalId(UNASSIGN_GOAL);
+    setGoalDeleteTarget(target);
   };
 
   const openEditForGoal = (g: GoalKanban) => {
@@ -443,8 +454,43 @@ export default function KanbanView() {
   };
 
   const [selectedTask, setSelectedTask] = useState<FullTask | null>(null);
+  const [outcomeTask, setOutcomeTask] = useState<Task | null>(null);
+  const [outcomes, setOutcomes] = useState<TaskOutcome[]>([]);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [goalDeleteTarget, setGoalDeleteTarget] = useState<OwnedGoal | null>(null);
+  const [reassignGoalId, setReassignGoalId] = useState<string>(UNASSIGN_GOAL);
+  const [goalDeleting, setGoalDeleting] = useState(false);
   useEffect(() => { setSelectedTask(null); }, [activeGoalId]);
   const activeTaskObj = activeId ? allTasks.find((t) => t.id === activeId) : null;
+
+  const goalDeleteTasks = useMemo(
+    () => (goalDeleteTarget ? allTasks.filter((t) => belongsToGoal(t, goalDeleteTarget)) : []),
+    [allTasks, goalDeleteTarget, belongsToGoal],
+  );
+
+  const confirmDeleteGoal = async () => {
+    const target = goalDeleteTarget;
+    if (!target || !user || goalDeleting) return;
+    setGoalDeleting(true);
+    try {
+      // Reassign (or unassign) the affected tasks before the goal disappears so
+      // no task is left pointing at a goal that no longer exists.
+      if (goalDeleteTasks.length > 0) {
+        const destinationId = reassignGoalId === UNASSIGN_GOAL ? null : reassignGoalId;
+        await Promise.all(
+          goalDeleteTasks.map((t) => upsertTask(user.id, { id: t.id, kanban_column_id: destinationId })),
+        );
+      }
+      const fid = target.folderId ?? null;
+      saveKanbanGoals(readStoredGoals(fid, user.id).filter((g) => g.id !== target.id), fid, user.id);
+      setSelectedGoalId(null);
+      setGoalDeleteTarget(null);
+      void loadTasks();
+      toast.success(T("هدف با موفقیت حذف شد", "Goal deleted successfully"));
+    } finally {
+      setGoalDeleting(false);
+    }
+  };
 
   return (
     <SharedTaskRowsProvider tasks={[...allTasks, ...subtasks] as FullTask[]} onToggle={(t) => void toggleTask(t as Task)} onPatch={(t, patch) => void patchTask(t as Task, patch)} onOpen={setSelectedTask}>
@@ -655,6 +701,71 @@ export default function KanbanView() {
         folderOptions={folders}
         canDelete
       />
+
+      {/* Outcome picker (shared completion contract) */}
+      <OutcomePicker
+        outcomes={outcomes}
+        open={outcomeOpen}
+        onOpenChange={(open) => { setOutcomeOpen(open); if (!open) setOutcomeTask(null); }}
+        onSelect={(outcome) => void confirmOutcome(outcome)}
+      />
+
+      {/* Goal deletion: confirm with task count and reassignment */}
+      <AlertDialog
+        open={Boolean(goalDeleteTarget)}
+        onOpenChange={(open) => { if (!open && !goalDeleting) setGoalDeleteTarget(null); }}
+      >
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("حذف هدف", "Delete goal")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {goalDeleteTarget && (
+                goalDeleteTasks.length > 0
+                  ? T(
+                      `هدف «${goalDeleteTarget.title}» حذف می‌شود و ${goalDeleteTasks.length} تسک به آن متصل‌اند.`,
+                      `“${goalDeleteTarget.title}” will be deleted. ${goalDeleteTasks.length} task(s) are linked to it.`,
+                    )
+                  : T(
+                      `هدف «${goalDeleteTarget.title}» حذف می‌شود.`,
+                      `“${goalDeleteTarget.title}” will be deleted.`,
+                    )
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {goalDeleteTasks.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                {T("تسک‌های این هدف چه شوند؟", "What should happen to its tasks?")}
+              </Label>
+              <Select value={reassignGoalId} onValueChange={setReassignGoalId} dir={isEn ? "ltr" : "rtl"}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGN_GOAL}>{T("بدون هدف شوند", "Unassign from any goal")}</SelectItem>
+                  {ownGoals
+                    .filter((g) => g.id !== goalDeleteTarget?.id)
+                    .map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={goalDeleting}>{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={goalDeleting}
+              onClick={(event) => { event.preventDefault(); void confirmDeleteGoal(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {T("حذف هدف", "Delete goal")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
     </TaskSplitScreen>
     </SharedTaskRowsProvider>

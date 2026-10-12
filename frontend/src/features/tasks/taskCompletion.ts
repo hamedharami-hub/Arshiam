@@ -7,19 +7,20 @@ import { advanceRecurringTask, isRecurringTask } from "@/lib/recurringTaskServic
 import { getStudyTaskNavigation, isLeitnerStudyTask } from "@/lib/taskStudyService";
 import { logTaskActivity } from "@/lib/taskActivity";
 import { awardTaskWatering } from "@/lib/garden";
-import type { Task } from "@/lib/taskTypes";
+import type { Task, TaskOutcome } from "@/lib/taskTypes";
 
 export type CompletionOutcome =
   | { kind: "saved" | "queued"; patch: Partial<Task> }
   | { kind: "advanced"; patch: Partial<Task>; nextLabel: string }
   | { kind: "study"; navUrl: string }
+  | { kind: "outcomes"; outcomes: TaskOutcome[] }
   | { kind: "failed" };
 
 export async function setTaskCompletion(
   userId: string,
   task: Task,
   done: boolean,
-  options: { allKnownTasks?: Task[] } = {},
+  options: { allKnownTasks?: Task[]; outcomes?: TaskOutcome[] } = {},
 ): Promise<CompletionOutcome> {
   if (!userId || !task?.id) return { kind: "failed" };
   if (done && isLeitnerStudyTask(task)) return { kind: "study", navUrl: getStudyTaskNavigation(task).navUrl };
@@ -29,6 +30,12 @@ export async function setTaskCompletion(
     const res = await advanceRecurringTask(userId, task, { allKnownTasks: options.allKnownTasks });
     if (res.success && res.patch) return { kind: "advanced", patch: res.patch, nextLabel: res.formattedNextDate || "" };
     return { kind: "failed" };
+  }
+
+  // A task with configured outcomes pauses completion so the user can pick one
+  // (after study/recurrence preflight), instead of silently marking it done.
+  if (done && options.outcomes && options.outcomes.length > 0) {
+    return { kind: "outcomes", outcomes: options.outcomes };
   }
 
   const patch: Partial<Task> = done

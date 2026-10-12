@@ -12,10 +12,7 @@ import { cacheGet } from "@/lib/offlineQueue";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useBilingual } from "@/hooks/useBilingual";
 import { useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { TaskDeleteConfirmDialog } from "@/components/tasks/TaskDeleteConfirmDialog";
 
 export default function TaskDetailView() {
   const { id } = useParams();
@@ -137,18 +134,28 @@ export default function TaskDetailView() {
     handleClose();
   }, [effectiveParentId, isFromWidget, navigate, handleClose, isEn]);
 
+  // Escape and an outside click both go through TaskDetail's own close request,
+  // so an unsaved edit still prompts before the modal disappears.
+  const requestClose = useCallback(() => {
+    if (taskDetailRef.current?.requestClose) {
+      taskDetailRef.current.requestClose();
+      return;
+    }
+    handleClose();
+  }, [handleClose]);
+
   useEffect(() => {
     if (isPhone) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (document.querySelector('[role="alertdialog"],[role="menu"]')) return;
         e.preventDefault();
-        handleClose();
+        requestClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPhone, handleClose]);
+  }, [isPhone, requestClose]);
 
   if ((loading || loadedId !== id) && !visibleTask) {
     if (isPhone) {
@@ -191,44 +198,7 @@ export default function TaskDetailView() {
   }
 
   const confirmDialog = (
-    <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
-      <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {confirm?.kind === "task"
-              ? confirm.childCount && confirm.childCount > 0
-                ? T(`حذف این تسک و ${confirm.childCount} زیرتسک؟`, `Delete this task and ${confirm.childCount} subtasks?`)
-                : T("حذف تسک؟", "Delete task?")
-              : confirm?.kind === "note"
-              ? T("حذف نوت؟", "Delete note?")
-              : T("حذف زیرتسک؟", "Delete subtask?")}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {confirm?.childCount && confirm.childCount > 0
-              ? T(
-                  `آیا مطمئنی می‌خوای «${confirm?.title || T("این تسک", "this task")}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`,
-                  `Are you sure you want to delete "${confirm?.title || T("this task", "this task")}" and its ${confirm.childCount} subtasks?`
-                )
-              : T(
-                  `آیا مطمئنی می‌خوای «${confirm?.title || ""}» را حذف کنی؟`,
-                  `Are you sure you want to delete "${confirm?.title || ""}"?`
-                )}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={async () => {
-              if (confirm) await confirm.onConfirm();
-              setConfirm(null);
-            }}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-          >
-            {T("حذف", "Delete")}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <TaskDeleteConfirmDialog confirm={confirm} setConfirm={setConfirm} T={T} />
   );
 
   if (!isPhone) {
@@ -236,7 +206,7 @@ export default function TaskDetailView() {
       <div
         dir={isEn ? "ltr" : "rtl"}
         className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-        onClick={handleClose}
+        onClick={requestClose}
       >
         <div
           className="relative w-full max-w-2xl max-h-[75vh] flex flex-col bg-card rounded-2xl shadow-2xl border border-border/80 overflow-hidden"

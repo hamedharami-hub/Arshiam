@@ -23,7 +23,9 @@ describe("AssistantAccessSettings", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("https://arshiam.vercel.app/api/assistant-access");
     expect(screen.getByText("https://arshiam.vercel.app/api/v1/agent")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("e.g. My Personal AI Agent"), { target: { value: "Codex" } });
-    fireEvent.click(screen.getByRole("button", { name: "Generate Agent Token" }));
+    // Creating a token now goes through a plain-language review step before the request.
+    fireEvent.click(screen.getByRole("button", { name: "Review & create token" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create token" }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([url, options]) => url === "https://arshiam.vercel.app/api/assistant-access" && options?.method === "POST")).toBe(true));
     expect(await screen.findByDisplayValue("test-token")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Download OpenAPI" })).toBeInTheDocument();

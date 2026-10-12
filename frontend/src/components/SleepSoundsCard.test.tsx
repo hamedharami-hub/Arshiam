@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ start: vi.fn(), stop: vi.fn(), fade: vi.fn(), cancel: vi.fn() }));
@@ -25,5 +25,23 @@ describe("sleep playback controls", () => {
     expect(mocks.start).toHaveBeenCalledWith("sleep_brown", 35);
     expect(screen.getByTestId("sleep-remaining")).toHaveTextContent("no auto stop");
     expect(JSON.parse(localStorage.getItem("sleep_sounds_prefs_v1")!)).toMatchObject({ sound: "sleep_brown", minutes: 0 });
+  });
+  it("keeps the remaining shutdown time when the track is changed", () => {
+    vi.useFakeTimers();
+    try {
+      render(<MemoryRouter><SleepSoundsCard isEn /></MemoryRouter>);
+      fireEvent.click(screen.getByTestId("sleep-play-toggle")); // 30 minutes
+      act(() => { vi.advanceTimersByTime(5 * 60 * 1000); });
+      mocks.fade.mockClear();
+
+      fireEvent.click(screen.getByTestId("sleep-sound-sleep_brown"));
+      expect(mocks.start).toHaveBeenLastCalledWith("sleep_brown", 35);
+      const last = mocks.fade.mock.calls.at(-1)!;
+      // ~25 minutes remain — the track change must not restart the 30-minute timer.
+      expect(last[0]).toBeLessThanOrEqual(25 * 60 + 1);
+      expect(last[0]).toBeGreaterThanOrEqual(24 * 60);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

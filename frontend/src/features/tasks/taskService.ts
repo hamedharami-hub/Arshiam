@@ -27,6 +27,20 @@ import { getTaskKnowledgeCacheKey } from "@/lib/taskKnowledgeService";
 import { deleteNoteTaskLinksFor, removeNoteTaskLinksFromCache, type NoteTaskLink } from "@/lib/noteTaskLinkService";
 import { normalizeTaskPriority } from "@/lib/priority";
 
+export type TaskCascadeRecovery = {
+  tasks: Task[];
+  tagLinks: Array<Record<string, unknown>>;
+  knowledgeLinks: Array<{ id: string }>;
+  noteTaskLinks: Array<Pick<NoteTaskLink, "id" | "user_id" | "task_id" | "note_id">>;
+};
+
+export type DeleteTaskCascadeResult = {
+  success: boolean;
+  deletedIds: string[];
+  /** Present only when the caller asked for a recoverable delete. */
+  recovery?: TaskCascadeRecovery;
+};
+
 const TASKS_CACHE_PREFIX = "tasks:all:";
 const taskCache = new Map<string, Task[]>();
 const taskCacheTimestamps = new Map<string, number>();
@@ -184,8 +198,9 @@ export function subscribeToTasks(
 export async function deleteTaskCascade(
   userId: string,
   rootTaskId: string,
-  knownTasks?: Task[]
-): Promise<{ success: boolean; deletedIds: string[] }> {
+  knownTasks?: Task[],
+  options: { recoverable?: boolean } = {},
+): Promise<DeleteTaskCascadeResult> {
   if (!userId || !rootTaskId) return { success: false, deletedIds: [] };
 
   const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
@@ -207,6 +222,37 @@ export async function deleteTaskCascade(
   const descendantIds = collectTaskDescendantIds(rootTaskId, childrenMap);
   const idsToDelete = Array.from(new Set([rootTaskId, ...descendantIds]));
   const taskById = new Map(tasks.map((item) => [item.id, item]));
+
+  // Snapshot the whole affected graph before anything is removed. This is the
+  // authoritative boundary: queued/offline/atomic paths all delete from here,
+  // so the recovery bundle matches exactly what the cascade will remove.
+  const recoveryTasks = idsToDelete
+    .map((id) => taskById.get(id))
+    .filter((task): task is Task => Boolean(task));
+  let recoveryRelations: Pick<TaskCascadeRecovery, "tagLinks" | "knowledgeLinks" | "noteTaskLinks"> = {
+    tagLinks: [], knowledgeLinks: [], noteTaskLinks: [],
+  };
+  if (options.recoverable) {
+    try {
+      const [tagResult, knowledgeResult, noteTaskResult] = await Promise.all([
+        firebaseStore.from("task_tags").select("id,user_id,task_id,tag_id").eq("user_id", userId).in("task_id", idsToDelete),
+        firebaseStore.from("task_knowledge_links").select("id,task_id,user_id").eq("user_id", userId).in("task_id", idsToDelete),
+        firebaseStore.from("note_task_links").select("id,user_id,task_id,note_id").eq("user_id", userId).in("task_id", idsToDelete),
+      ]);
+      recoveryRelations = {
+        tagLinks: Array.isArray(tagResult.data) ? tagResult.data as Array<Record<string, unknown>> : [],
+        knowledgeLinks: Array.isArray(knowledgeResult.data) ? knowledgeResult.data as Array<{ id: string }> : [],
+        noteTaskLinks: Array.isArray(noteTaskResult.data)
+          ? noteTaskResult.data as Array<Pick<NoteTaskLink, "id" | "user_id" | "task_id" | "note_id">>
+          : [],
+      };
+    } catch (error) {
+      console.warn("[TaskService] Could not snapshot related rows for a recoverable delete:", error);
+    }
+  }
+  const successResult = (): DeleteTaskCascadeResult => options.recoverable
+    ? { success: true, deletedIds: idsToDelete, recovery: { tasks: recoveryTasks, ...recoveryRelations } }
+    : { success: true, deletedIds: idsToDelete };
 
   const deleteOperations = idsToDelete.flatMap((id) => [
     { ownerId: userId, table: "tasks", op: "delete" as const, match: { id }, expectedRevision: taskById.get(id)?.updated_at },
@@ -249,7 +295,7 @@ export async function deleteTaskCascade(
   if (isOffline) {
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
-    return { success: true, deletedIds: idsToDelete };
+    return successResult();
   }
 
   // Firestore batches are atomic and capped at 500 writes. Larger trees are
@@ -257,7 +303,7 @@ export async function deleteTaskCascade(
   if (idsToDelete.length > 500) {
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
-    return { success: true, deletedIds: idsToDelete };
+    return successResult();
   }
 
   let linkedKnowledge: Array<{ id: string }>;
@@ -297,7 +343,7 @@ export async function deleteTaskCascade(
     if (hasPendingLinkWrite) {
       if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
       publishLocalRemoval(taskCache.get(userId) || []);
-      return { success: true, deletedIds: idsToDelete };
+      return successResult();
     }
 
     const pendingNoteTaskLinks = await getPendingOps("note_task_links");
@@ -312,19 +358,19 @@ export async function deleteTaskCascade(
     if (hasPendingNoteTaskLinkWrite) {
       if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
       publishLocalRemoval(taskCache.get(userId) || []);
-      return { success: true, deletedIds: idsToDelete };
+      return successResult();
     }
   } catch (error) {
     console.warn("[TaskService] Could not verify task knowledge links; queuing the complete cascade:", error);
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
-    return { success: true, deletedIds: idsToDelete };
+    return successResult();
   }
 
   if (idsToDelete.length + linkedKnowledge.length + linkedNoteTasks.length > 500) {
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
-    return { success: true, deletedIds: idsToDelete };
+    return successResult();
   }
 
   try {
@@ -341,7 +387,7 @@ export async function deleteTaskCascade(
     console.warn("[TaskService] Atomic Firestore cascade delete failed, enqueuing for sync:", error);
     if (!await queueCascadeAndCommit()) return { success: false, deletedIds: [] };
     publishLocalRemoval(taskCache.get(userId) || []);
-    return { success: true, deletedIds: idsToDelete };
+    return successResult();
   }
 
   // Sweep again after deleting the endpoint. This closes the small window in
@@ -365,7 +411,7 @@ export async function deleteTaskCascade(
   }
   const remaining = await commitLocalRemoval();
   publishLocalRemoval(remaining);
-  return { success: true, deletedIds: idsToDelete };
+  return successResult();
 }
 
 export async function deleteTask(userId: string, taskId: string, knownTasks?: Task[]): Promise<boolean> {

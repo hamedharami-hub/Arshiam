@@ -10,9 +10,10 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import {
   Activity, AlertTriangle, CalendarDays, CalendarRange, Clock3, Droplet,
-  Heart, NotebookPen, Plus, Trash2,
+  Heart, NotebookPen, Plus, Trash2, Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -138,7 +139,11 @@ export default function CycleView() {
   const phaseToday = useMemo(() => active ? computePhase(today, logs, active) : null, [active, logs, today]);
   const nextPeriod = useMemo(() => active ? predictNextPeriod(logs, active, today) : null, [active, logs, today]);
   const fertileWindow = useMemo(() => active ? predictFertileWindow(logs, active, today) : null, [active, logs, today]);
-  const todayLog = logs.find((log) => log.log_date === todayKey);
+
+  // The check-in is editable for a chosen date (defaults to today), so past
+  // entries can be corrected and a period start can be logged for the right day.
+  const [logDate, setLogDate] = useState(() => format(today, "yyyy-MM-dd"));
+  const selectedLog = logs.find((log) => log.log_date === logDate);
 
   const [pain, setPain] = useState(0);
   const [mood, setMood] = useState(5);
@@ -146,15 +151,19 @@ export default function CycleView() {
   const [flow, setFlow] = useState(0);
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [checkinDirty, setCheckinDirty] = useState(false);
+  // A guard that fires before an action would silently drop an unsaved check-in.
+  const [pendingGuard, setPendingGuard] = useState<{ kind: "switch"; id: string } | { kind: "date"; dateKey: string } | { kind: "period"; dateKey: string } | null>(null);
 
   useEffect(() => {
-    setPain(todayLog?.pain ?? 0);
-    setMood(todayLog?.mood ?? 5);
-    setEnergy(todayLog?.energy ?? 5);
-    setFlow(todayLog?.flow ?? 0);
-    setSymptoms(todayLog?.symptoms ?? []);
-    setNotes(todayLog?.notes ?? "");
-  }, [activeId, todayLog?.id, todayLog?.pain, todayLog?.mood, todayLog?.energy, todayLog?.flow, todayLog?.symptoms, todayLog?.notes]);
+    setPain(selectedLog?.pain ?? 0);
+    setMood(selectedLog?.mood ?? 5);
+    setEnergy(selectedLog?.energy ?? 5);
+    setFlow(selectedLog?.flow ?? 0);
+    setSymptoms(selectedLog?.symptoms ?? []);
+    setNotes(selectedLog?.notes ?? "");
+    setCheckinDirty(false);
+  }, [activeId, logDate, selectedLog?.id, selectedLog?.pain, selectedLog?.mood, selectedLog?.energy, selectedLog?.flow, selectedLog?.symptoms, selectedLog?.notes]);
 
   const refreshLogs = async (profileId: string) => {
     const { data, error } = await firebaseStore.from("cycle_logs").select("*")
@@ -255,27 +264,29 @@ export default function CycleView() {
     }
   };
 
-  const logPeriodStart = async () => {
+  const logPeriodStart = async (dateKey: string = logDate) => {
     if (!user || !active) return;
     const { error } = await firebaseStore.from("cycle_logs").upsert({
       user_id: user.id,
       profile_id: active.id,
-      log_date: todayKey,
+      log_date: dateKey,
       event: "period_start",
       flow: Math.max(flow, 2),
     }, { onConflict: "profile_id,log_date" }).select();
     if (error) return toast.error(error.message);
     await refreshLogs(active.id);
-    toast.success(T("شروع پریود امروز ثبت شد", "Period start recorded for today"));
+    setCheckinDirty(false);
+    toast.success(T(`شروع پریود برای ${formatDate(new Date(`${dateKey}T00:00:00`), isEn ? "d MMM yyyy" : "d MMMM yyyy", calendar)} ثبت شد`, `Period start recorded for ${formatDate(new Date(`${dateKey}T00:00:00`), "d MMM yyyy", calendar)}`));
   };
 
-  const saveTodayLog = async () => {
-    if (!user || !active) return;
+  const saveLog = async (dateKey: string = logDate) => {
+    if (!user || !active) return false;
+    const target = logs.find((log) => log.log_date === dateKey);
     const { error } = await firebaseStore.from("cycle_logs").upsert({
       user_id: user.id,
       profile_id: active.id,
-      log_date: todayKey,
-      event: todayLog?.event ?? null,
+      log_date: dateKey,
+      event: target?.event ?? null,
       pain,
       mood,
       energy,
@@ -283,12 +294,67 @@ export default function CycleView() {
       symptoms,
       notes,
     }, { onConflict: "profile_id,log_date" });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return false; }
     await refreshLogs(active.id);
-    toast.success(T("ثبت امروز ذخیره شد", "Today's log saved"));
+    setCheckinDirty(false);
+    toast.success(T("ثبت ذخیره شد", "Check-in saved"));
+    return true;
+  };
+
+  // Undo a period start without touching the profile: clear only the event flag.
+  const undoPeriodStart = async (log: CycleLog) => {
+    if (!user) return;
+    const { error } = await firebaseStore.from("cycle_logs").update({ event: null }).eq("id", log.id);
+    if (error) return toast.error(error.message);
+    await refreshLogs(log.profile_id);
+    toast.success(T("ثبت شروع پریود لغو شد", "Period start undone"));
+  };
+
+  const discardCheckin = () => {
+    setPain(selectedLog?.pain ?? 0);
+    setMood(selectedLog?.mood ?? 5);
+    setEnergy(selectedLog?.energy ?? 5);
+    setFlow(selectedLog?.flow ?? 0);
+    setSymptoms(selectedLog?.symptoms ?? []);
+    setNotes(selectedLog?.notes ?? "");
+    setCheckinDirty(false);
+  };
+
+  const requestSetActive = (id: string) => {
+    if (id === activeId) return;
+    if (checkinDirty) { setPendingGuard({ kind: "switch", id }); return; }
+    void setActive(id);
+  };
+
+  const requestDateChange = (dateKey: string) => {
+    if (!dateKey || dateKey === logDate) return;
+    if (checkinDirty) { setPendingGuard({ kind: "date", dateKey }); return; }
+    setLogDate(dateKey);
+  };
+
+  const requestLogPeriodStart = (dateKey: string = logDate) => {
+    if (!active) return;
+    if (checkinDirty) { setPendingGuard({ kind: "period", dateKey }); return; }
+    void logPeriodStart(dateKey);
+  };
+
+  const proceedGuard = () => {
+    const pending = pendingGuard;
+    setPendingGuard(null);
+    if (!pending) return;
+    if (pending.kind === "switch") void setActive(pending.id);
+    else if (pending.kind === "date") setLogDate(pending.dateKey);
+    else void logPeriodStart(pending.dateKey);
+  };
+
+  const saveAndProceedGuard = async () => {
+    const saved = await saveLog();
+    if (!saved) return;
+    proceedGuard();
   };
 
   const toggleSymptom = (symptom: string) => {
+    setCheckinDirty(true);
     setSymptoms((current) => current.includes(symptom)
       ? current.filter((item) => item !== symptom)
       : [...current, symptom]);
@@ -352,7 +418,7 @@ export default function CycleView() {
         ) : profiles.length > 0 ? (
           <div className="flex flex-wrap gap-2" role="group" aria-label={T("انتخاب پروفایل", "Select profile")}>
             {profiles.map((profile) => (
-              <button key={profile.id} type="button" onClick={() => void setActive(profile.id)} aria-pressed={profile.id === activeId}
+              <button key={profile.id} type="button" onClick={() => requestSetActive(profile.id)} aria-pressed={profile.id === activeId}
                 className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${profile.id === activeId
                   ? "border-rose-400 bg-rose-100/80 text-rose-950 shadow-sm dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-100"
                   : "border-border bg-background hover:border-rose-300 hover:bg-rose-50/60 dark:hover:bg-rose-950/20"}`}>
@@ -395,9 +461,12 @@ export default function CycleView() {
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">{isEn ? phaseMeta.description_en : phaseMeta.description}</p>
                   </div>
-                  <Button size="sm" onClick={() => void logPeriodStart()} className="gap-1.5 rounded-full bg-rose-600 text-white hover:bg-rose-700">
-                    <Droplet className="h-4 w-4" /> {T("ثبت شروع پریود امروز", "Log period start today")}
-                  </Button>
+                  <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                    <Input type="date" aria-label={T("تاریخ شروع پریود", "Period start date")} value={logDate} onChange={(event) => requestDateChange(event.target.value)} className="h-9 w-full bg-background/80 sm:w-44" data-testid="cycle-period-date" />
+                    <Button size="sm" onClick={() => requestLogPeriodStart()} className="gap-1.5 rounded-full bg-rose-600 text-white hover:bg-rose-700" data-testid="cycle-log-period-start">
+                      <Droplet className="h-4 w-4" /> {T("ثبت شروع پریود", "Log period start")}
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-4 flex items-start gap-2 rounded-lg border border-border/60 bg-background/60 p-3 text-xs leading-5 text-muted-foreground">
                   <Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
@@ -451,30 +520,36 @@ export default function CycleView() {
           </div>
 
           <Card className="space-y-5 p-4 md:p-6">
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-primary/10 p-2 text-primary"><NotebookPen className="h-4 w-4" /></div>
-              <div>
-                <h2 className="font-semibold">{T("ثبت وضعیت امروز", "Today's check-in")}</h2>
-                <p className="text-xs text-muted-foreground">{T("برای پروفایل", "For")} {active.label}</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-2 text-primary"><NotebookPen className="h-4 w-4" /></div>
+                <div>
+                  <h2 className="font-semibold">{T("ثبت وضعیت روز", "Daily check-in")}</h2>
+                  <p className="text-xs text-muted-foreground">{T("برای پروفایل", "For")} {active.label}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {checkinDirty && <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400" role="status" data-testid="cycle-checkin-dirty">{T("تغییرات ذخیره‌نشده", "Unsaved changes")}</span>}
+                <Input type="date" aria-label={T("تاریخ ثبت وضعیت", "Check-in date")} value={logDate} onChange={(event) => requestDateChange(event.target.value)} className="h-9 w-40" data-testid="cycle-log-date" />
               </div>
             </div>
 
             <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-xs">{isEn ? `Flow · ${flow}/4` : `شدت خونریزی · ${toPersianDigits(flow)}/۴`}</Label>
-                <Slider aria-label={T("شدت خونریزی", "Flow intensity")} value={[flow]} min={0} max={4} step={1} onValueChange={([value]) => setFlow(value)} />
+                <Slider aria-label={T("شدت خونریزی", "Flow intensity")} value={[flow]} min={0} max={4} step={1} onValueChange={([value]) => { setCheckinDirty(true); setFlow(value); }} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">{isEn ? `Pain · ${pain}/10` : `درد · ${toPersianDigits(pain)}/۱۰`}</Label>
-                <Slider aria-label={T("درد", "Pain")} value={[pain]} min={0} max={10} step={1} onValueChange={([value]) => setPain(value)} />
+                <Slider aria-label={T("درد", "Pain")} value={[pain]} min={0} max={10} step={1} onValueChange={([value]) => { setCheckinDirty(true); setPain(value); }} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">{isEn ? `Mood · ${mood}/10` : `خلق · ${toPersianDigits(mood)}/۱۰`}</Label>
-                <Slider aria-label={T("خلق", "Mood")} value={[mood]} min={0} max={10} step={1} onValueChange={([value]) => setMood(value)} />
+                <Slider aria-label={T("خلق", "Mood")} value={[mood]} min={0} max={10} step={1} onValueChange={([value]) => { setCheckinDirty(true); setMood(value); }} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">{isEn ? `Energy · ${energy}/10` : `انرژی · ${toPersianDigits(energy)}/۱۰`}</Label>
-                <Slider aria-label={T("انرژی", "Energy")} value={[energy]} min={0} max={10} step={1} onValueChange={([value]) => setEnergy(value)} />
+                <Slider aria-label={T("انرژی", "Energy")} value={[energy]} min={0} max={10} step={1} onValueChange={([value]) => { setCheckinDirty(true); setEnergy(value); }} />
               </div>
             </div>
 
@@ -497,9 +572,12 @@ export default function CycleView() {
 
             <div className="space-y-2">
               <Label htmlFor="cycle-notes" className="text-xs">{T("یادداشت", "Notes")}</Label>
-              <Input id="cycle-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={T("هر چیزی که می‌خواهی به خاطر بسپاری…", "Anything you want to remember…")} />
+              <Input id="cycle-notes" value={notes} onChange={(event) => { setCheckinDirty(true); setNotes(event.target.value); }} placeholder={T("هر چیزی که می‌خواهی به خاطر بسپاری…", "Anything you want to remember…")} />
             </div>
-            <Button onClick={() => void saveTodayLog()} className="w-full">{T("ذخیرهٔ ثبت امروز", "Save today's check-in")}</Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={() => void saveLog()} className="flex-1" data-testid="cycle-save-log">{logDate === todayKey ? T("ذخیرهٔ ثبت امروز", "Save today's check-in") : T("ذخیرهٔ ثبت این روز", "Save this day's check-in")}</Button>
+              {checkinDirty && <Button variant="ghost" onClick={discardCheckin} className="shrink-0" data-testid="cycle-discard-checkin">{T("بازگردانی تغییرات", "Discard changes")}</Button>}
+            </div>
           </Card>
 
           <div className="grid gap-4 md:grid-cols-[1fr_1.1fr]">
@@ -549,13 +627,26 @@ export default function CycleView() {
                 <div className="max-h-72 space-y-1 overflow-y-auto pe-1">
                   {logs.slice(0, 30).map((log) => (
                     <div key={log.id} className="flex items-center justify-between gap-3 border-b py-2.5 last:border-0">
-                      <span className="text-sm">{formatDate(new Date(`${log.log_date}T00:00:00`), "d MMM yyyy", calendar)}</span>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        {log.event === "period_start" && <Badge variant="outline" className="border-rose-300 text-rose-700 dark:text-rose-200">{T("شروع پریود", "Period start")}</Badge>}
-                        {log.flow != null && log.flow > 0 && <span>{T("شدت", "Flow")} {isEn ? log.flow : toPersianDigits(log.flow)}{isEn ? "/4" : "/۴"}</span>}
-                        {log.pain != null && log.pain > 0 && <span>{T("درد", "Pain")} {isEn ? log.pain : toPersianDigits(log.pain)}{isEn ? "/10" : "/۱۰"}</span>}
-                        {log.symptoms?.length ? <span>{isEn ? `${log.symptoms.length} symptoms` : `${toPersianDigits(log.symptoms.length)} علامت`}</span> : null}
-                      </div>
+                      <button type="button" onClick={() => requestDateChange(log.log_date)}
+                        aria-label={T(`ویرایش ثبت ${log.log_date}`, `Edit entry for ${log.log_date}`)}
+                        data-testid={`cycle-log-${log.log_date}`}
+                        className={`flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 rounded-md px-1 py-1 text-start transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${log.log_date === logDate ? "bg-muted/60" : ""}`}>
+                        <span className="text-sm">{formatDate(new Date(`${log.log_date}T00:00:00`), "d MMM yyyy", calendar)}</span>
+                        <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          {log.event === "period_start" && <Badge variant="outline" className="border-rose-300 text-rose-700 dark:text-rose-200">{T("شروع پریود", "Period start")}</Badge>}
+                          {log.flow != null && log.flow > 0 && <span>{T("شدت", "Flow")} {isEn ? log.flow : toPersianDigits(log.flow)}{isEn ? "/4" : "/۴"}</span>}
+                          {log.pain != null && log.pain > 0 && <span>{T("درد", "Pain")} {isEn ? log.pain : toPersianDigits(log.pain)}{isEn ? "/10" : "/۱۰"}</span>}
+                          {log.symptoms?.length ? <span>{isEn ? `${log.symptoms.length} symptoms` : `${toPersianDigits(log.symptoms.length)} علامت`}</span> : null}
+                        </span>
+                      </button>
+                      {log.event === "period_start" && (
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-rose-600"
+                          onClick={() => void undoPeriodStart(log)}
+                          aria-label={T("لغو ثبت شروع پریود (بدون حذف پروفایل)", "Undo this period start (keeps the profile)")}
+                          data-testid={`cycle-undo-period-${log.log_date}`}>
+                          <Undo2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -566,6 +657,22 @@ export default function CycleView() {
           </div>
         </>
       )}
+
+      <AlertDialog open={Boolean(pendingGuard)} onOpenChange={(open) => { if (!open) setPendingGuard(null); }}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"} data-testid="cycle-unsaved-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("تغییرات ذخیره‌نشدهٔ ثبت روز", "Unsaved check-in changes")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {T("پیش از ادامه، ثبت این روز را ذخیره کن؛ در غیر این صورت تغییرات از دست می‌روند.", "Save this day's check-in before continuing, or the changes will be lost.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="cycle-unsaved-cancel">{T("انصراف", "Cancel")}</AlertDialogCancel>
+            <Button variant="outline" onClick={proceedGuard} data-testid="cycle-unsaved-discard">{T("بدون ذخیره ادامه", "Discard & continue")}</Button>
+            <AlertDialogAction data-testid="cycle-unsaved-save" onClick={(event) => { event.preventDefault(); void saveAndProceedGuard(); }}>{T("ذخیره و ادامه", "Save & continue")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

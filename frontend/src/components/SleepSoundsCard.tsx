@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Moon, Play, Square, Volume2, Wind } from "lucide-react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -36,6 +37,13 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
       setEndAt(Date.now() + total * 1000);
     } else { cancelSleepFade(); setEndAt(Infinity); }
   };
+  // Re-arm the fade using the time already left on the current deadline, so
+  // changing the track/volume never restarts the countdown.
+  const rescheduleFadeFromDeadline = (vol: number) => {
+    if (!endAt || endAt === Infinity) return;
+    const remaining = Math.max(1, (endAt - Date.now()) / 1000);
+    scheduleSleepFade(remaining, Math.min(600, remaining / 3), vol);
+  };
   const play = (sound = prefs.sound, minutes = prefs.minutes, vol = prefs.vol) => { startSynth(sound, vol); configureTimer(minutes, vol); };
   const stop = () => { cancelSleepFade(); stopSynth(); setEndAt(null); };
 
@@ -56,13 +64,21 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
   const pick = (patch: Partial<typeof prefs>) => {
     const next = { ...prefs, ...patch };
     setPrefs(next);
-    if (playing && patch.sound && patch.sound !== prefs.sound) play(next.sound, next.minutes, next.vol);
-    else if (playing && patch.minutes !== undefined) configureTimer(next.minutes, next.vol);
+    if (!playing) return;
+    if (patch.sound !== undefined && patch.sound !== prefs.sound) {
+      // Swapping tracks keeps the shutdown deadline; startSynth() stops the old
+      // track (which cancels its fade), so we re-arm the fade for the time left.
+      startSynth(next.sound, next.vol);
+      rescheduleFadeFromDeadline(next.vol);
+    } else if (patch.minutes !== undefined) {
+      // Only an explicit timer choice resets the deadline.
+      configureTimer(next.minutes, next.vol);
+    }
   };
   const setVol = (v: number) => {
     setPrefs((p: typeof prefs) => ({ ...p, vol: v }));
     if (!playing) return;
-    if (endAt && endAt !== Infinity) scheduleSleepFade(Math.max(1, (endAt - Date.now()) / 1000), Math.min(600, (prefs.minutes * 60) / 3), v);
+    if (endAt && endAt !== Infinity) rescheduleFadeFromDeadline(v);
     else setSynthVolume(v);
   };
   const chip = (active: boolean) => `inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs transition-colors ${active ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"}`;
@@ -72,14 +88,14 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
     <Card className="p-4 space-y-4" data-testid="sleep-sounds-card">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold"><Moon className="h-4 w-4 text-primary" />{T("صداهای خواب", "Sleep sounds")}</div>
-        {isPathAllowed("/app/breathing", modules) && <Link to="/app/breathing" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid="sleep-breathing-link">
+        {isPathAllowed("/app/breathing", modules) && <Link to="/app/breathing" onClick={() => { if (playing) { stop(); toast(T("پخش پیش از رفتن به تمرین تنفس متوقف شد", "Playback stopped before opening Breathing")); } }} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid="sleep-breathing-link">
           <Wind className="h-3.5 w-3.5" />{T("تمرین تنفس", "Breathing")}
         </Link>}
       </div>
 
       <div className="flex flex-wrap gap-1.5" data-testid="sleep-sound-chips">
         {sounds.map((s) => (
-          <button key={s.id} type="button" onClick={() => pick({ sound: s.id })} className={chip(prefs.sound === s.id)} data-testid={`sleep-sound-${s.id}`}>
+          <button key={s.id} type="button" onClick={() => pick({ sound: s.id })} aria-pressed={prefs.sound === s.id} className={chip(prefs.sound === s.id)} data-testid={`sleep-sound-${s.id}`}>
             <span>{s.emoji}</span>{T(s.name, s.nameEn)}
           </button>
         ))}
@@ -90,7 +106,7 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
         <div className="text-[11px] text-muted-foreground">{T("خاموشی تدریجی بعد از", "Fade out after")}</div>
         <div className="flex flex-wrap gap-1.5">
           {TIMERS.map((m) => (
-            <button key={m} type="button" onClick={() => pick({ minutes: m })} className={chip(prefs.minutes === m)} data-testid={`sleep-timer-${m}`}>
+            <button key={m} type="button" onClick={() => pick({ minutes: m })} aria-pressed={prefs.minutes === m} className={chip(prefs.minutes === m)} data-testid={`sleep-timer-${m}`}>
               {m ? T(`${num(m)} دقیقه`, `${m} min`) : T("بدون توقف", "No limit")}
             </button>
           ))}
@@ -103,7 +119,7 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
           {playing ? T("توقف", "Stop") : T("پخش", "Play")}
         </Button>
         <Volume2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-        <Slider value={[prefs.vol]} min={0} max={100} step={5} onValueChange={([v]) => setVol(v)} dir={isEn ? "ltr" : "rtl"} className="flex-1" data-testid="sleep-volume" />
+        <Slider aria-label={T("میزان صدا", "Volume")} value={[prefs.vol]} min={0} max={100} step={5} onValueChange={([v]) => setVol(v)} dir={isEn ? "ltr" : "rtl"} className="flex-1" data-testid="sleep-volume" />
       </div>
       {playing && (
         <p className="text-xs text-muted-foreground" data-testid="sleep-remaining">

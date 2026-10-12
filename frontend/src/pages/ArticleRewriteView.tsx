@@ -20,6 +20,8 @@ import {
   ListTodo,
   RotateCw,
   ClipboardPaste,
+  X,
+  Check,
 } from "lucide-react";
 
 const URL_RE = /https?:\/\/[^\s<>"'{}|\\`[\]]+/i;
@@ -32,6 +34,27 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+const DRAFT_KEY = "article-rewrite:draft:v1";
+type ArticleDraft = { url: string; text: string; title: string; content: string; updatedAt: number };
+
+function readArticleDraft(): ArticleDraft | null {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    if (parsed && typeof parsed.content === "string" && typeof parsed.title === "string") {
+      return { url: typeof parsed.url === "string" ? parsed.url : "", text: typeof parsed.text === "string" ? parsed.text : "", title: parsed.title, content: parsed.content, updatedAt: Number(parsed.updatedAt) || 0 };
+    }
+  } catch { /* storage can be unavailable */ }
+  return null;
+}
+
+function writeArticleDraft(draft: ArticleDraft) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch { /* storage can be unavailable */ }
+}
+
+function clearArticleDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* storage can be unavailable */ }
+}
+
 export default function ArticleRewriteView() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -42,15 +65,17 @@ export default function ArticleRewriteView() {
   const initialUrl = params.get("url") || "";
   const initialText = params.get("text") || "";
 
-  const [url, setUrl] = useState(initialUrl);
-  const [text, setText] = useState(initialText);
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [restored] = useState(() => readArticleDraft());
+  const [url, setUrl] = useState(initialUrl || restored?.url || "");
+  const [text, setText] = useState(initialText || restored?.text || "");
+  const [title, setTitle] = useState(restored?.title || "");
+  const [content, setContent] = useState(restored?.content || "");
+  const [streamed, setStreamed] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-  const contentRef = useRef(content);
   const titleRef = useRef(title);
+  const streamedRef = useRef("");
 
   const source = useMemo(() => {
     if (url) return url;
@@ -59,16 +84,19 @@ export default function ArticleRewriteView() {
   }, [url, text]);
 
   useEffect(() => {
-    contentRef.current = content;
-  }, [content]);
-
-  useEffect(() => {
     titleRef.current = title;
   }, [title]);
 
+  // Recover the accepted draft after a reload or a failed save.
+  useEffect(() => {
+    if (loading) return;
+    if (!content && !title) return;
+    writeArticleDraft({ url, text, title, content, updatedAt: Date.now() });
+  }, [url, text, title, content, loading]);
+
   useEffect(() => {
     if (initialUrl && !content) {
-      rewrite(initialUrl);
+      void rewrite(initialUrl);
     }
     return () => {
       abortRef.current?.abort();
@@ -82,35 +110,57 @@ export default function ArticleRewriteView() {
       toast.error(T("ابتدا یک لینک وارد کنید.", "Please enter a URL first."));
       return;
     }
+    if (loading) return; // one regeneration at a time
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setLoading(true);
-    setContent("");
-    setTitle("");
+    // Stream into a separate buffer; the accepted result is kept until accepted.
+    streamedRef.current = "";
+    setStreamed("");
     try {
       await streamAI({
         mode: "article_rewrite",
         input: { url: targetUrl, text: text || undefined },
         language: isEn ? "en" : "fa",
         signal: ctrl.signal,
-        onDelta: (chunk) => setContent((prev) => prev + chunk),
-        onDone: () => {
-          const current = contentRef.current;
-          const first = current.split("\n").find((l) => l.trim()) || "";
-          if (first && !titleRef.current) {
-            setTitle(first.replace(/^#+\s*/, "").slice(0, 120));
-          }
-        },
+        onDelta: (chunk) => { streamedRef.current += chunk; setStreamed(streamedRef.current); },
       });
+      if (ctrl.signal.aborted) return;
     } catch (e) {
       if (!isAbortError(e)) {
         toast.error(getErrorMessage(e) || T("خطا در بازنویسی", "Error during rewrite"));
       }
     } finally {
-      setLoading(false);
-      abortRef.current = null;
+      if (abortRef.current === ctrl) {
+        abortRef.current = null;
+        setLoading(false);
+      }
     }
+  };
+
+  const acceptStreamed = () => {
+    const next = streamedRef.current.trim();
+    if (!next) return;
+    setContent(next);
+    if (!titleRef.current) {
+      const first = next.split("\n").find((line) => line.trim()) || "";
+      if (first) setTitle(first.replace(/^#+\s*/, "").slice(0, 120));
+    }
+    streamedRef.current = "";
+    setStreamed("");
+  };
+
+  const discardStreamed = () => {
+    streamedRef.current = "";
+    setStreamed("");
+  };
+
+  const cancelRewrite = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setLoading(false);
+    discardStreamed();
   };
 
   const paste = async () => {
@@ -147,6 +197,7 @@ export default function ArticleRewriteView() {
       });
       if (error) throw error;
       toast.success(T("نوت ذخیره شد.", "Note saved."));
+      clearArticleDraft();
       navigate("/app/notes");
     } catch (e) {
       toast.error(getErrorMessage(e) || T("خطا در ذخیره", "Error saving"));
@@ -221,6 +272,25 @@ export default function ArticleRewriteView() {
           </Button>
         </Card>
 
+        {streamed && (
+          <Card className="p-4 space-y-3 border-primary/40">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs text-muted-foreground flex items-center gap-1">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Wand2 className="w-4 h-4 text-primary" />}
+                {loading ? T("پیش‌نویس در حال تولید…", "Generating candidate…") : T("پیش‌نویس جدید (پذیرفته‌نشده)", "New candidate (not yet accepted)")}
+              </label>
+              {loading && <Button size="sm" variant="outline" onClick={cancelRewrite} className="gap-1"><X className="w-4 h-4" />{T("لغو", "Cancel")}</Button>}
+            </div>
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-3 text-sm leading-7" dir="auto">{streamed}</pre>
+            {!loading && (
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={acceptStreamed} className="gap-1"><Check className="w-4 h-4" />{T("پذیرش", "Accept")}</Button>
+                <Button variant="outline" onClick={discardStreamed} className="gap-1">{T("دورانداختن", "Discard")}</Button>
+              </div>
+            )}
+          </Card>
+        )}
+
         {content && (
           <Card className="p-4 space-y-3">
             <div className="space-y-1.5">
@@ -255,7 +325,7 @@ export default function ArticleRewriteView() {
               <Button variant="outline" onClick={copy} className="gap-1 flex-1 sm:flex-none">
                 <Copy className="w-4 h-4" /> {T("کپی", "Copy")}
               </Button>
-              <Button variant="outline" onClick={() => rewrite()} disabled={!source} className="gap-1 flex-1 sm:flex-none">
+              <Button variant="outline" onClick={() => rewrite()} disabled={!source || loading} className="gap-1 flex-1 sm:flex-none">
                 <RotateCw className="w-4 h-4" /> {T("دوباره", "Retry")}
               </Button>
             </div>

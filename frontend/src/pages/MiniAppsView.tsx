@@ -137,6 +137,44 @@ function fileBaseName(value: string): string {
   return value.replace(/\.html?$/i, "").replace(/[\\/:*?"<>|]/g, "-").trim().slice(0, 64) || "mini-app";
 }
 
+const DRAFT_STORAGE_PREFIX = "arshnaz_mini_app_draft_v1_";
+
+const draftStorageKey = (userId: string, appId: string) => `${DRAFT_STORAGE_PREFIX}${userId}_${appId}`;
+
+/** Keep the in-progress edit on this device so leaving the route never loses it. */
+function readStoredDraft(userId: string, appId: string): MiniApp | null {
+  try {
+    const raw = localStorage.getItem(draftStorageKey(userId, appId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MiniApp;
+    if (!parsed || typeof parsed !== "object" || parsed.id !== appId || typeof parsed.html !== "string") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredDraft(userId: string, app: MiniApp): void {
+  try {
+    localStorage.setItem(draftStorageKey(userId, app.id), JSON.stringify(app));
+  } catch {
+    // A full disk/quota must not block editing; the in-memory draft still works.
+  }
+}
+
+function clearStoredDraft(userId: string, appId: string): void {
+  try {
+    localStorage.removeItem(draftStorageKey(userId, appId));
+  } catch {
+    // ignore
+  }
+}
+
+function draftDiffersFromSaved(draft: MiniApp, saved: MiniApp): boolean {
+  return draft.html !== saved.html || draft.name !== saved.name || draft.emoji !== saved.emoji ||
+    draft.description !== saved.description || draft.aiRequest !== saved.aiRequest;
+}
+
 export default function MiniAppsView() {
   const { user, loading: authLoading } = useAuth();
   const { T, isEn } = useBilingual();
@@ -169,12 +207,16 @@ export default function MiniAppsView() {
   const setActive = useCallback((app: MiniApp | null) => {
     selectedIdRef.current = app?.id || null;
     setSelectedId(app?.id || null);
-    setDraft(app ? { ...app } : null);
-    setDirty(false);
-    dirtyRef.current = false;
+    const stored = app && user?.id ? readStoredDraft(user.id, app.id) : null;
+    const next = stored ?? (app ? { ...app } : null);
+    const restoredDirty = Boolean(stored && app && draftDiffersFromSaved(stored, app));
+    if (stored && app && !restoredDirty && user?.id) clearStoredDraft(user.id, app.id);
+    setDraft(next);
+    setDirty(restoredDirty);
+    dirtyRef.current = restoredDirty;
     setPreviewDocument("");
     previewTokenRef.current = "";
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const userId = user?.id;
@@ -259,6 +301,18 @@ export default function MiniAppsView() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  // Warn on reload/close/external navigation while the current tool has unsaved edits.
+  // In-app route changes are covered by the recoverable per-tool draft above.
+  useEffect(() => {
+    if (!dirty) return;
+    const guardUnsavedExit = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", guardUnsavedExit);
+    return () => window.removeEventListener("beforeunload", guardUnsavedExit);
+  }, [dirty]);
+
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase();
     return needle ? items.filter((item) => `${item.name} ${item.description}`.toLocaleLowerCase().includes(needle)) : items;
@@ -268,7 +322,9 @@ export default function MiniAppsView() {
   const updateDraft = (patch: Partial<MiniApp>) => {
     setDraft((current) => {
       if (!current) return current;
-      return { ...current, ...patch, updatedAt: new Date().toISOString() };
+      const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+      if (user?.id) writeStoredDraft(user.id, next);
+      return next;
     });
     setDirty(true);
     dirtyRef.current = true;
@@ -287,7 +343,12 @@ export default function MiniAppsView() {
     }
   };
 
-  const discardOrContinue = () => !dirtyRef.current || window.confirm(t("تغییرات ذخیره‌نشده از بین می‌روند. ادامه می‌دهی؟", "Unsaved changes will be discarded. Continue?"));
+  const discardOrContinue = () => {
+    if (!dirtyRef.current) return true;
+    const confirmed = window.confirm(t("تغییرات ذخیره‌نشده از بین می‌روند. ادامه می‌دهی؟", "Unsaved changes will be discarded. Continue?"));
+    if (confirmed && draft && user?.id) clearStoredDraft(user.id, draft.id);
+    return confirmed;
+  };
 
   const createApp = () => {
     if (!discardOrContinue() || !user?.id) return;
@@ -321,6 +382,7 @@ export default function MiniAppsView() {
     setDraft(nextApp);
     setDirty(false);
     dirtyRef.current = false;
+    if (user?.id) clearStoredDraft(user.id, nextApp.id);
     toast.success(t("تغییرات ذخیره شد.", "Changes saved."));
   };
 
@@ -377,6 +439,7 @@ export default function MiniAppsView() {
       ? items.map((item) => item.id === draft.id ? draft : item)
       : [...items, draft];
     if (!saveList([...savedCurrent, copy])) return;
+    if (user?.id && draft.id) clearStoredDraft(user.id, draft.id);
     setActive(copy);
   };
 
@@ -385,6 +448,7 @@ export default function MiniAppsView() {
     if (!window.confirm(t(`«${draft.name}» و کد ذخیره‌شدهٔ آن پاک شود؟`, `Delete “${draft.name}” and its saved code?`))) return;
     const next = items.filter((item) => item.id !== draft.id);
     if (!saveList(next)) return;
+    if (user?.id) clearStoredDraft(user.id, draft.id);
     setActive(next[0] || null);
     toast.success(t("ابزارک پاک شد.", "Mini app deleted."));
   };
@@ -444,6 +508,8 @@ export default function MiniAppsView() {
       }
       return;
     }
+    // Creating a task navigates away from the editor; don't lose an unsaved draft silently.
+    if (!discardOrContinue()) return;
     const params = new URLSearchParams();
     params.set("title", bridgeAction.title);
     if (bridgeAction.description) params.set("description", bridgeAction.description);

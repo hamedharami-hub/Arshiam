@@ -18,6 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { TaskDeleteConfirmDialog } from "@/components/tasks/TaskDeleteConfirmDialog";
 
 import { useBilingual } from "@/hooks/useBilingual";
 
@@ -265,41 +266,7 @@ export default function NewTaskView() {
       </AlertDialog>
 
       {/* Delete confirmations from TaskDetail (subtasks/notes) */}
-      <AlertDialog open={!!confirm} onOpenChange={(v) => !v && setConfirm(null)}>
-        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirm?.kind === "task"
-                ? confirm.childCount && confirm.childCount > 0
-                  ? T(`حذف این تسک و ${confirm.childCount} زیرتسک؟`, `Delete this task and ${confirm.childCount} subtasks?`)
-                  : T("حذف تسک؟", "Delete task?")
-                : confirm?.kind === "note"
-                ? T("حذف نوت؟", "Delete note?")
-                : T("حذف زیرتسک؟", "Delete subtask?")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirm?.childCount && confirm.childCount > 0
-                ? T(
-                    `آیا مطمئنی می‌خوای «${confirm?.title || T("این تسک", "this task")}» و ${confirm.childCount} زیرتسک آن را حذف کنی؟`,
-                    `Are you sure you want to delete "${confirm?.title || T("this task", "this task")}" and its ${confirm.childCount} subtasks?`
-                  )
-                : T(`آیا مطمئنی می‌خوای «${confirm?.title}» را حذف کنی؟`, `Are you sure you want to delete "${confirm?.title}"?`)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{T("انصراف", "Cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (confirm) await confirm.onConfirm();
-                setConfirm(null);
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {T("حذف", "Delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <TaskDeleteConfirmDialog confirm={confirm} setConfirm={setConfirm} T={T} />
     </div>
   );
 }

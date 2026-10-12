@@ -84,6 +84,7 @@ import { addTaskToAndroidCalendar } from "@/lib/androidNative";
 
 import { Switch } from "@/components/ui/switch";
 import { pushUndo } from "@/lib/undoStack";
+import { pushDeleted } from "@/lib/recentlyDeleted";
 import { enqueueOp, cacheGet, cacheSet } from "@/lib/offlineQueue";
 import { subscribeFolders, subscribeTags, persistTask, type TaskPersistenceStatus } from "@/lib/firestoreDataService";
 import { toSaveStatus } from "@/lib/saveFeedback";
@@ -797,11 +798,42 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
       title: t.title || T("بدون عنوان", "Untitled"),
       childCount,
       onConfirm: async () => {
-        const res = await deleteTaskCascade(user.id, t.id, allTasks);
+        // Ask the cascade for its recovery snapshot so deleting from the detail
+        // panel offers the same "Recently Deleted" restore as the task list.
+        const res = await deleteTaskCascade(user.id, t.id, allTasks, { recoverable: true });
         if (!res.success) {
           toast.error(T("حذف روی این دستگاه ذخیره نشد", "Delete could not be saved on this device"));
           return false;
         }
+        const recovery = res.recovery;
+        const restoreTasks = recovery?.tasks?.length
+          ? recovery.tasks
+          : allTasks.filter(task => res.deletedIds.includes(task.id));
+        const restore = async (): Promise<boolean> => {
+          const statuses = await Promise.all(restoreTasks.map(task => persistTask(user.id, task)));
+          if (statuses.some(status => status === "failed")) return false;
+          try {
+            if (recovery?.tagLinks?.length) {
+              const { error } = await firebaseStore.from("task_tags").insert(recovery.tagLinks as never);
+              if (error) return false;
+            }
+          } catch { return false; }
+          try {
+            if (recovery?.knowledgeLinks?.length) {
+              const { error } = await firebaseStore.from("task_knowledge_links").insert(recovery.knowledgeLinks as never);
+              if (error) return false;
+            }
+          } catch { return false; }
+          try {
+            if (recovery?.noteTaskLinks?.length) {
+              const { error } = await firebaseStore.from("note_task_links").insert(recovery.noteTaskLinks as never);
+              if (error) return false;
+            }
+          } catch { return false; }
+          onChanged();
+          return true;
+        };
+        pushDeleted({ kind: "task", label: t.title || T("بدون عنوان", "Untitled"), restore });
         onClose();
         onChanged();
       },
@@ -967,6 +999,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           });
         } catch (err) {
           if (noteEditorIdentity.current === identity) toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
+          // Keep the confirmation open so the user can retry an unsaved delete.
+          return false;
         }
       },
     });

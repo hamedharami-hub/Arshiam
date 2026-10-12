@@ -1,6 +1,6 @@
 import { CompanionSettings } from "./settings/CompanionSettings";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Sparkles, Save, Trash2, Languages, Download, ShieldOff, Shield, Settings2, Bell, Moon, Palette, Type, ZoomIn, LayoutGrid, Heart, Coffee, Star, Wand2, RotateCw, Sun, Upload, CheckCircle2, AlertCircle, Clock, Zap, Cpu, Eye, EyeOff, RefreshCw, Package, Database, Info, Compass, ArrowUp, ArrowDown, Pin, Sliders, PanelLeft, CalendarDays, FolderTree, Tag, Inbox, Calendar, Filter, Timer, BarChart3, Sprout, Target, FileText, BrainCircuit, Activity, BookOpen, MessageCircleQuestion, Wind, User, Users, Search, GripVertical } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
@@ -27,7 +27,7 @@ import { logoutUser } from "@/lib/authService";
 import { arshAuthHeader } from "@/lib/arshApi";
 import { accountDeletionUrl } from "@/lib/accountDeletionUrl";
 import { clearUserLocalData } from "@/lib/offlineQueue";
-import { clearPersistentFirestoreCache } from "@/lib/firebase";
+import { clearPersistentFirestoreCache, auth } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSettings, saveSettings, ensureNotificationPermission, type UserSettings } from "@/lib/reminders";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -38,7 +38,7 @@ import FirebaseSyncCard from "@/components/FirebaseSyncCard";
 import { FirestoreUsageCard } from "@/components/FirestoreUsageCard";
 import { fetchFromFirestore } from "@/lib/firestoreSync";
 import { restoreBackupRows } from "@/lib/backupRestoreService";
-import { cacheGet, cacheSet } from "@/lib/offlineQueue";
+import { cacheGet, cacheSet, getQueue, onQueueChange, canReplayForOwner } from "@/lib/offlineQueue";
 import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,25 @@ import { AdvancedModulesPanel } from "@/components/modules/AdvancedModulesPanel"
 import { VersionTapTarget } from "@/components/modules/VersionTapTarget";
 
 const AUTO_UPDATE_KEY = "arshnaz_auto_update";
+
+const BACKUP_META_KEYS = new Set(["app", "version", "exported_at", "user_id", "user_email", "counts", "manifest", "status"]);
+
+// Collections written by the exporter. Only tasks/notes can be restored today, but
+// tracking all of them lets the UI report exactly what the backup contains.
+const BACKUP_REMOTE_TABLES = [
+  "profiles", "tasks", "subtasks", "folders", "tags", "task_tags", "notes", "note_tags",
+  "habits", "habit_logs", "pomodoro_sessions", "folder_columns",
+  "daily_checkins", "thought_records", "abc_records",
+] as const;
+
+type PendingImport = {
+  fileName: string;
+  tasks: any[];
+  notes: any[];
+  unsupported: string[];
+  taskCollisions: number;
+  noteCollisions: number;
+};
 
 type PwaGlobals = {
   __applyPwaUpdate?: () => void;
@@ -89,6 +108,9 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       return true;
     }
   });
+  const [cacheConfirmOpen, setCacheConfirmOpen] = useState(false);
+  const [reloadDeferred, setReloadDeferred] = useState(false);
+  const pendingReloadAction = useRef<(() => void) | null>(null);
 
   const version = (import.meta.env.VITE_APP_VERSION as string) || "0.0.0";
   const buildTime = (import.meta.env.VITE_BUILD_TIME as string) || "";
@@ -99,6 +121,52 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   const nativeAndroid = isAndroid();
   const updateAvailable = updateState === "available";
 
+  const hasPendingOwnedOps = useCallback(async () => {
+    try {
+      const uid = auth.currentUser?.uid;
+      const queued = await getQueue();
+      return uid ? queued.some((op) => canReplayForOwner(op, uid)) : queued.length > 0;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  // Gentle, non-destructive reload. If synced work is still pending, wait for the
+  // outbox to drain instead of dropping the user's unsaved changes.
+  const scheduleReload = useCallback(async (action?: () => void) => {
+    try {
+      if (await hasPendingOwnedOps()) {
+        pendingReloadAction.current = action ?? null;
+        setReloadDeferred(true);
+        toast.info(isEn
+          ? "Update ready. It will apply once your unsynced changes are saved."
+          : "به‌روزرسانی آماده است؛ پس از ذخیرهٔ تغییرات همگام‌نشده اعمال می‌شود.");
+        return;
+      }
+    } catch { /* fall through to reload */ }
+    if (action) action();
+    else setTimeout(() => window.location.reload(), 300);
+  }, [hasPendingOwnedOps, isEn]);
+
+  useEffect(() => {
+    if (!reloadDeferred) return;
+    let cancelled = false;
+    const tryRun = async () => {
+      if (cancelled) return;
+      if (await hasPendingOwnedOps()) return;
+      cancelled = true;
+      setReloadDeferred(false);
+      const action = pendingReloadAction.current;
+      pendingReloadAction.current = null;
+      if (action) action();
+      else window.location.reload();
+    };
+    void tryRun();
+    const unsubscribe = onQueueChange(() => { void tryRun(); });
+    return () => { cancelled = true; unsubscribe(); };
+  }, [reloadDeferred, hasPendingOwnedOps]);
+
+  // Destructive: only ever runs from the explicitly confirmed button below.
   const forceReload = useCallback(async () => {
     try {
       if ("caches" in window) {
@@ -115,13 +183,15 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
 
   const applyUpdate = useCallback(() => {
     const apply = (window as unknown as PwaGlobals).__applyPwaUpdate;
-    if (typeof apply === "function") {
-      try { apply(); } catch { /* ignore */ }
-      setTimeout(() => window.location.reload(), 3000);
-      return;
-    }
-    forceReload();
-  }, [forceReload]);
+    void scheduleReload(() => {
+      if (typeof apply === "function") {
+        try { apply(); } catch { /* ignore */ }
+        setTimeout(() => window.location.reload(), 3000);
+      } else {
+        setTimeout(() => window.location.reload(), 300);
+      }
+    });
+  }, [scheduleReload]);
 
   const getCurrentEntryHash = () => {
     const scripts = Array.from(document.querySelectorAll('script[type="module"][src]')) as HTMLScriptElement[];
@@ -196,6 +266,13 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     } catch { /* ignore */ }
   }, [lastChecked]);
 
+  const updateAvailableMessage = () =>
+    nativeAndroid
+      ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
+      : autoUpdate
+        ? (isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…")
+        : (isEn ? "New version found — choose “Install update” to apply." : "نسخه‌ی جدید پیدا شد — برای اعمال، «نصب به‌روزرسانی» را بزن.");
+
   const check = async () => {
     setChecking(true);
     setUpdateState("checking");
@@ -208,9 +285,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
       if (hasSwUpdate) {
         setUpdateState("available");
         setLastChecked(Date.now());
-        toast.success(nativeAndroid
-          ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
-          : (isEn ? "New version found — applying…" : "نسخه‌ی جدید پیدا شد — در حال اعمال…"));
+        toast.success(updateAvailableMessage());
         if (!nativeAndroid && autoUpdate) applyUpdate();
         return;
       }
@@ -233,10 +308,8 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         if (isNewer) {
           setUpdateState("available");
           setLastChecked(Date.now());
-          toast.success(nativeAndroid
-            ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
-            : (isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…"));
-          if (!nativeAndroid) applyUpdate();
+          toast.success(updateAvailableMessage());
+          if (!nativeAndroid && autoUpdate) applyUpdate();
           return;
         }
       } else {
@@ -252,10 +325,8 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
           if (remoteHash && currentHash && remoteHash !== currentHash) {
             setUpdateState("available");
             setLastChecked(Date.now());
-            toast.success(nativeAndroid
-              ? (isEn ? "A newer build was found. Install a newer APK to update Android." : "نسخهٔ جدید پیدا شد؛ برای به‌روزرسانی اندروید APK جدید نصب کن.")
-              : (isEn ? "Update available — reloading…" : "نسخه‌ی جدید پیدا شد — در حال نصب…"));
-            if (!nativeAndroid) forceReload();
+            toast.success(updateAvailableMessage());
+            if (!nativeAndroid && autoUpdate) applyUpdate();
             return;
           }
         }
@@ -393,10 +464,30 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
               : nativeAndroid ? (isEn ? "Check web content" : "بررسی محتوای وب") : (isEn ? "Check for updates" : "بررسی به‌روزرسانی")}
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={forceReload} className="gap-2">
-          <Trash2 className="w-4 h-4" />
-          {isEn ? "Clear cache & reload" : "پاکسازی کش و بارگذاری"}
-        </Button>
+        <AlertDialog open={cacheConfirmOpen} onOpenChange={setCacheConfirmOpen}>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-2">
+              <Trash2 className="w-4 h-4" />
+              {isEn ? "Clear cache & reload" : "پاکسازی کش و بارگذاری"}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{isEn ? "Clear cached files and reload?" : "کش پاک شود و دوباره بارگذاری شود؟"}</AlertDialogTitle>
+              <AlertDialogDescription className="leading-6">
+                {isEn
+                  ? "This removes locally cached app files and unregisters the offline service worker, then reloads. Your cloud data is not deleted, but offline access and any not-yet-synced changes could be affected — make sure you are online first."
+                  : "فایل‌های کش‌شدهٔ برنامه حذف و سرویس‌ورکر آفلاین غیرفعال می‌شود، سپس صفحه دوباره بارگذاری می‌شود. داده‌های ابری حذف نمی‌شوند، اما دسترسی آفلاین و تغییرات هنوز همگام‌نشده ممکن است آسیب ببینند؛ ابتدا از اتصال اینترنت مطمئن شو."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{isEn ? "Cancel" : "انصراف"}</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void forceReload()} className="bg-destructive hover:bg-destructive/90">
+                <Trash2 className="w-4 h-4" /> {isEn ? "Clear & reload" : "پاکسازی و بارگذاری"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </SectionCard>
   );
@@ -412,6 +503,7 @@ export default function SettingsView() {
   const [lang, setLang] = useState<AILanguage>(() => getAILanguage());
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [reminders, setReminders] = useState<UserSettings | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -509,9 +601,9 @@ export default function SettingsView() {
     }
     setExporting(true);
     try {
-      // 1. Gather from Firestore
+      // 1. Gather from Firestore (best-effort: local caches are exported either way)
       const firestoreData = await fetchFromFirestore(user.id);
-      
+
       // 2. Gather from local caches
       const cachedTasksRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
       const cachedTasks = extractTasksFromCache(cachedTasksRaw);
@@ -524,18 +616,18 @@ export default function SettingsView() {
       }
 
       // 3. Gather from firebaseStore if reachable
-      const tables = [
-        "profiles", "tasks", "subtasks", "folders", "tags", "task_tags", "notes", "note_tags",
-        "habits", "habit_logs", "pomodoro_sessions", "folder_columns",
-        "daily_checkins", "thought_records", "abc_records",
-      ];
       const remoteData: Record<string, unknown> = {};
-      for (const tbl of tables) {
+      const failedSections: string[] = [];
+      for (const tbl of BACKUP_REMOTE_TABLES) {
         try {
           const { data } = await fromTable(tbl).select("*");
           if (data) remoteData[tbl] = data;
-        } catch {}
+          else failedSections.push(tbl);
+        } catch {
+          failedSections.push(tbl);
+        }
       }
+      if (!firestoreData.success) failedSections.push("tasks", "notes");
 
       // Merge tasks without duplicates
       const tasksMap = new Map<string, any>();
@@ -549,15 +641,29 @@ export default function SettingsView() {
       firestoreData.notes.forEach((n) => notesMap.set(n.id, n));
       cachedNotes.forEach((n) => notesMap.set(n.id, n));
 
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const failedUnique = Array.from(new Set(failedSections));
+      const status: "complete" | "partial" | "offline" =
+        failedUnique.length === 0 ? "complete" : offline ? "offline" : "partial";
+      const exportedSections = (BACKUP_REMOTE_TABLES as readonly string[]).filter((s) => !failedUnique.includes(s));
+
       const out = {
         app: "arshnaz",
         version: "2.5.0",
         exported_at: new Date().toISOString(),
         user_id: user.id,
         user_email: user.email,
+        status,
         counts: {
           tasks: tasksMap.size,
           notes: notesMap.size,
+        },
+        // A manifest so a restore (or support) can tell what was actually captured.
+        manifest: {
+          requested: [...BACKUP_REMOTE_TABLES],
+          exported: exportedSections,
+          failed: failedUnique,
+          cloud_reachable: firestoreData.success,
         },
         ...remoteData,
         tasks: Array.from(tasksMap.values()),
@@ -571,11 +677,27 @@ export default function SettingsView() {
       a.download = `arshnaz-backup-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(
-        isEn
-          ? `Backup completed: ${tasksMap.size} tasks, ${notesMap.size} notes`
-          : `خروجی کامل با موفقیت ذخیره شد: ${tasksMap.size} تسک و ${notesMap.size} یادداشت`
-      );
+
+      if (status === "complete") {
+        toast.success(
+          isEn
+            ? `Backup completed: ${tasksMap.size} tasks, ${notesMap.size} notes`
+            : `خروجی کامل با موفقیت ذخیره شد: ${tasksMap.size} تسک و ${notesMap.size} یادداشت`
+        );
+      } else {
+        const detail = isEn
+          ? `Captured ${tasksMap.size} tasks and ${notesMap.size} notes. Sections not reached: ${failedUnique.join(", ") || "none"}.${offline ? " You appear to be offline." : ""}`
+          : `شامل ${tasksMap.size} تسک و ${notesMap.size} یادداشت. بخش‌های خوانده‌نشده: ${failedUnique.join("، ") || "ندارد"}.${offline ? " به‌نظر آفلاین هستی." : ""}`;
+        toast.warning(
+          status === "offline"
+            ? (isEn ? "Backup saved from this device only" : "پشتیبان فقط از همین دستگاه ذخیره شد")
+            : (isEn ? "Backup saved with gaps" : "پشتیبان با بخش‌هایی ناقص ذخیره شد"),
+          {
+            description: detail,
+            action: { label: isEn ? "Retry" : "تلاش دوباره", onClick: () => void exportAll() },
+          },
+        );
+      }
     } catch (e: any) {
       toast.error(e?.message || (isEn ? "Export error" : "خطا در خروجی فایل"));
     } finally {
@@ -583,12 +705,12 @@ export default function SettingsView() {
     }
   }
 
-  async function importAll(file: File) {
+  /** Validate a chosen backup and stage it for an explicit, previewed restore. */
+  async function prepareImport(file: File) {
     if (!user) {
       toast.error(isEn ? "Please sign in first" : "لطفاً ابتدا وارد حساب شوید");
       return;
     }
-    setExporting(true);
     try {
       const text = await file.text();
       const data = JSON.parse(text) as Record<string, any>;
@@ -599,9 +721,41 @@ export default function SettingsView() {
       if (!Array.isArray(data.tasks) && !Array.isArray(data.notes)) {
         throw new Error(isEn ? "No tasks or notes found in backup file" : "هیچ تسک یا یادداشتی در فایل یافت نشد");
       }
-      
-      const tasksList = (Array.isArray(data.tasks) ? data.tasks : []) as any[];
-      const notesList = (Array.isArray(data.notes) ? data.notes : []) as any[];
+
+      const tasks = (Array.isArray(data.tasks) ? data.tasks : []) as any[];
+      const notes = (Array.isArray(data.notes) ? data.notes : []) as any[];
+
+      // Anything that is not a known meta field or a restorable row cannot be applied.
+      const unsupported = Object.keys(data).filter(
+        (k) => !BACKUP_META_KEYS.has(k) && k !== "tasks" && k !== "notes",
+      );
+
+      let taskCollisions = 0;
+      let noteCollisions = 0;
+      try {
+        const existingTasksRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
+        const existingTaskIds = new Set(extractTasksFromCache(existingTasksRaw).map((t: any) => t?.id).filter(Boolean));
+        taskCollisions = tasks.filter((t) => t && existingTaskIds.has(t.id)).length;
+      } catch {}
+      try {
+        const existingNotes = await cacheGet<any[]>(`notes:all:${user.id}`);
+        const existingNoteIds = new Set((Array.isArray(existingNotes) ? existingNotes : []).map((n: any) => n?.id).filter(Boolean));
+        noteCollisions = notes.filter((n) => n && existingNoteIds.has(n.id)).length;
+      } catch {}
+
+      setPendingImport({ fileName: file.name, tasks, notes, unsupported, taskCollisions, noteCollisions });
+    } catch (e: any) {
+      toast.error(e?.message || (isEn ? "Import error" : "خطا در خواندن و وارد کردن فایل"));
+    }
+  }
+
+  async function applyImport() {
+    const pending = pendingImport;
+    if (!user || !pending) return;
+    setExporting(true);
+    try {
+      const tasksList = pending.tasks;
+      const notesList = pending.notes;
       const taskResult = await restoreBackupRows(user.id, "tasks", tasksList);
       const noteResult = await restoreBackupRows(user.id, "notes", notesList);
       const acceptedTasks = [...taskResult.saved, ...taskResult.queued];
@@ -666,9 +820,10 @@ export default function SettingsView() {
         toast.success(isEn ? "Backup restored to Firestore" : "بازیابی پشتیبان در Firestore انجام شد", { description: details });
       }
     } catch (e: any) {
-      toast.error(e?.message || (isEn ? "Import error" : "خطا در خواندن و وارد کردن فایل"));
+      toast.error(e?.message || (isEn ? "Import error" : "خطا در وارد کردن فایل"));
     } finally {
       setExporting(false);
+      setPendingImport(null);
     }
   }
 
@@ -879,7 +1034,7 @@ export default function SettingsView() {
                   input.accept = ".json";
                   input.onchange = (e) => {
                     const file = (e.target as HTMLInputElement).files?.[0];
-                    if (file) importAll(file);
+                    if (file) void prepareImport(file);
                   };
                   input.click();
                 }}
@@ -890,6 +1045,12 @@ export default function SettingsView() {
                 <Upload className="w-4 h-4" /> {exporting ? t("settings.importing") : t("settings.importJson")}
               </Button>
             </div>
+
+            <p className="text-[11px] text-muted-foreground leading-5">
+              {isEn
+                ? "Restore covers tasks and notes only. You will review what is in the file before anything is written."
+                : "بازیابی فقط شامل تسک‌ها و یادداشت‌هاست. پیش از نوشتن هر چیزی، محتوای فایل را بازبینی می‌کنی."}
+            </p>
 
             <Separator />
 
@@ -920,6 +1081,53 @@ export default function SettingsView() {
               </AlertDialog>
             </div>
           </SectionCard>
+
+          <Dialog open={!!pendingImport} onOpenChange={(o) => { if (!o) setPendingImport(null); }}>
+            <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{isEn ? "Review restore" : "بازبینی بازیابی"}</DialogTitle>
+                <DialogDescription className="leading-6">
+                  {isEn
+                    ? `Tasks-and-notes restore from “${pendingImport?.fileName ?? ""}”. Review what will happen before applying.`
+                    : `بازیابی تسک‌ها و یادداشت‌ها از «${pendingImport?.fileName ?? ""}». پیش از اعمال، نتیجه را بررسی کن.`}
+                </DialogDescription>
+              </DialogHeader>
+              {pendingImport && (
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+                    <span>{isEn ? "Tasks" : "تسک‌ها"}</span>
+                    <span className="font-mono">{pendingImport.tasks.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+                    <span>{isEn ? "Notes" : "یادداشت‌ها"}</span>
+                    <span className="font-mono">{pendingImport.notes.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+                    <span className="pe-2">{isEn ? "Matching items already on this device" : "موارد هم‌شناسه روی این دستگاه"}</span>
+                    <span className="font-mono">{pendingImport.taskCollisions + pendingImport.noteCollisions}</span>
+                  </div>
+                  {pendingImport.unsupported.length > 0 && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] leading-5">
+                      {isEn
+                        ? `Not restorable in this version (left out): ${pendingImport.unsupported.join(", ")}`
+                        : `در این نسخه بازیابی نمی‌شود (نادیده گرفته می‌شود): ${pendingImport.unsupported.join("، ")}`}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground leading-5">
+                    {isEn
+                      ? "Items with the same id replace the local copy when the cloud accepts them; a newer cloud revision is kept and reported instead of being overwritten."
+                      : "موارد هم‌شناسه، در صورت پذیرش ابر، جای نسخهٔ محلی را می‌گیرند؛ نسخهٔ جدیدترِ ابری بازنویسی نمی‌شود و گزارش می‌شود."}
+                  </p>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPendingImport(null)}>{t("common.cancel")}</Button>
+                <Button onClick={() => void applyImport()} disabled={exporting}>
+                  {exporting ? t("settings.importing") : (isEn ? "Restore tasks & notes" : "بازیابی تسک‌ها و یادداشت‌ها")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="about" className="space-y-5 mt-5">

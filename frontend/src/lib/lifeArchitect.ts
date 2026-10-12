@@ -4,6 +4,7 @@ import { generateUUID, type GoalKanban, type TimeHorizon, type GoalPriority } fr
 import { saveMindValues, upsertMindGoal, type MindGoalItem } from "@/lib/firestoreDataService";
 import { dayPatch } from "@/lib/taskSchedule";
 import { toLocalISO } from "@/lib/timeHorizon";
+import { db, doc, getDoc } from "@/lib/firebase";
 
 /** Explicit, lossless mapping from a Life Architect goal level to a Mind goal level. */
 export function mindGoalHorizon(h: string | null | undefined): MindGoalItem["horizon"] | null {
@@ -1082,16 +1083,77 @@ export async function auditExistingSystem(userId: string): Promise<SystemAuditRe
   };
 }
 
+export interface LifeBlueprintSelection {
+  folderIds?: Set<string>;
+  goalIds?: Set<string>;
+  habitNames?: Set<string>;
+  taskTitles?: Set<string>;
+  valueKeys?: Set<string>;
+}
+
+export interface LifeBlueprintDeploymentCounts {
+  foldersCount: number;
+  goalsCount: number;
+  habitsCount: number;
+  tasksCount: number;
+  valuesCount: number;
+}
+
+/**
+ * Pure, side-effect-free preview of what a deployment would create for a given
+ * selection. The wizard and the deploy agree on this contract, so the counts the
+ * user sees before confirming are the counts that get written.
+ */
+export function previewLifeBlueprint(
+  blueprint: LifeBlueprint,
+  selection: LifeBlueprintSelection = {},
+): LifeBlueprintDeploymentCounts {
+  const folderSelected = (folderId: string) => !selection.folderIds || selection.folderIds.has(folderId);
+  return {
+    foldersCount: blueprint.folders.filter((f) => folderSelected(f.id)).length,
+    // A goal can only be created inside a folder that is actually being deployed.
+    goalsCount: blueprint.goals.filter((g) => folderSelected(g.folderId) && (!selection.goalIds || selection.goalIds.has(g.id))).length,
+    habitsCount: blueprint.habits.filter((h) => !selection.habitNames || selection.habitNames.has(h.name)).length,
+    tasksCount: blueprint.tasks.filter((t) => !selection.taskTitles || selection.taskTitles.has(t.title)).length,
+    valuesCount: (blueprint.coreValues || []).filter((k) => !selection.valueKeys || selection.valueKeys.has(k)).length,
+  };
+}
+
+/**
+ * Merge newly selected core values into the existing mind-values document while
+ * preserving any ratings/reflections the user already recorded. Fabricated
+ * importance/consistency scores are never invented: unrated values are stored as
+ * `null` (= "unspecified"), matching how ValuesGoalsView reads them.
+ */
+function mergeMindValues(existing: Record<string, any>, valueKeys: CoreValueKey[]): Record<string, any> {
+  const merged: Record<string, any> = { ...existing };
+  for (const valKey of valueKeys) {
+    const meta = CORE_VALUES_LIST.find((v) => v.key === valKey);
+    const previous = merged[valKey];
+    if (previous && typeof previous === "object" && !Array.isArray(previous)) {
+      // Keep the user's importance/consistency/constraints; only backfill a missing label.
+      merged[valKey] = { ...previous, value: previous.value || meta?.descFa || meta?.labelFa || valKey };
+    } else {
+      merged[valKey] = { importance: null, consistency: null, value: meta?.descFa || meta?.labelFa || valKey };
+    }
+  }
+  return merged;
+}
+
 export async function deployLifeBlueprint(
   blueprint: LifeBlueprint,
   userId: string,
   selectedFolderIds?: Set<string>,
   selectedHabitNames?: Set<string>,
-  selectedTaskTitles?: Set<string>
-): Promise<{ foldersCount: number; habitsCount: number; tasksCount: number }> {
+  selectedTaskTitles?: Set<string>,
+  selectedGoalIds?: Set<string>,
+  selectedValueKeys?: Set<string>
+): Promise<LifeBlueprintDeploymentCounts> {
   let foldersCount = 0;
+  let goalsCount = 0;
   let habitsCount = 0;
   let tasksCount = 0;
+  let valuesCount = 0;
 
   const folderIdMap = new Map<string, string>();
 
@@ -1116,6 +1178,7 @@ export async function deployLifeBlueprint(
 
   // 2. Insert Kanban Goals & ACT Mind Goals
   for (const g of blueprint.goals) {
+    if (selectedGoalIds && !selectedGoalIds.has(g.id)) continue;
     const realFolderId = folderIdMap.get(g.folderId);
     if (!realFolderId) continue;
 
@@ -1152,22 +1215,25 @@ export async function deployLifeBlueprint(
         created_at: new Date().toISOString(),
       });
     } catch {}
+    goalsCount++;
   }
 
-  // 3. Sync Mind Values (ACT)
+  // 3. Sync Mind Values (ACT) — merge into the existing document so ratings/reflections
+  // recorded in Values & Goals are never erased by deploying a blueprint.
   if (blueprint.coreValues && blueprint.coreValues.length > 0) {
-    try {
-      const valuesMap: Record<string, any> = {};
-      blueprint.coreValues.forEach((valKey) => {
-        const meta = CORE_VALUES_LIST.find((v) => v.key === valKey);
-        valuesMap[valKey] = {
-          importance: 9,
-          consistency: 7,
-          value: meta?.descFa || meta?.labelFa || valKey,
-        };
-      });
-      await saveMindValues(userId, valuesMap);
-    } catch {}
+    const valueKeys = blueprint.coreValues.filter((k) => !selectedValueKeys || selectedValueKeys.has(k));
+    if (valueKeys.length > 0) {
+      try {
+        let existing: Record<string, any> = {};
+        try {
+          const snap = await getDoc(doc(db, "users", userId, "mind_settings", "values"));
+          const raw = snap.exists() ? snap.data()?.values : null;
+          if (raw && typeof raw === "object" && !Array.isArray(raw)) existing = raw as Record<string, any>;
+        } catch {}
+        const merged = mergeMindValues(existing, valueKeys);
+        if (await saveMindValues(userId, merged)) valuesCount = valueKeys.length;
+      } catch {}
+    }
   }
 
   // 4. Insert Habits into Firestore
@@ -1209,5 +1275,5 @@ export async function deployLifeBlueprint(
   window.dispatchEvent(new Event("goals-changed"));
   window.dispatchEvent(new Event("mind-values-changed"));
 
-  return { foldersCount, habitsCount, tasksCount };
+  return { foldersCount, goalsCount, habitsCount, tasksCount, valuesCount };
 }

@@ -894,12 +894,13 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     setSearchParams(nextParams, { replace: true });
   }, [effectiveAllTasks, searchParams, setSearchParams, navigate, toggleTask]);
 
-  const delTask = async (id: string) => {
-    if (!user?.id) return;
+  const delTask = async (id: string): Promise<boolean> => {
+    if (!user?.id) return false;
+    const ownerId = user.id;
     const target = effectiveAllTasks.find(t => t.id === id);
     if (target && target.user_id !== user.id) {
       toast(T("فقط صاحب تسک می‌تواند حذف کند", "Only the task owner can delete"));
-      return;
+      return false;
     }
     const allDescendantIds = collectTaskDescendantIds(id, childrenMap);
     const snaps = allTasks.filter(t => allDescendantIds.includes(t.id));
@@ -909,11 +910,6 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
     for (const s of snaps) {
       ghosts[s.id] = { ...s, completed: true, status: "done" as TaskStatus, _graceUntil: until };
     }
-    let tagLinks: Record<string, unknown>[] | null = null;
-    if (typeof navigator === "undefined" || navigator.onLine) {
-      const { data } = await firebaseStore.from("task_tags").select("*").in("task_id", allDescendantIds);
-      tagLinks = (data as Record<string, unknown>[] | null) || null;
-    }
     setAllTasks(prev => prev.filter(t => !allDescendantIds.includes(t.id)));
     setGraceTasks(prev => ({ ...prev, ...ghosts }));
     setGraceMap(prev => ({ ...prev, ...Object.fromEntries(allDescendantIds.map(i => [i, until])) }));
@@ -922,25 +918,51 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       setGraceMap(prev => { const n = { ...prev }; allDescendantIds.forEach(i => delete n[i]); return n; });
     }, GRACE_MS);
 
-    const res = await deleteTaskCascade(user.id, id, allTasks);
+    // The cascade owns its own recovery snapshot (server-confirmed online), so
+    // restore can rebuild every affected row instead of only the current view.
+    const res = await deleteTaskCascade(ownerId, id, allTasks, { recoverable: true });
     if (!res.success) {
       setAllTasks(previousTasks);
       toast.error(T("حذف تسک با خطا مواجه شد", "Could not delete task"));
-      return;
+      return false;
     }
 
-    const title = snaps.find(s => s.id === id)?.title || "";
-    const restore = async () => {
-      await Promise.all(snaps.map(s => persistTask(user.id, s)));
-      if (tagLinks?.length) {
-        try {
-          await firebaseStore.from("task_tags").insert(tagLinks as never);
-        } catch {}
-      }
+    const title = snaps.find(s => s.id === id)?.title || target?.title || "";
+    const recovery = res.recovery;
+    const recoverTasks = recovery?.tasks?.length ? recovery.tasks : snaps;
+    const recoverTagLinks = recovery?.tagLinks ?? null;
+    const recoverKnowledgeLinks = recovery?.knowledgeLinks ?? [];
+    const recoverNoteTaskLinks = recovery?.noteTaskLinks ?? [];
+
+    // Verify every restored row; a partial failure keeps the recovery entry so
+    // the user can retry from Recently Deleted.
+    const restore = async (): Promise<boolean> => {
+      const statuses = await Promise.all(recoverTasks.map(s => persistTask(ownerId, s)));
+      if (statuses.some(status => status === "failed")) return false;
+      try {
+        if (recoverTagLinks?.length) {
+          const { error } = await firebaseStore.from("task_tags").insert(recoverTagLinks as never);
+          if (error) return false;
+        }
+      } catch { return false; }
+      try {
+        if (recoverKnowledgeLinks.length) {
+          const { error } = await firebaseStore.from("task_knowledge_links").insert(recoverKnowledgeLinks as never);
+          if (error) return false;
+        }
+      } catch { return false; }
+      try {
+        if (recoverNoteTaskLinks.length) {
+          const { error } = await firebaseStore.from("note_task_links").insert(recoverNoteTaskLinks as never);
+          if (error) return false;
+        }
+      } catch { return false; }
       load();
+      return true;
     };
-    pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: restore });
+    pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: async () => { await restore(); } });
     pushDeleted({ kind: "task", label: title, restore });
+    return true;
   };
 
   const askDeleteTask = (t: Task) => {
@@ -955,7 +977,7 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       id: t.id,
       title: t.title,
       childCount,
-      onConfirm: async () => { await delTask(t.id); },
+      onConfirm: async () => delTask(t.id),
     });
   };
 

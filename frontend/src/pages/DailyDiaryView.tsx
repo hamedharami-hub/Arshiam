@@ -229,7 +229,7 @@ export default function DailyDiaryView() {
                   })}
                 </div>
                 <div className="ms-auto flex flex-wrap items-center gap-1.5">
-                  <DiaryAiTools content={draft.content} title={draft.title} onApplyContent={applyAiContent} onApplyTitle={(title) => patch({ title })} />
+                  <DiaryAiTools entryId={draft.id} revision={editorVersion} content={draft.content} title={draft.title} onApplyContent={applyAiContent} onApplyTitle={(title) => patch({ title })} />
                   <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" data-testid="diary-save-status" role="status">
                     {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : saveFailed || dirty || isNewDraft ? <Cloud className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5 text-emerald-500" />}
                     {saving ? T("در حال ذخیره…", "Saving…") : saveFailed ? T("ذخیره ناموفق؛ دوباره تلاش کن", "Save failed; please retry") : dirty ? T("تغییرات ذخیره‌نشده", "Unsaved changes") : isNewDraft ? T("پیش‌نویس تازه", "New draft") : T("ذخیره شده", "Saved")}

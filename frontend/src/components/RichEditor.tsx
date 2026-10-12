@@ -97,6 +97,10 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   initialHtml?: string;
   controlledHtml?: string;
   initialMarkdown?: string;
+  /** Markdown to push into the editor when `externalRevision` changes. */
+  externalMarkdown?: string;
+  /** Bumped only for an external replacement (e.g. applying an AI proposal). */
+  externalRevision?: number;
   onChange?: (html: string, markdown: string) => void;
   placeholder?: string;
   readOnly?: boolean;
@@ -114,6 +118,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   initialHtml = "",
   controlledHtml,
   initialMarkdown = "",
+  externalMarkdown,
+  externalRevision,
   onChange,
   placeholder: placeholderProp,
   readOnly = false,
@@ -156,6 +162,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   if (seededContent.current === null) {
     seededContent.current = initialHtml || (initialMarkdown ? editorHtmlFromStored(initialMarkdown) : "");
   }
+  // Only an explicit revision bump replaces the document; ordinary typing never re-seeds it.
+  const appliedExternalRevision = useRef<number | undefined>(undefined);
   const extensions = useMemo(() => [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
@@ -288,6 +296,23 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   useEffect(() => {
     if (editor && !editor.isDestroyed && controlledHtml !== undefined && editor.getHTML() !== controlledHtml) editor.commands.setContent(controlledHtml, { emitUpdate: false });
   }, [editor, controlledHtml]);
+
+  // External replacement (e.g. applying an AI proposal) keyed by revision:
+  // it never remounts and never fires from ordinary keystrokes.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || externalRevision === undefined) return;
+    if (appliedExternalRevision.current === externalRevision) return;
+    const isFirstRun = appliedExternalRevision.current === undefined;
+    appliedExternalRevision.current = externalRevision;
+    // The first render already seeded the initial content, so only later bumps replace.
+    if (isFirstRun || externalMarkdown === undefined) return;
+    const nextHtml = markdownToHtml(externalMarkdown);
+    if (editor.getHTML() === nextHtml) return;
+    const bookmark = editor.state.selection.getBookmark();
+    editor.commands.setContent(nextHtml, { emitUpdate: false });
+    try { editor.commands.setTextSelection(bookmark.resolve(editor.state.doc)); } catch { /* selection may now be out of range */ }
+  }, [editor, externalMarkdown, externalRevision]);
+
   useEffect(() => { editor?.setEditable(!readOnly); }, [editor, readOnly]);
 
   // Detect when toolbar scrolls out of view → show floating "show toolbar" FAB

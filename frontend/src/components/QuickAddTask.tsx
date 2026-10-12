@@ -1,4 +1,4 @@
-import { formatTaskDueDateDisplay, workDatePatch } from "@/lib/taskDate";
+import { formatTaskDueDateDisplay, taskWorkDate, workDatePatch } from "@/lib/taskDate";
 import { planningPatch } from "@/lib/taskPlanning";
 import type { Period } from "@/lib/timeHorizon";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -224,11 +224,16 @@ export function QuickAddTask({
   const T = (fa: string, en: string) => (isEn ? en : fa);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
-  const [due, setDue] = useState<string | null | undefined>(defaults.work_date ?? defaults.due_date ?? undefined);
+  // The schedule the user actually chose. `undefined` means "untouched": the
+  // natural-language date or the view's default schedule still applies. Any
+  // explicit pick — including clearing to none — is stored here and submitted as-is.
+  const [scheduleDraft, setScheduleDraft] = useState<Partial<Task> | undefined>(undefined);
   const [reminder, setReminder] = useState<{ plan: ReminderPlan | null; at: string | null }>({ plan: null, at: null });
   const [recurrence, setRecurrence] = useState<RecurrenceRule | null>(defaults.recurrence_rule ?? null);
   const [priority, setPriority] = useState<Priority | null>(null);
-  const [folderId, setFolderId] = useState<string | null>(defaults.folder_id ?? null);
+  // `undefined` = untouched (a typed @mention / the default still applies);
+  // null = an explicit "Inbox (no folder)" the user chose, which must beat defaults.
+  const [folderId, setFolderId] = useState<string | null | undefined>(undefined);
   const defaultTagKey = JSON.stringify([...new Set([...(defaults.tag_id ? [defaults.tag_id] : []), ...(defaults.tag_ids || [])])]);
   const [tagIds, setTagIds] = useState<string[]>(() => JSON.parse(defaultTagKey));
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
@@ -257,17 +262,24 @@ export function QuickAddTask({
   const [folderOpen, setFolderOpen] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
 
-  // Sync state when defaults change dynamically (e.g. switching folders or dates)
+  // A new default context (a different day/period) resets an untouched draft to
+  // it. The primitive key keeps this from firing on every parent re-render,
+  // which would otherwise wipe a schedule the user just picked.
+  const defaultScheduleKey = useMemo(() => JSON.stringify({
+    work_date: defaults.work_date ?? defaults.due_date ?? null,
+    planning: defaults.planning ?? null,
+    time: defaults.time ?? null,
+  }), [defaults.work_date, defaults.due_date, defaults.planning, defaults.time]);
   useEffect(() => {
-    setDue(defaults.work_date ?? defaults.due_date ?? undefined);
-  }, [defaults.work_date, defaults.due_date]);
+    setScheduleDraft(undefined);
+  }, [defaultScheduleKey]);
 
   useEffect(() => {
     setRecurrence(defaults.recurrence_rule ?? null);
   }, [defaults.recurrence_rule]);
 
   useEffect(() => {
-    setFolderId(defaults.folder_id ?? null);
+    setFolderId(undefined);
   }, [defaults.folder_id]);
 
   useEffect(() => {
@@ -358,10 +370,32 @@ export function QuickAddTask({
     };
   }, [title, folders, tags]);
 
-  const finalDue = due === undefined ? parsed.dueDate ?? null : due;
+  // The view's default schedule, in priority order: an explicit day, then the
+  // view's period, then its time bucket, then "no schedule".
+  const defaultSchedulePatch = useMemo<Partial<Task>>(() => {
+    const defaultWorkDate = defaults.work_date ?? defaults.due_date ?? null;
+    if (defaultWorkDate) return workDatePatch({}, defaultWorkDate);
+    if (defaults.planning) return planningPatch(defaults.planning, getTimeSettings());
+    if (defaults.time) return timePatch(defaults.time, getTimeSettings());
+    return workDatePatch({}, null);
+  }, [defaults.work_date, defaults.due_date, defaults.planning, defaults.time]);
+
+  // One canonical schedule: the user's draft wins; otherwise a typed date, then
+  // the view default. The same patch is rendered and submitted unchanged.
+  const resolvedSchedulePatch = useMemo<Partial<Task>>(() => {
+    if (scheduleDraft !== undefined) return scheduleDraft;
+    if (parsed.dueDate) return workDatePatch({}, parsed.dueDate);
+    return defaultSchedulePatch;
+  }, [scheduleDraft, parsed.dueDate, defaultSchedulePatch]);
+
+  const finalDue = taskWorkDate(resolvedSchedulePatch);
   const finalTitle = parsed.title;
   const finalPriority = priority ?? parsed.priority ?? defaults.priority ?? "none";
-  const finalFolderId = folderId ?? parsed.folderId ?? defaults.folder_id ?? null;
+  // An explicit folder choice (including "Inbox") beats a typed mention and the
+  // context default; only an untouched field falls back to them.
+  const finalFolderId = folderId === undefined
+    ? parsed.folderId ?? defaults.folder_id ?? null
+    : folderId;
   const finalTagIds = Array.from(new Set([
     ...tagIds,
     ...parsed.tagIds,
@@ -394,11 +428,8 @@ export function QuickAddTask({
       status: defaults.status ?? "todo" as const,
       completed_at: defaults.status === "done" ? new Date().toISOString() : null,
       kanban_column_id: defaults.kanban_column_id ?? null,
-      // One schedule: a chosen day/time wins over the view's default period.
-      ...(finalDue ? workDatePatch({}, finalDue)
-        : defaults.planning ? planningPatch(defaults.planning, getTimeSettings())
-        : defaults.time ? timePatch(defaults.time, getTimeSettings())
-        : workDatePatch({}, null)),
+      // Submit the canonical draft schedule (day, period or deadline) unchanged.
+      ...resolvedSchedulePatch,
       reminder_plan: reminder.plan,
       reminder_at: reminder.at,
       created_at: new Date().toISOString(),
@@ -424,11 +455,11 @@ export function QuickAddTask({
           toast.info(T("پیوست‌ها در حالت آفلاین ذخیره نمی‌شوند", "Attachments are not saved while offline"));
         }
         setTitle("");
-        setDue(defaults.work_date ?? defaults.due_date ?? undefined);
+        setScheduleDraft(undefined);
         setRecurrence(defaults.recurrence_rule ?? null);
         setReminder({ plan: null, at: null });
         setPriority(null);
-        setFolderId(defaults.folder_id ?? null);
+        setFolderId(undefined);
         setTagIds(JSON.parse(defaultTagKey));
         setSelectedFiles([]);
         setFocused(false);
@@ -478,11 +509,11 @@ export function QuickAddTask({
       }
 
     setTitle("");
-    setDue(defaults.work_date ?? defaults.due_date ?? undefined);
+    setScheduleDraft(undefined);
     setReminder({ plan: null, at: null });
     setRecurrence(defaults.recurrence_rule ?? null);
     setPriority(null);
-    setFolderId(defaults.folder_id ?? null);
+    setFolderId(undefined);
     setTagIds(JSON.parse(defaultTagKey));
     setSelectedFiles([]);
     setFocused(false);
@@ -541,7 +572,7 @@ export function QuickAddTask({
 
   const applyTemplate = (tpl: Partial<Task>) => {
     if (tpl.title) setTitle(tpl.title);
-    if (tpl.work_date) setDue(tpl.work_date);
+    if (tpl.work_date) setScheduleDraft(workDatePatch({}, tpl.work_date));
     setRecurrence(tpl.recurrence_rule ?? null);
     if (tpl.priority) setPriority(tpl.priority);
     if (tpl.folder_id) setFolderId(tpl.folder_id);
@@ -871,13 +902,11 @@ export function QuickAddTask({
     if (defaults.parent_id) qp.set("parent_id", defaults.parent_id);
     if (finalTagIds[0]) qp.set("tag_id", finalTagIds[0]);
     qp.set("priority", finalPriority);
-    if (defaults.planning) {
-      qp.set("planning_horizon", defaults.planning.horizon);
-      qp.set("planning_start", defaults.planning.start);
-    }
-    if (defaults.time && !finalDue) {
-      qp.set("horizon", defaults.time.horizon);
-      qp.set("period_start", defaults.time.period_start);
+    // Carry the resolved schedule (a picked period included) so expanding to the
+    // full form never drops it. A day/instant is already in work_date above.
+    if (resolvedSchedulePatch.planning_horizon && resolvedSchedulePatch.planning_start) {
+      qp.set("planning_horizon", String(resolvedSchedulePatch.planning_horizon));
+      qp.set("planning_start", String(resolvedSchedulePatch.planning_start));
     }
     navigate(`/app/new/task?${qp.toString()}`);
   };
@@ -1103,14 +1132,24 @@ export function QuickAddTask({
                 <SheetContent side="bottom" className="max-h-[88dvh] space-y-3 overflow-y-auto rounded-t-3xl p-5 pt-9 sm:mx-auto sm:max-w-2xl">
                   <SheetTitle>{T("زمان‌بندی تسک", "Schedule task")}</SheetTitle>
                   <TaskScheduleBody
-                    t={{ id: "quick-add", title: "", priority: "none", completed: false, status: "todo", work_date: due ?? null,
-                      recurrence_rule: recurrence, reminder_plan: reminder.plan, reminder_at: reminder.at } as Task}
+                    t={{
+                      id: "quick-add", title: "", priority: "none", completed: false, status: "todo",
+                      ...resolvedSchedulePatch,
+                      recurrence_rule: recurrence, reminder_plan: reminder.plan, reminder_at: reminder.at,
+                    } as Task}
                     canEdit
                     T={T}
                     isEn={isEn}
                     onDone={() => setDateOpen(false)}
                     save={(patch) => {
-                      if ("work_date" in patch) setDue(patch.work_date ?? null);
+                      // Keep every scheduling field (day, period, time, deadline…)
+                      // in one canonical draft; recurrence and reminders live apart.
+                      const scheduleOnly: Partial<Task> = { ...patch };
+                      delete scheduleOnly.recurrence_rule;
+                      delete scheduleOnly.recurrence;
+                      delete scheduleOnly.reminder_plan;
+                      delete scheduleOnly.reminder_at;
+                      setScheduleDraft((prev) => ({ ...(prev ?? {}), ...scheduleOnly }));
                       if ("recurrence_rule" in patch) setRecurrence(patch.recurrence_rule ?? null);
                       if ("reminder_plan" in patch || "reminder_at" in patch) {
                         setReminder((cur) => ({

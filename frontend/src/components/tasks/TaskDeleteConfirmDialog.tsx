@@ -48,7 +48,11 @@ export function TaskDeleteConfirmDialog({ confirm, setConfirm, T }: {
                   `آیا مطمئنی می‌خوای «${confirm?.title || T("این مورد", "this item")}» را حذف کنی؟`,
                   `Are you sure you want to delete "${confirm?.title || T("this item", "this item")}"?`
                 )}
-            <span className="block mt-2 text-xs">{T("این عمل قابل بازگشت نیست.", "This action cannot be undone.")}</span>
+            <span className="block mt-2 text-xs">
+              {confirm?.kind === "task"
+                ? T("برای مدتی می‌توانی از «حذف‌شده‌های اخیر» بازگردانی کنی.", "You can restore it from Recently Deleted for a short time.")
+                : T("این عمل قابل بازگشت نیست.", "This action cannot be undone.")}
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
