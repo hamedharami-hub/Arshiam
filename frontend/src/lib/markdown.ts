@@ -116,6 +116,18 @@ export function htmlToMarkdown(html: string): string {
   return turndown.turndown(html);
 }
 
+/** Older notes stored editor HTML. Parsing that as Markdown can stall the page. */
+export function editorHtmlFromStored(stored: string): string {
+  if (!stored) return "";
+  const trimmed = normalizeNoteMarkup(stored).trim();
+  if (trimmed.startsWith("<") && /<\/[a-z][a-z0-9]*>/i.test(trimmed)) return trimmed;
+  try {
+    return markdownToHtml(stored);
+  } catch {
+    return "";
+  }
+}
+
 export function markdownToHtml(md: string): string {
   if (!md) return "";
   let html = marked.parse(normalizeLegacyBase64Images(normalizeNoteMarkup(md)), { async: false }) as string;

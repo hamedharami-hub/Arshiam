@@ -1414,7 +1414,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                 role="button"
                 tabIndex={0}
                 className="group cursor-pointer rounded-md px-2 py-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
-                onClick={() => setEditingNote(n)}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if ((event.target as HTMLElement).closest("a,button")) return;
+                  setEditingNote(n);
+                }}
                 onKeyDown={(e) => { if (e.key === "Enter") setEditingNote(n); }}
                 data-testid={`task-note-${n.id}`}
               >
@@ -1447,7 +1452,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
                     )}
                   </div>
                 </div>
-                {n.content && (
+                {typeof n.content === "string" && n.content && (
                   <div className="mt-1 text-[11px] sm:text-xs text-muted-foreground line-clamp-2 leading-relaxed text-start" dir="auto">
                     <NoteMarkdown>{n.content}</NoteMarkdown>
                   </div>
@@ -1818,7 +1823,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </div>
         </div>
       ) : mode === "drawer" && isMobile ? (
-        <Drawer open={true} onOpenChange={(v) => !v && requestClose()} snapPoints={TASK_DRAWER_SNAP_POINTS} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible handleOnly>
+        <Drawer open={true} onOpenChange={(v) => { if (!v && !editingNote) requestClose(); }} snapPoints={TASK_DRAWER_SNAP_POINTS} activeSnapPoint={snap} setActiveSnapPoint={setSnap} shouldScaleBackground={false} dismissible={!editingNote} handleOnly>
           <DrawerContent interactiveHandle data-no-swipe-nav className={`h-[100dvh] max-h-[100dvh] flex flex-col !mt-0 ${snap === 1 ? "!m-0 !rounded-none" : "min-h-[55vh]"}`} aria-describedby="task-drawer-desc">
             <DrawerHeader className="sr-only">
               <DrawerTitle>{t.title || T("تسک", "Task")}</DrawerTitle>
@@ -1850,8 +1855,13 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           </DrawerContent>
         </Drawer>
       ) : (
-        <Dialog open={true} onOpenChange={(v) => !v && requestClose()}>
-          <DialogContent className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-0 gap-0 flex flex-col [&>button:last-child]:hidden">
+        <Dialog open={true} onOpenChange={(v) => { if (!v && !editingNote) requestClose(); }}>
+          <DialogContent
+            className="w-[95vw] sm:max-w-2xl md:max-w-3xl max-h-[90vh] h-[85vh] p-0 gap-0 flex flex-col [&>button:last-child]:hidden"
+            onFocusOutside={(event) => { if (editingNote) event.preventDefault(); }}
+            onInteractOutside={(event) => { if (editingNote) event.preventDefault(); }}
+            onPointerDownOutside={(event) => { if (editingNote) event.preventDefault(); }}
+          >
             <DialogHeader className="sr-only">
               <DialogTitle>{t.title || T("تسک", "Task")}</DialogTitle>
             </DialogHeader>

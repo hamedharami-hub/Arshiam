@@ -66,8 +66,8 @@ function TaskNoteEditorContent({
   useEffect(() => {
     if (open && (!wasOpen.current || !dirty.current)) {
       dirty.current = false;
-      setTitle(note?.title || "");
-      setContent(note?.content || "");
+      setTitle(typeof note?.title === "string" ? note.title : "");
+      setContent(typeof note?.content === "string" ? note.content : "");
       setConfirmDelete(false);
       setSaving(false);
     }
@@ -152,7 +152,7 @@ function TaskNoteEditorContent({
             {T("متن یادداشت", "Note Content")}
           </label>
         </div>
-        <NoteEditorTabs noteId={`task-note-${note?.id ?? `new-${taskId}`}`} markdown={content} onChange={(md) => { dirty.current = true; setContent(md); }} readOnly={!canEdit || saving} onBusyChange={setUploading} />
+        <NoteEditorTabs noteId={`task-note-${note?.id ?? `new-${taskId}`}`} markdown={typeof content === "string" ? content : ""} onChange={(md) => { dirty.current = true; setContent((prev) => (prev === md ? prev : md)); }} readOnly={!canEdit || saving} onBusyChange={setUploading} />
       </div>
 
       <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-2 shrink-0">
@@ -208,6 +208,11 @@ function TaskNoteEditorContent({
           <DialogContent
             dir={isEn ? "ltr" : "rtl"}
             className="w-full max-w-3xl max-h-[90vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            onFocusOutside={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
+            onPointerDownOutside={(event) => event.preventDefault()}
           >
             <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-border/50">
               <div className="flex items-center gap-2">
@@ -228,6 +233,11 @@ function TaskNoteEditorContent({
             side="bottom"
             dir={isEn ? "ltr" : "rtl"}
             className="rounded-t-2xl max-h-[85vh] flex flex-col p-4 pb-6 overflow-hidden"
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            onFocusOutside={(event) => event.preventDefault()}
+            onInteractOutside={(event) => event.preventDefault()}
+            onPointerDownOutside={(event) => event.preventDefault()}
           >
             <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-border/50">
               <div className="flex items-center gap-2">

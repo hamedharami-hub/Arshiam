@@ -1,5 +1,5 @@
 import { useBilingual } from "@/hooks/useBilingual";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -27,7 +27,7 @@ import { uploadMediaFull, type UploadedMedia } from "@/lib/uploadMedia";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { callAI, getAILanguage } from "@/lib/ai";
-import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
+import { editorHtmlFromStored, htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { LinkDialog } from "@/components/LinkDialog";
 
@@ -145,69 +145,88 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
   const linkBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
   const voiceBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const insertFileRef = useRef<(file: File) => Promise<void>>(async () => {});
+  // TipTap reapplies options after every render. A saved note must not feed
+  // that conversion back in, or opening it retriggers until the page freezes.
+  const seededContent = useRef<string | null>(null);
+  if (seededContent.current === null) {
+    seededContent.current = initialHtml || (initialMarkdown ? editorHtmlFromStored(initialMarkdown) : "");
+  }
+  const extensions = useMemo(() => [
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3] },
+      link: { openOnClick: false, autolink: true },
+      code: { HTMLAttributes: { dir: "ltr" } },
+      codeBlock: { HTMLAttributes: { dir: "ltr" } },
+      underline: false,
+    }),
+    Underline,
+    Highlight.configure({ multicolor: false }),
+    TextAlign.configure({ types: ["heading", "paragraph"] }),
+    Image.configure({ inline: false, allowBase64: true }),
+    PreservingYoutube.configure({ controls: true, nocookie: true }),
+    PreservingTable.configure({ resizable: false, renderWrapper: false }),
+    PreservingTableRow,
+    PreservingTableHeader,
+    PreservingTableCell,
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Typography,
+    Placeholder.configure({ placeholder }),
+  ], [placeholder]);
+  const editorProps = useMemo(() => ({
+    attributes: {
+      dir: "auto",
+      class: compact
+        ? `prose-note focus:outline-none ${compactExpanded ? "min-h-[260px]" : "min-h-[72px]"} px-1`
+        : "prose-note focus:outline-none min-h-[50vh] px-1",
+      ...(editorAriaLabel ? { "aria-label": editorAriaLabel, role: "textbox", "aria-multiline": "true" } : {}),
+    },
+    handleDrop: (_view: unknown, event: any, _slice: unknown, moved: boolean) => {
+      if (readOnlyRef.current) { event.preventDefault(); return true; }
+      if (moved) return false;
+      const files = Array.from(event.dataTransfer?.files || []);
+      if (!files.length) return false;
+      event.preventDefault();
+      void (async () => { for (const file of files) await insertFileRef.current(file); })();
+      return true;
+    },
+    handlePaste: (_view: unknown, event: any) => {
+      if (readOnlyRef.current) { event.preventDefault(); return true; }
+      const files = Array.from(event.clipboardData?.files || []);
+      if (!files.length) return false;
+      event.preventDefault();
+      void (async () => { for (const file of files) await insertFileRef.current(file); })();
+      return true;
+    },
+  }), [compact, compactExpanded, editorAriaLabel]);
 
   const editor = useEditor({
     editable: !readOnly,
     shouldRerenderOnTransaction: true,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        link: { openOnClick: false, autolink: true },
-        code: { HTMLAttributes: { dir: "ltr" } },
-        codeBlock: { HTMLAttributes: { dir: "ltr" } },
-        underline: false,
-      }),
-      Underline,
-      Highlight.configure({ multicolor: false }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image.configure({ inline: false, allowBase64: true }),
-      PreservingYoutube.configure({ controls: true, nocookie: true }),
-      PreservingTable.configure({ resizable: false, renderWrapper: false }),
-      PreservingTableRow,
-      PreservingTableHeader,
-      PreservingTableCell,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Typography,
-      Placeholder.configure({ placeholder }),
-    ],
-    content: initialHtml || (initialMarkdown ? markdownToHtml(initialMarkdown) : ""),
+    extensions,
+    content: seededContent.current,
+    onContentError: () => undefined,
     onTransaction: ({ transaction }) => {
       if (linkBookmark.current) linkBookmark.current = linkBookmark.current.map(transaction.mapping);
       if (voiceBookmark.current) voiceBookmark.current = voiceBookmark.current.map(transaction.mapping);
     },
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      onChange?.(html, htmlToMarkdown(html));
+    onUpdate: ({ editor, transaction }) => {
+      if (!transaction.docChanged) return;
+      try {
+        const html = editor.getHTML();
+        onChangeRef.current?.(html, htmlToMarkdown(html));
+      } catch {
+        /* A previously saved note must not take the page down if its HTML cannot be converted. */
+      }
       const { from, to } = editor.state.selection;
       selectedTextCallback.current?.(from === to ? "" : editor.state.doc.textBetween(from, to, "\n").trim());
     },
-    editorProps: {
-      attributes: {
-        dir: "auto",
-        class: compact
-          ? `prose-note focus:outline-none ${compactExpanded ? "min-h-[260px]" : "min-h-[72px]"} px-1`
-          : "prose-note focus:outline-none min-h-[50vh] px-1",
-        ...(editorAriaLabel ? { "aria-label": editorAriaLabel, role: "textbox", "aria-multiline": "true" } : {}),
-      },
-      handleDrop: (_view, event, _slice, moved) => {
-        if (readOnly) { event.preventDefault(); return true; }
-        if (moved) return false;
-        const files = Array.from(event.dataTransfer?.files || []);
-        if (!files.length) return false;
-        event.preventDefault();
-        void (async () => { for (const file of files) await insertFile(file); })();
-        return true;
-      },
-      handlePaste: (_view, event) => {
-        if (readOnly) { event.preventDefault(); return true; }
-        const files = Array.from(event.clipboardData?.files || []);
-        if (!files.length) return false;
-        event.preventDefault();
-        void (async () => { for (const file of files) await insertFile(file); })();
-        return true;
-      },
-    },
+    editorProps,
   });
 
   useEffect(() => {
@@ -256,7 +275,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
-    const next = initialHtml || (initialMarkdown ? markdownToHtml(initialMarkdown) : "");
+    const next = seededContent.current || "";
     if (next && editor.isEmpty) {
       try {
         editor.commands.setContent(next, { emitUpdate: false });
@@ -264,7 +283,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         /* editor view not ready yet — content already supplied via `content` option */
       }
     }
-  }, [editor, initialHtml, initialMarkdown]);
+  }, [editor]);
 
   useEffect(() => {
     if (editor && !editor.isDestroyed && controlledHtml !== undefined && editor.getHTML() !== controlledHtml) editor.commands.setContent(controlledHtml, { emitUpdate: false });
@@ -316,6 +335,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       if (fileRef.current) fileRef.current.value = "";
     }
   };
+  insertFileRef.current = insertFile;
 
   const onPickFile = (kind: "image" | "audio" | "video" | "file") => {
     setPendingKind(kind);
