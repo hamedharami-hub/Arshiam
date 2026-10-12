@@ -10,7 +10,7 @@ export const DEFAULT_ACCENT: AccentColor = "indigo";
 export const ACCENT_SWATCH: Record<AccentColor, string> = {
   indigo: "hsl(232 38% 48%)",
   olive: "hsl(78 30% 36%)",
-  amber: "hsl(36 70% 42%)",
+  amber: "hsl(36 70% 34%)",
   steel: "hsl(208 35% 42%)",
   rose: "hsl(350 32% 50%)",
   brick: "hsl(12 55% 45%)",

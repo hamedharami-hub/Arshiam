@@ -57,7 +57,7 @@ export default function ClinicalDisclaimer() {
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-end">
+          <DialogTitle className="flex items-center gap-2 text-start">
             <ShieldAlert className="w-5 h-5 text-amber-500" />
             {T(
               "اطلاعیه مهم درباره ابزارهای سلامت روان",
@@ -65,7 +65,7 @@ export default function ClinicalDisclaimer() {
             )}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 text-sm leading-7 text-end">
+        <div className="space-y-3 text-sm leading-7 bidi-auto">
           <p>
             {T(
               "این اپلیکیشن یک ابزار خودیاری و خودشناسی است و جایگزین درمان حرفه‌ای، روان‌درمانی، یا تشخیص پزشکی نیست. ابزارهای بررسی فکر، نگرانی و ثبت حال برای آگاهی شخصی طراحی شده‌اند.",

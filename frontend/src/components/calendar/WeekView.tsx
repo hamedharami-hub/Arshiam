@@ -16,31 +16,42 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const BASE_ROW = 36;
 
 function Slot({
-  d, h, slotTasks, onClick, onDouble, height,
+  d, h, slotTasks, onClick, onDouble, height, label,
 }: {
-  d: Date; h: number; slotTasks: CalendarTask[]; onClick: () => void; onDouble: () => void; height: number;
+  d: Date; h: number; slotTasks: CalendarTask[]; onClick: () => void; onDouble: () => void; height: number; label: string;
 }) {
   const navigate = useNavigate();
   const { handlers } = useTapGestures({ onSingleTap: onClick, onDoubleTap: onDouble });
   return (
     <div
-      {...handlers}
-      onClick={onClick}
-      className="bg-card border-t p-0.5 text-end hover:bg-accent/30 transition cursor-pointer select-none"
+      className="relative bg-card border-t p-0.5 text-end hover:bg-accent/30 transition cursor-pointer select-none"
       style={{ minHeight: height }}
     >
-      {slotTasks.map((t) => (
-        <div
-          key={t.id}
-          onClick={(e) => { e.stopPropagation(); navigate(`/app/tasks/${t.id}`); }}
-          className="bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer hover:bg-accent/60 transition"
-        >
-          <span className="inline-flex max-w-full items-center gap-1">
-            <span className="truncate">{t.title}</span>
-            <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
-          </span>
-        </div>
-      ))}
+      {/* Full-cell keyboard/pointer target. Kept as a sibling of the task chips so the
+          chips stay independently focusable (no nested interactive elements). */}
+      <button
+        type="button"
+        {...handlers}
+        onClick={onClick}
+        aria-label={label}
+        className="absolute inset-0 z-0 w-full cursor-pointer rounded-none bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+      />
+      <div className="relative z-10 flex flex-col">
+        {slotTasks.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={(e) => { e.stopPropagation(); navigate(`/app/tasks/${t.id}`); }}
+            aria-label={t.title}
+            className="bg-muted text-foreground/80 text-[10px] truncate rounded-md px-2 py-1 mb-1 border border-border/60 cursor-pointer text-end hover:bg-accent/60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <span className="inline-flex max-w-full items-center gap-1">
+              <span className="truncate">{t.title}</span>
+              <DeadlineMarker deadlineDate={t.deadline_date} completed={t.completed} status={t.status} recurrence={t.recurrence} recurrence_rule={t.recurrence_rule} />
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -78,6 +89,12 @@ export default function WeekView({
     navigate(`/app/tasks/new?due_date=${encodeURIComponent(dt.toISOString())}`);
   };
 
+  const slotLabel = (d: Date, h: number) => {
+    const dateLabel = system === "jalali" ? formatDate(d, "yyyy/MM/dd", "jalali") : format(d, "yyyy-MM-dd");
+    const hourLabel = system === "jalali" ? toPersianDigits(String(h).padStart(2, "0")) : String(h).padStart(2, "0");
+    return `${dateLabel} ${hourLabel}:00 — ${T("ساخت تسک", "Create task")}`;
+  };
+
   return (
     <div
       className="overflow-x-auto relative"
@@ -100,7 +117,8 @@ export default function WeekView({
               <button
                 key={d.toISOString()}
                 onClick={() => onDayClick(d)}
-                className={`bg-card p-2 text-center text-xs hover:bg-accent/40 transition ${kind ? `${HOLIDAY_TONE[kind].text} ${HOLIDAY_TONE[kind].bg}` : off ? "text-muted-foreground" : ""} ${isSameDay(d, new Date()) ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
+                aria-label={`${system === "jalali" ? formatDate(d, "yyyy/MM/dd", "jalali") : format(d, "yyyy-MM-dd")} — ${T("نمای روز", "Day view")}`}
+                className={`bg-card p-2 text-center text-xs hover:bg-accent/40 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset ${kind ? `${HOLIDAY_TONE[kind].text} ${HOLIDAY_TONE[kind].bg}` : off ? "text-muted-foreground" : ""} ${isSameDay(d, new Date()) ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
               >
                 <div className="font-semibold">
                   {system === "jalali" ? toPersianDigits(formatDate(d, "d", "jalali")) : format(d, "d")}
@@ -125,7 +143,8 @@ export default function WeekView({
                 <div key={`all-day-${d.toISOString()}`} className="min-h-9 bg-card p-0.5">
                   {allDayTasks.map((task) => (
                     <button key={task.id} type="button" onClick={() => navigate(`/app/tasks/${task.id}`)}
-                      className="mb-0.5 flex max-w-full items-center gap-1 rounded-md border border-border/60 bg-muted px-1.5 py-1 text-start text-[10px] text-foreground/80 hover:bg-accent/60">
+                      aria-label={task.title}
+                      className="mb-0.5 flex max-w-full items-center gap-1 rounded-md border border-border/60 bg-muted px-1.5 py-1 text-start text-[10px] text-foreground/80 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                       <span className="truncate">{task.title}</span>
                       <DeadlineMarker deadlineDate={task.deadline_date} completed={task.completed} status={task.status} recurrence={task.recurrence} recurrence_rule={task.recurrence_rule} />
                     </button>
@@ -152,6 +171,7 @@ export default function WeekView({
                   <Slot
                     key={`${d.toISOString()}-${h}`}
                     d={d} h={h} slotTasks={slotTasks} height={ROW_H}
+                    label={slotLabel(d, h)}
                     onClick={() => onSlotClick?.(d, h)}
                     onDouble={() => quickCreate(d, h)}
                   />

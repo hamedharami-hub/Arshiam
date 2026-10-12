@@ -8,6 +8,7 @@ import { TaskDetail, type TaskDetailHandle } from "@/components/TaskDetail";
 import type { Task, ConfirmState } from "@/lib/taskTypes";
 import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cacheGet } from "@/lib/offlineQueue";
 import { extractTasksFromCache } from "@/features/tasks/taskCache";
 import { useBilingual } from "@/hooks/useBilingual";
@@ -148,7 +149,9 @@ export default function TaskDetailView() {
     if (isPhone) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (document.querySelector('[role="alertdialog"],[role="menu"]')) return;
+        // A real modal (Radix dialog/alertdialog/menu) owns Escape while it is
+        // open; only the non-modal loading/empty overlays are handled here.
+        if (document.querySelector('[role="dialog"]:not([data-sidebar]),[role="alertdialog"],[role="menu"]')) return;
         e.preventDefault();
         requestClose();
       }
@@ -157,18 +160,28 @@ export default function TaskDetailView() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isPhone, requestClose]);
 
+  // The empty state must not claim deletion when the real reason is that the
+  // device is offline and no cached copy exists.
+  const loadingLabel = T("در حال بارگذاری تسک…", "Loading task…");
+  const offlineNoTask = !visibleTask && typeof navigator !== "undefined" && !navigator.onLine;
+  const notFoundMessage = offlineNoTask
+    ? T("این تسک در حالت آفلاین در دسترس نیست.", "This task isn't available offline.")
+    : T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.");
+
   if ((loading || loadedId !== id) && !visibleTask) {
     if (isPhone) {
       return (
-        <div dir={isEn ? "ltr" : "rtl"} className="flex items-center justify-center h-[60vh] text-muted-foreground page-enter">
-          <Loader2 className="w-6 h-6 animate-spin" />
+        <div dir={isEn ? "ltr" : "rtl"} role="status" aria-live="polite" className="flex items-center justify-center h-[60vh] text-muted-foreground page-enter">
+          <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
+          <span className="sr-only">{loadingLabel}</span>
         </div>
       );
     }
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200" onClick={handleClose}>
-        <div className="bg-card p-6 rounded-2xl shadow-xl border border-border/80 flex items-center justify-center text-muted-foreground" onClick={(e) => e.stopPropagation()}>
-          <Loader2 className="w-6 h-6 animate-spin" />
+        <div role="status" aria-live="polite" className="bg-card p-6 rounded-2xl shadow-xl border border-border/80 flex items-center justify-center gap-2 text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+          <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
+          <span className="sr-only">{loadingLabel}</span>
         </div>
       </div>
     );
@@ -178,7 +191,7 @@ export default function TaskDetailView() {
     if (isPhone) {
       return (
         <div dir={isEn ? "ltr" : "rtl"} className="flex flex-col items-center justify-center h-[60vh] text-muted-foreground p-4 text-center space-y-4 page-enter">
-          <p className="text-base font-medium">{T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.")}</p>
+          <p role="alert" className="text-base font-medium">{notFoundMessage}</p>
           <Button variant="outline" onClick={handleClose} className="gap-1.5">
             <BackIcon className="w-4 h-4" /> {isFromWidget ? T("خروج", "Exit") : T("بازگشت به تسک‌ها", "Back to tasks")}
           </Button>
@@ -188,7 +201,7 @@ export default function TaskDetailView() {
     return (
       <div dir={isEn ? "ltr" : "rtl"} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200" onClick={handleClose}>
         <div className="bg-card p-6 rounded-2xl shadow-xl border border-border/80 max-w-md w-full text-center p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-          <p className="text-base font-medium">{T("تسک مورد نظر پیدا نشد یا حذف شده است.", "Task not found or has been deleted.")}</p>
+          <p role="alert" className="text-base font-medium">{notFoundMessage}</p>
           <Button variant="outline" onClick={handleClose} className="gap-1.5">
             <BackIcon className="w-4 h-4" /> {isFromWidget ? T("خروج", "Exit") : T("بازگشت به تسک‌ها", "Back to tasks")}
           </Button>
@@ -203,35 +216,36 @@ export default function TaskDetailView() {
 
   if (!isPhone) {
     return (
-      <div
-        dir={isEn ? "ltr" : "rtl"}
-        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-        onClick={requestClose}
-      >
-        <div
-          className="relative w-full max-w-2xl max-h-[75vh] flex flex-col bg-card rounded-2xl shadow-2xl border border-border/80 overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <TaskDetail
-            ref={taskDetailRef}
-            key={visibleTask.id}
-            task={visibleTask}
-            onClose={handleClose}
-            onBack={handleBack}
-            hasBackHistory={true}
-            onOpenParentTask={(targetId) => {
-              const returnTo = searchParams.get("returnTo");
-              const returnSuffix = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
-              navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}${returnSuffix}`);
-            }}
-            onChanged={load}
-            setConfirm={setConfirm}
-            mode="modal"
-            allowDelete
-          />
-        </div>
+      <>
+        <Dialog open onOpenChange={(open) => { if (!open) requestClose(); }}>
+          <DialogContent
+            dir={isEn ? "ltr" : "rtl"}
+            className="w-full max-w-2xl sm:max-w-2xl max-h-[75vh] p-0 gap-0 flex flex-col bg-card rounded-2xl sm:rounded-2xl shadow-2xl border border-border/80 overflow-hidden [&>button:last-child]:hidden"
+          >
+            <DialogHeader className="sr-only">
+              <DialogTitle>{visibleTask.title || T("تسک", "Task")}</DialogTitle>
+            </DialogHeader>
+            <TaskDetail
+              ref={taskDetailRef}
+              key={visibleTask.id}
+              task={visibleTask}
+              onClose={handleClose}
+              onBack={handleBack}
+              hasBackHistory={true}
+              onOpenParentTask={(targetId) => {
+                const returnTo = searchParams.get("returnTo");
+                const returnSuffix = returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : "";
+                navigate(`/app/tasks/${encodeURIComponent(targetId)}?from=${encodeURIComponent(visibleTask.id)}${isFromWidget ? "&fromWidget=1" : ""}${returnSuffix}`);
+              }}
+              onChanged={load}
+              setConfirm={setConfirm}
+              mode="modal"
+              allowDelete
+            />
+          </DialogContent>
+        </Dialog>
         {confirmDialog}
-      </div>
+      </>
     );
   }
 

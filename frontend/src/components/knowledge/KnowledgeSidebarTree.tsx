@@ -38,13 +38,41 @@ function countDocumentsInSubtree(node: KnowledgeFolderNode): number {
   );
 }
 
+/** All focusable tree items in document order (used for Up/Down keyboard navigation). */
+function getTreeItems(el: HTMLElement): HTMLElement[] {
+  const root = el.closest('[role="tree"]');
+  if (!root) return [];
+  return Array.from(root.querySelectorAll<HTMLElement>('[role="treeitem"]'));
+}
+
+/** Move focus to the sibling tree item `delta` positions away. */
+function focusRelativeTreeItem(el: HTMLElement, delta: number) {
+  const items = getTreeItems(el);
+  const idx = items.indexOf(el);
+  if (idx === -1) return;
+  items[idx + delta]?.focus();
+}
+
+/** Move focus to the nearest ancestor tree item (lower aria-level). */
+function focusParentTreeItem(el: HTMLElement) {
+  const items = getTreeItems(el);
+  const idx = items.indexOf(el);
+  const level = Number(el.getAttribute("aria-level") || "0");
+  for (let i = idx - 1; i >= 0; i--) {
+    if (Number(items[i].getAttribute("aria-level") || "0") < level) {
+      items[i].focus();
+      return;
+    }
+  }
+}
+
 interface FolderRowItemProps {
   node: KnowledgeFolderNode;
   depth: number;
   isSelected: boolean;
   isExpanded: boolean;
   isEn: boolean;
-  onToggle: (e: React.MouseEvent) => void;
+  onToggle: (e: React.SyntheticEvent) => void;
   onSelect: () => void;
   onCreateDocument: (folderId: string) => void;
   onCreateSubfolder: (folderId: string) => void;
@@ -74,14 +102,53 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
     delay: 500,
   });
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Ignore keys bubbling from the nested toggle / action buttons.
+    if (e.target !== e.currentTarget) return;
+    switch (e.key) {
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (longPress.didFire()) return;
+        onSelect();
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        focusRelativeTreeItem(e.currentTarget, 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        focusRelativeTreeItem(e.currentTarget, -1);
+        break;
+      case "ArrowRight":
+        e.preventDefault();
+        // RTL is handled by the browser's logical keys only partially; keep LTR tree semantics.
+        if (!isExpanded) onToggle(e);
+        else focusRelativeTreeItem(e.currentTarget, 1);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        if (isExpanded) onToggle(e);
+        else focusParentTreeItem(e.currentTarget);
+        break;
+    }
+  };
+
   return (
     <div
       {...longPress.handlers}
+      role="treeitem"
+      aria-level={depth + 1}
+      aria-selected={isSelected}
+      aria-expanded={isExpanded}
+      aria-label={isEn ? `Folder: ${node.name}` : `پوشه: ${node.name}`}
+      tabIndex={0}
       onClick={() => {
         if (longPress.didFire()) return;
         onSelect();
       }}
-      className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl cursor-pointer transition text-xs font-medium ${
+      onKeyDown={handleKeyDown}
+      className={`flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl cursor-pointer transition text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
         isSelected
           ? "bg-primary/10 text-primary border border-primary/25 font-semibold"
           : "text-foreground hover:bg-muted/70"
@@ -94,7 +161,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
           aria-expanded={isExpanded}
           aria-label={isEn ? `Toggle ${node.name}` : `باز و بسته کردن ${node.name}`}
           onClick={(e) => onToggle(e)}
-          className="min-h-8 min-w-8 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground transition"
+          className="min-h-8 min-w-8 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           {isExpanded ? (
             <ChevronDown className="w-3.5 h-3.5" />
@@ -128,7 +195,7 @@ const FolderRowItem: React.FC<FolderRowItemProps> = ({
             <button
               type="button"
               aria-label={isEn ? `Actions for ${node.name}` : `عملیات فولدر ${node.name}`}
-              className="min-h-8 min-w-8 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
+              className="min-h-8 min-w-8 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <MoreVertical className="w-3 h-3" />
             </button>
@@ -204,14 +271,45 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
     delay: 500,
   });
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Ignore keys bubbling from the nested action buttons.
+    if (e.target !== e.currentTarget) return;
+    switch (e.key) {
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (longPress.didFire()) return;
+        onSelect();
+        break;
+      case "ArrowDown":
+        e.preventDefault();
+        focusRelativeTreeItem(e.currentTarget, 1);
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        focusRelativeTreeItem(e.currentTarget, -1);
+        break;
+      case "ArrowLeft":
+        e.preventDefault();
+        focusParentTreeItem(e.currentTarget);
+        break;
+    }
+  };
+
   return (
     <div
       {...longPress.handlers}
+      role="treeitem"
+      aria-level={depth + 1}
+      aria-selected={isSelected}
+      aria-label={isEn ? `Lesson: ${doc.title_en || doc.title}` : `درس: ${doc.title}`}
+      tabIndex={0}
       onClick={() => {
         if (longPress.didFire()) return;
         onSelect();
       }}
-      className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs ${
+      onKeyDown={handleKeyDown}
+      className={`group flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
         isSelected
           ? "bg-primary/15 text-primary font-semibold border border-primary/30"
           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -233,8 +331,9 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
               e.stopPropagation();
               onScheduleStudy(doc);
             }}
-            className="opacity-100 min-h-8 min-w-8 inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-emerald-500 transition cursor-pointer"
+            className="opacity-100 min-h-8 min-w-8 inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-emerald-500 transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             title={isEn ? "Schedule study task" : "برنامه‌ریزی مطالعه این درس"}
+            aria-label={isEn ? "Schedule study task" : "برنامه‌ریزی مطالعه این درس"}
           >
             <CalendarPlus className="w-3 h-3" />
           </button>
@@ -245,8 +344,9 @@ const DocumentRowItem: React.FC<DocumentRowItemProps> = ({
             e.stopPropagation();
             onDelete();
           }}
-          className="opacity-100 min-h-8 min-w-8 inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer"
+          className="opacity-100 min-h-8 min-w-8 inline-flex items-center justify-center p-0.5 rounded text-muted-foreground hover:text-destructive transition cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           title={isEn ? "Delete document" : "حذف سند"}
+          aria-label={isEn ? "Delete document" : "حذف سند"}
         >
           <Trash2 className="w-3 h-3" />
         </button>
@@ -321,7 +421,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
   const [newFolderName, setNewFolderName] = useState("");
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
 
-  const toggleFolder = (folderId: string, e: React.MouseEvent) => {
+  const toggleFolder = (folderId: string, e: React.SyntheticEvent) => {
     e.stopPropagation();
     setExpandedFolders((prev) => ({ ...prev, [folderId]: !prev[folderId] }));
   };
@@ -494,8 +594,9 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
             <button
               type="button"
               onClick={() => navigate(selectedFolderId ? `/app/knowledge-mindmap?folderId=${encodeURIComponent(selectedFolderId)}` : "/app/knowledge-mindmap")}
-              className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border"
+              className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title={isEn ? "Open Mind Map" : "نقشه ذهنی پایگاه دانش"}
+              aria-label={isEn ? "Open Mind Map" : "نقشه ذهنی پایگاه دانش"}
             >
               <Network className="w-3.5 h-3.5" />
             </button>
@@ -503,7 +604,7 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
             <button
               type="button"
               onClick={() => handleOpenCreateFolder(null)}
-              className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border"
+              className="p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-primary transition cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               title={isEn ? "Create new root category" : "ساخت فولدر جدید"}
               aria-label={isEn ? "New folder" : "فولدر جدید"}
               data-testid="knowledge-new-folder"
@@ -525,8 +626,9 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
               <button
                 type="button"
                 onClick={onToggleCollapse}
-                className="hidden md:flex p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer border border-border"
+                className="hidden md:flex p-1.5 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition cursor-pointer border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 title={isEn ? "Collapse sidebar (Ctrl+B)" : "بستن سایدبار فصل‌ها (Ctrl+B)"}
+                aria-label={isEn ? "Collapse sidebar" : "بستن سایدبار"}
               >
                 <PanelLeftClose className="w-3.5 h-3.5" />
               </button>
@@ -626,7 +728,11 @@ export const KnowledgeSidebarTree: React.FC<KnowledgeSidebarTreeProps> = ({
       )}
 
       {/* Folder Tree & Root Docs */}
-      <div className="flex-1 overflow-y-auto p-2.5 space-y-1">
+      <div
+        role="tree"
+        aria-label={isEn ? "Knowledge tree" : "درخت پایگاه دانش"}
+        className="flex-1 overflow-y-auto p-2.5 space-y-1"
+      >
         {tree.length === 0 && unfiledDocuments.length === 0 && (
           <div className="p-6 text-center text-xs text-muted-foreground">
             {isEn ? "No folders or documents yet." : "هنوز فولدر یا سندی ایجاد نشده است."}

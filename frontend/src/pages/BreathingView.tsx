@@ -93,8 +93,32 @@ const PHASE_LABEL: Record<Phase, { fa: string; en: string }> = {
   "hold-out": { fa: "نگه‌داشتن", en: "Hold" },
 };
 
+/** The breathing cycle is driven by requestAnimationFrame, so it must also
+    honour the OS "reduce motion" setting instead of only relying on the CSS
+    animation-duration override in index.css. */
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(mq.matches);
+    onChange();
+    mq.addEventListener?.("change", onChange);
+    return () => mq.removeEventListener?.("change", onChange);
+  }, []);
+
+  return reduced;
+}
+
 export default function BreathingView() {
   const { T, isEn } = useBilingual();
+  const reducedMotion = usePrefersReducedMotion();
   const [pattern, setPattern] = useState<Pattern>(PATTERNS[0]);
   const [running, setRunning] = useState(false);
   const [phase, setPhase] = useState<Phase>("inhale");
@@ -246,11 +270,15 @@ export default function BreathingView() {
   const elapsed = Math.max(0, total - phaseLeft);
   const t = Math.max(0, Math.min(1, elapsed / total));
   const eased = 0.5 - Math.cos(Math.PI * t) / 2;
-  const scale =
+  const phaseScale =
     phase === "inhale" ? 0.55 + eased * 0.6 :
     phase === "exhale" ? 1.15 - eased * 0.6 :
     phase === "hold-in" ? 1.15 :
     0.55;
+  // Reduced motion: keep the guidance/timer, freeze the pulsing + rotating orb
+  // so the JS-driven cycle produces no continuous visual motion.
+  const scale = reducedMotion ? 1 : phaseScale;
+  const orbRotateY = reducedMotion ? 0 : t * 30;
 
   const displaySeconds = Math.max(1, Math.ceil(phaseLeft));
 
@@ -289,9 +317,18 @@ export default function BreathingView() {
       <Card className={`relative overflow-hidden p-6 bg-gradient-to-br ${pattern.color}`}>
         <div className="absolute -top-12 -end-12 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-16 -start-16 w-64 h-64 rounded-full bg-white/5 blur-3xl" />
-        <div className="relative flex items-center justify-center h-72" style={{ perspective: 800 }}>
+        <div
+          className="relative flex items-center justify-center h-72"
+          style={{ perspective: 800 }}
+          role="img"
+          aria-label={T(
+            `راهنمای تنفس: ${PHASE_LABEL[phase].fa}`,
+            `Breathing guide: ${PHASE_LABEL[phase].en}`
+          )}
+        >
           {/* Outer pulse ring */}
           <div
+            aria-hidden="true"
             className="absolute rounded-full border border-white/30"
             style={{
               width: 240, height: 240,
@@ -302,17 +339,18 @@ export default function BreathingView() {
           />
           {/* Inner orb */}
           <div
+            aria-hidden="true"
             className="rounded-full bg-gradient-to-br from-white/80 via-white/40 to-white/10 backdrop-blur"
             style={{
               width: 200, height: 200,
-              transform: `scale(${scale}) rotateX(15deg) rotateY(${t * 30}deg)`,
+              transform: `scale(${scale}) rotateX(15deg) rotateY(${orbRotateY}deg)`,
               transition: "none",
-              willChange: "transform",
+              willChange: reducedMotion ? "auto" : "transform",
               boxShadow: "0 30px 60px rgba(0,0,0,0.25), 0 0 90px rgba(255,255,255,0.35)",
             }}
           />
           {/* Center text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white pointer-events-none">
+          <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center text-white pointer-events-none">
             <div className="text-3xl font-extrabold tabular-nums drop-shadow">{displaySeconds || phaseTotal || "—"}</div>
             <div className="text-sm font-medium opacity-95 mt-1">{isEn ? PHASE_LABEL[phase].en : PHASE_LABEL[phase].fa}</div>
             {running && (
@@ -322,6 +360,11 @@ export default function BreathingView() {
             )}
           </div>
         </div>
+
+        {/* Screen-reader rhythm: announce each phase change politely. */}
+        <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {running ? (isEn ? PHASE_LABEL[phase].en : PHASE_LABEL[phase].fa) : ""}
+        </p>
 
         <div className="relative flex gap-2 justify-center mt-4">
           {!running ? (

@@ -16,7 +16,7 @@ import { AutoTextarea } from "@/components/ui/auto-textarea";
 import { BidiText } from "@/components/BidiText";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import {
@@ -1898,6 +1898,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           >
             <DialogHeader className="sr-only">
               <DialogTitle>{t.title || T("تسک", "Task")}</DialogTitle>
+              <DialogDescription>{T("جزئیات و ویرایش تسک", "Task details and editing")}</DialogDescription>
             </DialogHeader>
             <div className="px-3 py-1 border-b border-border shrink-0">
               {renderTopBar({ onClose: requestClose })}

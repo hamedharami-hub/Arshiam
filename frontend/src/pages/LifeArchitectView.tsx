@@ -1,6 +1,6 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { LifeSystemMap } from "@/components/LifeSystemMap";
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,6 +71,14 @@ export default function LifeArchitectView() {
 
   const [mode, setMode] = useState<"welcome" | "wizard" | "audit" | "generating" | "review">("welcome");
   const [stageIdx, setStageIdx] = useState(0);
+
+  /** Enter/Space activation for card-style controls (cards stay pointer-friendly too). */
+  const keyActivate = (activate: () => void) => (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      activate();
+    }
+  };
 
   const [answers, setAnswers] = useState<UserAnswers>({
     role: "freelancer",
@@ -304,8 +312,12 @@ export default function LifeArchitectView() {
           <h3 className="pt-2 text-sm font-semibold text-muted-foreground">{T("ساخت یا بازسازی سیستم", "Build or tune the system")}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-start">
             <Card
+              role="button"
+              tabIndex={0}
+              aria-label={T("شروع معماری کامل", "Full Life Architecture")}
               onClick={() => startWizard(0)}
-              className="p-5 cursor-pointer hover:border-primary/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80"
+              onKeyDown={keyActivate(() => startWizard(0))}
+              className="p-5 cursor-pointer hover:border-primary/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Sparkles className="w-6 h-6" />
@@ -323,8 +335,12 @@ export default function LifeArchitectView() {
             </Card>
 
             <Card
+              role="button"
+              tabIndex={0}
+              aria-label={T("عارضه‌یابی و تکمیل برنامه", "Audit & Upgrade")}
               onClick={startAudit}
-              className="p-5 cursor-pointer hover:border-amber-500/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80"
+              onKeyDown={keyActivate(startAudit)}
+              className="p-5 cursor-pointer hover:border-amber-500/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <RefreshCw className="w-6 h-6" />
@@ -342,8 +358,12 @@ export default function LifeArchitectView() {
             </Card>
 
             <Card
+              role="button"
+              tabIndex={0}
+              aria-label={T("تنظیم ریتم و ضرب‌آهنگ", "Quick Pace Tuning")}
               onClick={() => startWizard(5)}
-              className="p-5 cursor-pointer hover:border-emerald-500/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80"
+              onKeyDown={keyActivate(() => startWizard(5))}
+              className="p-5 cursor-pointer hover:border-emerald-500/60 hover:shadow-lg transition-all group relative overflow-hidden bg-card/80 border-border/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Gauge className="w-6 h-6" />
@@ -378,8 +398,13 @@ export default function LifeArchitectView() {
               {WIZARD_STAGES.map((stg, idx) => (
                 <div
                   key={stg.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${isEn ? stg.labelEn : stg.labelFa} (${idx + 1} / ${WIZARD_STAGES.length})`}
+                  aria-current={idx === stageIdx ? "step" : undefined}
                   onClick={() => setStageIdx(idx)}
-                  className={`h-2 rounded-full cursor-pointer transition-all duration-300 ${
+                  onKeyDown={keyActivate(() => setStageIdx(idx))}
+                  className={`h-2 rounded-full cursor-pointer transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${
                     idx === stageIdx
                       ? "w-8 bg-primary"
                       : idx < stageIdx
@@ -427,14 +452,20 @@ export default function LifeArchitectView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div role="radiogroup" aria-label={T("نقش اصلی", "Primary role")} className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {WIZARD_QUESTIONS.find((q) => q.id === "role")?.options.map((opt) => {
                   const isSelected = answers.role === opt.value;
+                  const optionLabel = isEn && opt.labelEn ? opt.labelEn : opt.labelFa;
                   return (
                     <Card
                       key={opt.value}
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      aria-label={optionLabel}
                       onClick={() => setAnswers((prev) => ({ ...prev, role: opt.value as any }))}
-                      className={`p-3.5 cursor-pointer rounded-2xl border transition-all text-start flex items-start gap-3 ${
+                      onKeyDown={keyActivate(() => setAnswers((prev) => ({ ...prev, role: opt.value as any })))}
+                      className={`p-3.5 cursor-pointer rounded-2xl border transition-all text-start flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         isSelected
                           ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
                           : "border-border/60 hover:bg-accent/40 bg-card/60"
@@ -621,7 +652,7 @@ export default function LifeArchitectView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div role="group" aria-label={T("حوزه‌های تمرکز", "Focus domains")} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {(Object.entries(LIFE_DOMAINS_INFO) as [LifeDomainKey, typeof LIFE_DOMAINS_INFO[LifeDomainKey]][]).map(
                   ([domKey, info]) => {
                     const isSelected = answers.domains.includes(domKey);
@@ -630,8 +661,13 @@ export default function LifeArchitectView() {
                     return (
                       <Card
                         key={domKey}
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        aria-label={isEn ? info.nameEn : info.nameFa}
                         onClick={() => handleToggleDomain(domKey)}
-                        className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex flex-col justify-between ${
+                        onKeyDown={keyActivate(() => handleToggleDomain(domKey))}
+                        className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                           isSelected
                             ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
                             : "border-border/60 hover:bg-accent/40 bg-card/60"
@@ -694,14 +730,19 @@ export default function LifeArchitectView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div role="group" aria-label={T("ارزش‌های بنیادی", "Core values")} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {CORE_VALUES_LIST.map((val) => {
                   const isSelected = (answers.coreValues || []).includes(val.key);
                   return (
                     <Card
                       key={val.key}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      aria-label={isEn ? val.labelEn : val.labelFa}
                       onClick={() => handleToggleValue(val.key)}
-                      className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex flex-col justify-between ${
+                      onKeyDown={keyActivate(() => handleToggleValue(val.key))}
+                      className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         isSelected
                           ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
                           : "border-border/60 hover:bg-accent/40 bg-card/60"
@@ -759,14 +800,20 @@ export default function LifeArchitectView() {
                 </div>
               </div>
 
-              <div className="space-y-2.5">
+              <div role="radiogroup" aria-label={T("مانع اصلی", "Primary obstacle")} className="space-y-2.5">
                 {WIZARD_QUESTIONS.find((q) => q.id === "obstacle")?.options.map((opt) => {
                   const isSelected = answers.obstacle === opt.value;
+                  const optionLabel = isEn && opt.labelEn ? opt.labelEn : opt.labelFa;
                   return (
                     <Card
                       key={opt.value}
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      aria-label={optionLabel}
                       onClick={() => setAnswers((prev) => ({ ...prev, obstacle: opt.value as any }))}
-                      className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex items-start gap-3.5 ${
+                      onKeyDown={keyActivate(() => setAnswers((prev) => ({ ...prev, obstacle: opt.value as any })))}
+                      className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         isSelected
                           ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
                           : "border-border/60 hover:bg-accent/40 bg-card/60"
@@ -822,14 +869,19 @@ export default function LifeArchitectView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div role="radiogroup" aria-label={T("ظرفیت انرژی", "Energy capacity")} className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {ENERGY_CAPACITY_OPTIONS.map((opt) => {
                   const isSelected = (answers.energyCapacity || "steady") === opt.key;
                   return (
                     <Card
                       key={opt.key}
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      aria-label={isEn ? opt.labelEn : opt.labelFa}
                       onClick={() => setAnswers((prev) => ({ ...prev, energyCapacity: opt.key }))}
-                      className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex flex-col justify-between ${
+                      onKeyDown={keyActivate(() => setAnswers((prev) => ({ ...prev, energyCapacity: opt.key })))}
+                      className={`p-4 cursor-pointer rounded-2xl border transition-all text-start flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         isSelected
                           ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
                           : "border-border/60 hover:bg-accent/40 bg-card/60"
@@ -884,14 +936,20 @@ export default function LifeArchitectView() {
                   <Clock className="w-3.5 h-3.5 text-primary" />
                   {T("ساعت طلایی و اوج تمرکز شبانه‌روزی شما چه زمانی است؟", "When is your peak cognitive window?")}
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                <div role="radiogroup" aria-label={T("ساعت اوج انرژی", "Peak cognitive window")} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
                   {WIZARD_QUESTIONS.find((q) => q.id === "chronotype")?.options.map((opt) => {
                     const isSelected = answers.chronotype === opt.value;
+                    const optionLabel = isEn && opt.labelEn ? opt.labelEn : opt.labelFa;
                     return (
                       <Card
                         key={opt.value}
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        aria-label={optionLabel}
                         onClick={() => setAnswers((prev) => ({ ...prev, chronotype: opt.value as any }))}
-                        className={`p-3 cursor-pointer rounded-2xl border transition-all text-start ${
+                        onKeyDown={keyActivate(() => setAnswers((prev) => ({ ...prev, chronotype: opt.value as any })))}
+                        className={`p-3 cursor-pointer rounded-2xl border transition-all text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                           isSelected
                             ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/20"
                             : "border-border/60 hover:bg-accent/40 bg-card/60"
@@ -1174,20 +1232,27 @@ export default function LifeArchitectView() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                 {blueprint.folders.map((f) => {
                   const isChecked = selectedFolderIds.has(f.id);
+                  const toggleFolder = () => {
+                    const next = new Set(selectedFolderIds);
+                    if (isChecked) next.delete(f.id);
+                    else next.add(f.id);
+                    setSelectedFolderIds(next);
+                  };
                   return (
                     <Card
                       key={f.id}
-                      onClick={() => {
-                        const next = new Set(selectedFolderIds);
-                        if (isChecked) next.delete(f.id);
-                        else next.add(f.id);
-                        setSelectedFolderIds(next);
-                      }}
+                      onClick={toggleFolder}
                       className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-start gap-2.5 ${
                         isChecked ? "bg-card border-primary/50 shadow-xs" : "opacity-50 bg-muted/30"
                       }`}
                     >
-                      <Checkbox checked={isChecked} className="mt-1" />
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={toggleFolder}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={f.name}
+                        className="mt-1"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="font-bold text-sm text-foreground truncate">{f.name}</div>
                         <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{f.description}</p>
@@ -1207,20 +1272,27 @@ export default function LifeArchitectView() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {blueprint.habits.map((h, idx) => {
                   const isChecked = selectedHabitNames.has(h.name);
+                  const toggleHabit = () => {
+                    const next = new Set(selectedHabitNames);
+                    if (isChecked) next.delete(h.name);
+                    else next.add(h.name);
+                    setSelectedHabitNames(next);
+                  };
                   return (
                     <Card
                       key={idx}
-                      onClick={() => {
-                        const next = new Set(selectedHabitNames);
-                        if (isChecked) next.delete(h.name);
-                        else next.add(h.name);
-                        setSelectedHabitNames(next);
-                      }}
+                      onClick={toggleHabit}
                       className={`p-3 rounded-2xl border cursor-pointer transition-all flex items-start gap-2.5 ${
                         isChecked ? "bg-card border-amber-500/50 shadow-xs" : "opacity-50 bg-muted/30"
                       }`}
                     >
-                      <Checkbox checked={isChecked} className="mt-1" />
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={toggleHabit}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={h.name}
+                        className="mt-1"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold text-xs text-foreground">{h.name}</span>
@@ -1250,20 +1322,26 @@ export default function LifeArchitectView() {
               <div className="space-y-1.5">
                 {blueprint.tasks.map((t, idx) => {
                   const isChecked = selectedTaskTitles.has(t.title);
+                  const toggleTask = () => {
+                    const next = new Set(selectedTaskTitles);
+                    if (isChecked) next.delete(t.title);
+                    else next.add(t.title);
+                    setSelectedTaskTitles(next);
+                  };
                   return (
                     <Card
                       key={idx}
-                      onClick={() => {
-                        const next = new Set(selectedTaskTitles);
-                        if (isChecked) next.delete(t.title);
-                        else next.add(t.title);
-                        setSelectedTaskTitles(next);
-                      }}
+                      onClick={toggleTask}
                       className={`p-2.5 px-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
                         isChecked ? "bg-card border-border/70" : "opacity-50 bg-muted/30"
                       }`}
                     >
-                      <Checkbox checked={isChecked} />
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={toggleTask}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={t.title}
+                      />
                       <span className="text-xs font-medium text-foreground flex-1 truncate">{t.title}</span>
                       {t.priority && (
                         <Badge
