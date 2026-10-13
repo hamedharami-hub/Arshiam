@@ -187,6 +187,25 @@
 .text-gradient-neural { color: hsl(var(--primary)); }
 .ring-neural { box-shadow: 0 0 0 1px hsl(var(--border)); }
 
+/* Measured legacy white-on-gradient text was 2.15–2.77:1. Keep these three
+   authored gradients, but deepen only their stops (700 palette) for AA text.
+   Exact class signatures avoid neutralizing unrelated cards or accent themes. */
+.bg-gradient-to-br.from-emerald-500.via-teal-500.to-cyan-500.text-white {
+  --tw-gradient-from: #047857 var(--tw-gradient-from-position);
+  --tw-gradient-to: #0e7490 var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #0f766e var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+.bg-gradient-to-br.from-sky-500.via-blue-500.to-indigo-500.text-white {
+  --tw-gradient-from: #0369a1 var(--tw-gradient-from-position);
+  --tw-gradient-to: #4338ca var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #1d4ed8 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+.bg-gradient-to-br.from-amber-500.via-orange-500.to-red-500.text-white {
+  --tw-gradient-from: #b45309 var(--tw-gradient-from-position);
+  --tw-gradient-to: #b91c1c var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #c2410c var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
 /* =========================================================
    Beautiful Transition Animations
    ========================================================= */

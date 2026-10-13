@@ -575,11 +575,12 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     }
   };
 
-  const save = useCallback(async (patch: Partial<Task>, force = false): Promise<TaskPersistenceStatus> => {
+  const save = useCallback(async (patch: Partial<Task>, force = false, importance?: "replace"): Promise<TaskPersistenceStatus> => {
     if (!canEdit) return "failed";
     if (!force && !Object.keys(patch).length) return "saved";
     const current = latestTaskRef.current;
     const previousSavedTask = savedTaskRef.current;
+    const identity = noteEditorIdentity.current;
     const { before: undoBefore, after: undoAfter, fields: undoFields } = captureTaskUndoSnapshots(patch, previousSavedTask);
     if (patch.parent_id !== undefined && !validateTaskParentLink(allTasks, current.id, patch.parent_id, "parent_id").valid) {
       toast.error(isEn ? "This subtask link would create a cycle and was not saved." : "این پیوند زیرتسک باعث چرخه می‌شود و ذخیره نشد.");
@@ -591,7 +592,8 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
     setSaveState("saving");
 
     const applyTaskSnapshot = async (snapshot: TaskUndoSnapshot, expected: TaskUndoSnapshot) => {
-      if (!user?.id) throw new Error(isEn ? "Sign in to restore this text" : "برای بازگردانی باید وارد حساب شوید");
+      if (!user?.id || noteEditorIdentity.current !== identity) throw new Error(isEn ? "Open the same task in the same account to restore" : "برای بازگردانی همان کار را در همان حساب باز کنید");
+      if (Object.keys(expected).some(field => !sameUndoValue(latestTaskRef.current[field as keyof Task], expected[field as keyof Task]))) throw new Error(isEn ? "Newer edits must be preserved; recovery was blocked" : "برای حفظ ویرایش تازه، بازگردانی انجام نشد");
       const status = toSaveStatus(await persistTask(user.id, { id: current.id, ...snapshot }, { expectedValues: expected }));
       if (status === "failed") throw new Error(isEn ? "Restore could not be saved; try again" : "بازگردانی ذخیره نشد؛ دوباره تلاش کن");
 
@@ -623,6 +625,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           : hasTitle && hasDescription && undoFields.length === 2 ? "عنوان و شرح تسک" : hasTitle && undoFields.length === 1 ? "عنوان تسک" : hasDescription && undoFields.length === 1 ? "شرح تسک" : "تغییرات تسک";
         const mergeState = { latest: undoAfter };
         pushUndo({
+          importance,
           label: isEn ? `Recorded ${fieldLabel} change` : `تغییر ${fieldLabel} ثبت شد`,
           undo: () => applyTaskSnapshot(undoBefore, mergeState.latest),
           redo: () => applyTaskSnapshot(mergeState.latest, undoBefore),
@@ -986,7 +989,9 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           toast.success(T("نوت حذف شد", "Note deleted"));
           pushUndo({
             label: T(`نوت «${existingNote.title || "بدون عنوان"}» حذف شد`, `Note "${existingNote.title || "Untitled"}" deleted`),
+            importance: "delete",
             undo: async () => {
+              if (noteEditorIdentity.current !== identity) throw new Error(T("برای بازگردانی همان کار را در همان حساب باز کنید", "Open the same task in the same account to restore"));
               const restored = await createTaskNote(user.id, t.id, {
                 id: existingNote.id,
                 title: existingNote.title,
@@ -1923,7 +1928,7 @@ export const TaskDetail = forwardRef<TaskDetailHandle, {
           open={aiOpen}
           onOpenChange={setAiOpen}
           onMetaApplied={refreshTask}
-          onApplyPatch={save}
+          onApplyPatch={patch => save(patch, false, "replace")}
         />
       )}
 

@@ -2,6 +2,8 @@
 
 This document describes reproducible checks, not a claim that every design-audit finding is closed.
 
+The subsequently approved header/overlay/Settings/contrast-and-render proposals and restricted Undo policy are tracked in `docs/design-followup-implementation-fa.md`. The earlier full-suite and geometry counts below describe the earlier source checkpoint, not automatic validation of the newer changes.
+
 ## Consolidated verification checkpoint (before main integration)
 
 - Direct TypeScript check (`node node_modules/typescript/bin/tsc -p tsconfig.app.json --noEmit`) completed without diagnostics.

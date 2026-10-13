@@ -6,7 +6,7 @@ import { useBilingual } from "@/hooks/useBilingual";
 const SHORTCUTS: { keys: string; fa: string; en: string }[] = [
   { keys: "⌘ K  /  Ctrl K", fa: "باز کردن جستجو و پیمایش سریع", en: "Open search and quick navigation" },
   { keys: "⌘ N  /  Ctrl N", fa: "ثبت سریع تسک یا نوت", en: "Quick-add a task or note" },
-  { keys: "⌘ Z  /  Ctrl Z", fa: "بازگردانی آخرین عملیات", en: "Undo the last action" },
+  { keys: "⌘ Z  /  Ctrl Z", fa: "واگرد متن در ویرایشگر؛ بیرون آن فقط عملیات مهم", en: "Undo text in editors; elsewhere, high-impact actions only" },
   { keys: "?", fa: "نمایش همین پنل میانبرها", en: "Show this shortcuts panel" },
   { keys: "Enter", fa: "ثبت در فرم‌های ساده", en: "Submit in simple forms" },
   { keys: "Esc", fa: "بستن دیالوگ یا پاپ‌اور باز", en: "Close the open dialog or popover" },

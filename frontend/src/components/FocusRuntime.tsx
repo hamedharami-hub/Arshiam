@@ -6,6 +6,7 @@ import { Pause, Play, Square, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFocusSession } from "@/hooks/useFocusSession";
 import { useBilingual } from "@/hooks/useBilingual";
+import { useOverlaySlot } from "@/hooks/useOverlaySlot";
 import { tickFocus, toggleFocus, finishFocus, flushFocusSessions, refreshFocusFromStorage } from "@/lib/focusSession";
 import { playFocusAudio, stopFocusAudio } from "@/lib/focusAudio";
 import { focusBackgroundDisclosure, requestFocusNotificationPermission, syncFocusNotification } from "@/lib/focusNotifications";
@@ -117,13 +118,14 @@ export default function FocusRuntime() {
 
   const s = focus?.session;
   const shouldShowMini = Boolean(focus && s?.startedAt && location.pathname !== "/app/pomodoro" && !(location.pathname === "/app/today" && todayHasRuntime));
+  const overlayRef = useOverlaySlot("focus", 0, shouldShowMini);
   const clock = s ? `${String(Math.floor(s.remaining / 60)).padStart(2, "0")}:${String(s.remaining % 60).padStart(2, "0")}` : "";
   const backgroundDisclosure = focusBackgroundDisclosure(
     Capacitor.getPlatform() === "android" ? "android" : Capacitor.getPlatform() === "ios" ? "ios" : "web",
   );
   return (
     <>
-      {shouldShowMini && s && focus && <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] inset-x-4 z-40 mx-auto flex max-w-md items-center gap-2 rounded-lg border border-border bg-card p-2 shadow-sm" data-testid="focus-mini-controller">
+      {shouldShowMini && s && focus && <div ref={overlayRef} className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] inset-x-4 z-40 mx-auto flex max-w-md items-center gap-2 rounded-lg border border-border bg-card p-2 shadow-sm" data-testid="focus-mini-controller">
         <Button size="icon" variant="ghost" onClick={() => navigate("/app/pomodoro")} aria-label={T("بازکردن تمرکز", "Open focus")}><Timer className="h-4 w-4" /></Button>
         <button type="button" className="min-w-0 flex-1 text-start" onClick={() => navigate("/app/pomodoro")}>
           <span className="block truncate text-xs">{s.taskTitle || (s.taskId ? T("تمرکز روی کار", "Task focus") : T("تمرکز آزاد", "Free focus"))}</span>

@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
   note: { id: "n", user_id: "u", title: "Note", content: "Original", pinned: false, updated_at: "2026-01-01" },
   retain: vi.fn(), read: vi.fn(), save: vi.fn(), clear: vi.fn(),
   notes: [] as unknown[], preview: vi.fn(),
+  recovery: vi.fn(),
 }));
+vi.mock("@/lib/undoStack", () => ({ pushUndo: mocks.recovery }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: mocks.user }) }));
 vi.mock("react-i18next", async (importOriginal) => ({ ...await importOriginal<typeof import("react-i18next")>(), useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }) }));
 vi.mock("@/hooks/useShareAccess", () => ({ useShareAccess: () => ({ canEdit: true, isOwner: true }) }));
@@ -134,6 +136,23 @@ describe("Notes failed retention exit", () => {
     expect(screen.getByLabelText("Note title")).toHaveValue("Note");
     expect(screen.getByLabelText("Note body")).toHaveValue("Original");
     expect(mocks.save).not.toHaveBeenCalled(); expect(mocks.clear).not.toHaveBeenCalled();
+  });
+  it("limits replacement Undo to the same unedited note and preserves explicit cloud save", async () => {
+    mocks.read.mockResolvedValue({ accountId: "u", noteId: "n", title: "Recovered title", md: "Recovered body", html: "Recovered body", updatedAt: 1 });
+    mocks.retain.mockResolvedValue(true);
+    mount(); await screen.findByTestId("note-draft-recovery");
+    fireEvent.click(screen.getByRole("button", { name: "Use device draft" }));
+    const entry = mocks.recovery.mock.calls[0][0];
+    expect(entry.importance).toBe("replace");
+    await act(async () => { entry.undo(); await Promise.resolve(); });
+    expect(screen.getByLabelText("Note title")).toHaveValue("Note");
+    expect(screen.getByLabelText("Note body")).toHaveValue("Original");
+    expect(screen.getByRole("button", { name: "Save recovered draft" })).toBeInTheDocument();
+    expect(mocks.save).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Note body"), { target: { value: "Newer text" } });
+    expect(() => entry.undo()).toThrow(/newer edits/);
+    expect(screen.getByLabelText("Note body")).toHaveValue("Newer text");
+    await act(async () => { await Promise.resolve(); });
   });
   it("guards title and body when retention fails and ignores stale retention acknowledgements", async () => {
     let acknowledgeOld!: (durable: boolean) => void;

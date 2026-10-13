@@ -9,6 +9,7 @@ import SyncIssuesDialog from "@/components/SyncIssuesDialog";
 import type { QueuedOp } from "@/lib/offlineQueue";
 import { clearQuotaPause, quotaPausedUntil } from "@/lib/firestoreUsage";
 import { toPersianDigits } from "@/lib/jalali";
+import { useOverlaySlot } from "@/hooks/useOverlaySlot";
 
 const DISMISS_KEY = "arshnaz_sync_bar_dismissed";
 
@@ -112,12 +113,14 @@ export default function OfflineIndicator() {
 
   const hasProblem = !online || pending > 0;
   const visible = (hasProblem && dismissed !== signature) || justSynced;
+  const overlayRef = useOverlaySlot("sync", 1, visible);
 
   return (
     <>
       {visible && (
         <div
           data-testid="sync-status-bar"
+          ref={overlayRef}
           dir={isEn ? "ltr" : "rtl"}
           className={`fixed bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] left-1/2 z-50 flex w-max max-w-[min(32rem,calc(100vw-1.5rem))] -translate-x-1/2 items-center gap-1.5 border border-border bg-card py-1 pe-1 ps-3 text-xs shadow-md md:bottom-4 ${quotaExceeded ? "rounded-2xl py-2" : "rounded-full"}`}
         >

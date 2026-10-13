@@ -48,6 +48,7 @@ import { AndroidReminderHealth } from "@/components/AndroidReminderHealth";
 import { ReminderCenter } from "@/components/ReminderCenter";
 import { isAndroid, nativeExperience, type NativeAppInfo } from "@/lib/nativeExperience";
 import { SectionCard, SettingRow } from "./settings/SectionCard";
+import { SaveStatus, type SaveState } from "./settings/SaveStatus";
 import { TimeHorizonSettings } from "./settings/TimeHorizonSettings";
 import { TimeBucketsSettings } from "./settings/TimeBucketsSettings";
 import { TaskListSortSettings } from "./settings/TaskListSortSettings";
@@ -149,6 +150,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
     }
   });
   const [cacheConfirmOpen, setCacheConfirmOpen] = useState(false);
+  const [autoUpdateSaveState, setAutoUpdateSaveState] = useState<SaveState>("idle");
   const [reloadDeferred, setReloadDeferred] = useState(false);
   const pendingReloadAction = useRef<(() => void) | null>(null);
 
@@ -386,10 +388,12 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
   };
 
   const toggleAutoUpdate = (v: boolean) => {
-    setAutoUpdate(v);
+    setAutoUpdateSaveState("saving");
     try {
       localStorage.setItem(AUTO_UPDATE_KEY, String(v));
-    } catch { /* ignore */ }
+      setAutoUpdate(v);
+      setAutoUpdateSaveState("saved");
+    } catch { setAutoUpdateSaveState("error"); }
   };
 
   const formatTime = (ts: number) => {
@@ -477,7 +481,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
             <Zap className="w-4 h-4 text-primary" />
             <div className="text-sm">{isEn ? "Auto-refresh web updates" : "بارگذاری خودکار به‌روزرسانی وب"}</div>
           </div>
-          <Switch checked={autoUpdate} onCheckedChange={toggleAutoUpdate} />
+          <Switch aria-label={isEn ? "Auto-refresh web updates" : "بارگذاری خودکار به‌روزرسانی وب"} checked={autoUpdate} onCheckedChange={toggleAutoUpdate} />
         </div>
       ) : (
         <div className="rounded-xl border border-border/60 bg-card/40 p-3 text-xs leading-6 text-muted-foreground">
@@ -485,6 +489,7 @@ function AppUpdateCard({ isEn }: { isEn: boolean }) {
         </div>
       )}
 
+      {!nativeAndroid && <SaveStatus state={autoUpdateSaveState} isEn={isEn} local />}
       <div className="flex flex-wrap items-center gap-2">
         {updateAvailable && nativeAndroid ? (
           <Button size="sm" disabled className="gap-2">
@@ -545,6 +550,11 @@ export default function SettingsView() {
   const [deleting, setDeleting] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [reminders, setReminders] = useState<UserSettings | null>(null);
+  const [reminderSaveState, setReminderSaveState] = useState<SaveState>("idle");
+  const reminderSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const reminderSaveVersion = useRef(0);
+  const reminderSaveSession = useRef(0);
+  const failedReminderFields = useRef(new Set<keyof UserSettings>());
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const requestedTab = searchParams.get("tab");
@@ -564,6 +574,10 @@ export default function SettingsView() {
     setLang(getAILanguage());
     let cancelled = false;
     setReminders(null);
+    setReminderSaveState("idle");
+    reminderSaveVersion.current += 1;
+    reminderSaveSession.current += 1;
+    failedReminderFields.current.clear();
     if (user) {
       loadSettings(user.id).then(value => { if (!cancelled) setReminders(value); }).catch(() => { if (!cancelled) toast.error(isEn ? "Could not load settings" : "تنظیمات بارگذاری نشد"); });
     }
@@ -587,14 +601,26 @@ export default function SettingsView() {
   }, [settings, activeTab]);
 
   const updateReminder = async (patch: Partial<UserSettings>) => {
-    if (!user || !reminders) return;
-    const next = { ...reminders, ...patch };
-    setReminders(next);
+    if (!user || !reminders) return false;
+    const version = ++reminderSaveVersion.current;
+    const session = reminderSaveSession.current;
+    setReminderSaveState("saving");
+    // Serialize writes so quick changes cannot overwrite each other's cache.
+    const write = reminderSaveQueue.current.then(() => saveSettings(user.id, patch));
+    reminderSaveQueue.current = write.catch(() => {});
     try {
-      await saveSettings(user.id, patch);
+      await write;
+      if (session !== reminderSaveSession.current) return false;
+      setReminders(current => current?.user_id === reminders.user_id ? { ...current, ...patch } : current);
+      for (const key of Object.keys(patch) as (keyof UserSettings)[]) failedReminderFields.current.delete(key);
+      if (version === reminderSaveVersion.current) setReminderSaveState(failedReminderFields.current.size ? "error" : navigator.onLine === false ? "queued" : "saved");
+      return true;
     } catch (e) {
-      setReminders(current => current === next ? reminders : current);
+      if (session !== reminderSaveSession.current) return false;
+      for (const key of Object.keys(patch) as (keyof UserSettings)[]) failedReminderFields.current.add(key);
+      if (version === reminderSaveVersion.current) setReminderSaveState("error");
       toast.error((isEn ? "Save failed: " : "ذخیره نشد: ") + (e instanceof Error ? e.message : String(e)));
+      return false;
     }
   };
 
@@ -607,8 +633,9 @@ export default function SettingsView() {
   const enableNotifs = async () => {
     const ok = await ensureNotificationPermission();
     if (ok) {
-      await updateReminder({ notifications_enabled: true });
-      toast.success(isEn ? "Notifications enabled" : "نوتیفیکیشن فعال شد");
+      if (await updateReminder({ notifications_enabled: true })) {
+        toast.success(isEn ? "Notifications enabled" : "نوتیفیکیشن فعال شد");
+      }
     } else {
       toast.error(isEn ? "Permission not granted" : "اجازه نوتیف داده نشد");
     }
@@ -928,6 +955,7 @@ export default function SettingsView() {
         <p className="text-sm text-muted-foreground mt-1">{t("settings.subtitle")}</p>
       </div>
 
+      {["general", "tasks", "notifications"].includes(activeTab) && reminders && <div className="mb-3"><p className="text-xs font-medium">{isEn ? "Account preferences save status" : "وضعیت ذخیرهٔ ترجیحات حساب"}</p><SaveStatus state={reminderSaveState} isEn={isEn} /></div>}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto p-1 bg-muted/60">
           {[
@@ -958,7 +986,7 @@ export default function SettingsView() {
           <AppearanceSettingsSection
             isEn={isEn}
             reminders={reminders}
-            updateReminder={updateReminder}
+            updateReminder={async patch => { await updateReminder(patch); }}
             currentTheme={currentTheme}
             setAppTheme={setAppTheme}
           />
@@ -1074,7 +1102,7 @@ export default function SettingsView() {
             description={t("settings.dataExportDesc")}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Button onClick={exportAll} disabled={exporting} variant="outline" className="gap-2">
+              <Button onClick={exportAll} disabled={exporting} className="gap-2">
                 <Download className="w-4 h-4" /> {exporting ? t("settings.exporting") : t("settings.exportJson")}
               </Button>
               <Button
@@ -1102,8 +1130,9 @@ export default function SettingsView() {
                 : "بازیابی فقط شامل تسک‌ها و یادداشت‌هاست. پیش از نوشتن هر چیزی، محتوای فایل را بازبینی می‌کنی."}
             </p>
 
-            <Separator />
+          </SectionCard>
 
+          <SectionCard icon={ShieldOff} title={t("settings.deleteAccount")}>
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
               <div className="flex items-center gap-2 text-destructive">
                 <ShieldOff className="w-4 h-4" />

@@ -45,6 +45,8 @@ import { cn } from "@/lib/utils";
 import { shouldShowBottomNavigation, useDeviceFormFactor } from "@/hooks/useDeviceFormFactor";
 import { hydrateSidebarPositionFromCloud, useSidebarPosition } from "@/lib/sidebarPosition";
 import { navigationInteractionBlocked, rememberLastRoute, routeTitle } from "@/lib/appNavigation";
+import { HeaderSecondaryActions } from "@/components/HeaderSecondaryActions";
+import { useTranslation } from "react-i18next";
 
 export default function AppLayout() {
   useEffect(() => installMouseTabScroll(), []);
@@ -52,7 +54,8 @@ export default function AppLayout() {
   const { setTheme } = useTheme();
   const loc = useLocation();
   const [routeAnnouncement, setRouteAnnouncement] = useState("");
-  const isEn = document.documentElement.lang?.startsWith("en");
+  const { i18n } = useTranslation();
+  const isEn = i18n.language?.startsWith("en");
   useTwoFingerSwipe();
   const { user: layoutUser } = useAuth();
   useEffect(() => { purgeRetiredFeatureKeys(); }, []);
@@ -130,7 +133,7 @@ export default function AppLayout() {
   const showMobileBottomBar = shouldShowBottomNavigation(device);
 
   const { sidebarPosition } = useSidebarPosition();
-  const isRtl = typeof document !== "undefined" ? document.documentElement.dir !== "ltr" : true;
+  const isRtl = !isEn;
   const isSidebarLeft = sidebarPosition === "left";
 
   const desktopDefaultOpen =
@@ -168,8 +171,6 @@ export default function AppLayout() {
                 <div id="app-header-title" className="min-w-0 flex items-center" />
               </div>
               <div className="flex items-center gap-1 justify-end shrink-0">
-                <div id="app-header-actions" className="flex items-center gap-2 shrink-0 empty:hidden" />
-                {pageKey && <PageColorButton color={pageBg.color} isDefault={pageBg.isDefault} onChange={pageBg.set} />}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -183,10 +184,14 @@ export default function AppLayout() {
                 >
                   <Search className="w-4 h-4 text-muted-foreground" />
                 </Button>
-                <ThemeToggle />
                 <Button variant="ghost" size="icon" onClick={() => setAiOpen(true)} className="h-11 w-11 shrink-0" title="AI" aria-label="AI" data-testid="header-ai-button">
                   <Sparkles className="w-4 h-4 text-primary" />
                 </Button>
+                <HeaderSecondaryActions isEn={Boolean(isEn)} routeKey={loc.pathname}>
+                  <div id="app-header-actions" className="flex min-w-0 flex-wrap items-center gap-1 empty:hidden md:flex-nowrap" />
+                  {pageKey && <PageColorButton color={pageBg.color} isDefault={pageBg.isDefault} onChange={pageBg.set} />}
+                  <ThemeToggle />
+                </HeaderSecondaryActions>
               </div>
             </header>
           )}
@@ -194,7 +199,7 @@ export default function AppLayout() {
             id="main-scroll"
             tabIndex={-1}
             aria-label={routeTitle(loc.pathname, Boolean(isEn))}
-            style={{ "--app-bottom-space": showMobileBottomBar ? "calc(var(--bottom-bar-height) + var(--bottom-bar-gap) + env(safe-area-inset-bottom, 0px))" : "0.5rem", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
+              style={{ "--app-bottom-space": showMobileBottomBar ? "calc(var(--bottom-bar-height) + var(--bottom-bar-gap) + env(safe-area-inset-bottom, 0px))" : "0.5rem", paddingBottom: "max(var(--app-bottom-space), var(--floating-overlay-space, 0px))", scrollPaddingBottom: "max(var(--app-bottom-space), var(--floating-overlay-space, 0px))", backgroundColor: pageTint(pageBg.color, pageBg.isDefault ? 6 : 10), "--page-surface": pageTint(pageBg.color, pageBg.isDefault ? 6 : 10) || "hsl(var(--background))" } as CSSProperties}
             className={cn(
               "app-shell-main flex-1 overflow-auto",
               showMobileBottomBar ? "pb-safe-bottom" : "pb-2"

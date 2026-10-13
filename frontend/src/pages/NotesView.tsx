@@ -649,16 +649,16 @@ export default function NotesView() {
       }
       if (note) {
         const restore = async () => {
+          if (accountRef.current !== user.id) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to restore"));
           const restored = await upsertNote(user.id, note);
           if (!restored) {
-            toast.error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
-            return;
+            throw new Error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
           }
           setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
           const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
           await cacheSet(NOTES_CACHE_KEY, [note, ...cached.filter((n) => n.id !== note.id)]);
         };
-        pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
+        pushUndo({ importance: "delete", label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
         pushDeleted({ kind: "note", label: note.title || T("بدون عنوان", "Untitled"), restore });
       }
       return;
@@ -680,16 +680,16 @@ export default function NotesView() {
     }
     if (note) {
       const restore = async () => {
+        if (accountRef.current !== user.id) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to restore"));
         const restored = await upsertNote(user.id, note);
         if (!restored) {
-          toast.error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
-          return;
+          throw new Error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
         }
         setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
         const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
         await cacheSet(NOTES_CACHE_KEY, [note, ...cached.filter((n) => n.id !== note.id)]);
       };
-      pushUndo({ label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
+      pushUndo({ importance: "delete", label: T(`نوت «${note.title || T("بدون عنوان", "Untitled")}» حذف شد`, `Note "${note.title || T("بدون عنوان", "Untitled")}" deleted`), undo: restore });
       pushDeleted({ kind: "note", label: note.title || T("بدون عنوان", "Untitled"), restore });
     }
   };
@@ -778,6 +778,7 @@ export default function NotesView() {
   const useDeviceDraft = () => {
     const record = recoveryChoice;
     if (!record || !selected || record.accountId !== user?.id || record.noteId !== selected.id) return;
+    const previous = { ...selected, content: draft?.md ?? selected.content ?? "" };
     const revision = bumpContentRevision();
     noteRevisionsRef.current.set(record.noteId, revision);
     pendingDraftsRef.current.set(record.noteId, { ...record, revision });
@@ -791,7 +792,35 @@ export default function NotesView() {
     setRecoveredPendingSave(true);
     setNoteSaveState("device");
     setRecoveryChoice(null);
+    addReplacementRecovery(previous, record.accountId, revision);
     // Keep the cloud copy untouched until the explicit Save recovered draft action.
+  };
+
+  const addReplacementRecovery = (previous: Note, ownerId: string, expectedRevision: number) => {
+    pushUndo({
+      importance: "replace",
+      label: T("محتوای نوت جایگزین شد", "Note content replaced"),
+      undo: () => {
+        if (accountRef.current !== ownerId || selectedIdRef.current !== previous.id || contentRevisionRef.current !== expectedRevision) {
+          throw new Error(T("برای حفظ تغییر تازه، بازگردانی انجام نشد؛ فقط روی همان نوت و پیش از ویرایش بعدی ممکن است.", "Recovery was blocked to preserve newer edits. Use it on the same note before editing again."));
+        }
+        const md = previous.content ?? "";
+        const html = markdownToHtml(md);
+        const revision = bumpContentRevision();
+        noteRevisionsRef.current.set(previous.id, revision);
+        const next = notesRef.current.map(note => note.id === previous.id ? { ...note, title: previous.title, content: md } : note);
+        notesRef.current = next;
+        setNotes(next);
+        setSelected(current => current?.id === previous.id ? { ...current, title: previous.title, content: md } : current);
+        setDraft({ md, html });
+        setEditorRevision(value => value + 1);
+        unsyncedEditsRef.current = true;
+        // Like draft recovery, require explicit saving rather than overwriting cloud data silently.
+        recoveredNoteRef.current = previous.id;
+        setRecoveredPendingSave(true);
+        stageLocalDraft(previous.id, ownerId, md, html, previous.title);
+      },
+    });
   };
 
   const copyDraft = async () => {
@@ -854,6 +883,7 @@ export default function NotesView() {
     }
     setAiProposal(null);
     const { noteId, ownerId, md, html } = proposal;
+    const previous = { ...selected, content: draft?.md ?? selected.content ?? "" };
     setDraft({ md, html });
     setEditorRevision((current) => current + 1);
     const nextNotes = notesRef.current.map((note) => note.id === noteId ? { ...note, content: md } : note);
@@ -866,6 +896,7 @@ export default function NotesView() {
     unsyncedEditsRef.current = true;
     stageLocalDraft(noteId, ownerId, md, html);
     scheduleCloudContent(noteId, ownerId, md, target, revision);
+    addReplacementRecovery(previous, ownerId, revision);
     toast.success(T("اعمال شد ✨", "Applied ✨"));
   };
 

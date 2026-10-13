@@ -51,4 +51,19 @@ describe("theme token contracts (not rendered contrast verification)", () => {
     expect(css).not.toContain('.text-transparent.bg-clip-text');
     expect(declarations('[data-sidebar="sidebar"][data-mobile="true"]')["background-color"]).toBe("hsl(var(--sidebar-background))");
   });
+
+  it("deepens only the three measured white-on-legacy-gradient signatures", () => {
+    const signatures = [
+      '.bg-gradient-to-br.from-emerald-500.via-teal-500.to-cyan-500.text-white',
+      '.bg-gradient-to-br.from-sky-500.via-blue-500.to-indigo-500.text-white',
+      '.bg-gradient-to-br.from-amber-500.via-orange-500.to-red-500.text-white',
+    ];
+    for (const selector of signatures) {
+      const values = declarations(selector);
+      expect(values['--tw-gradient-from']).toMatch(/^#[0-9a-f]{6} var\(--tw-gradient-from-position\)$/);
+      expect(values['--tw-gradient-stops']).toContain('var(--tw-gradient-via-position)');
+      expect(values['background-image']).toBeUndefined();
+      expect(values.color).toBeUndefined();
+    }
+  });
 });

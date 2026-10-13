@@ -3,6 +3,7 @@ import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "react-i18next";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
+import { useOverlaySlot } from "@/hooks/useOverlaySlot";
 
 type BIPEvent = Event & {
   prompt: () => Promise<void>;
@@ -49,6 +50,7 @@ export default function InstallPrompt() {
   const [installed, setInstalled] = useState(false);
   const [installError, setInstallError] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const overlayRef = useOverlaySlot("install", 2, visible && !installed);
 
   useEffect(() => {
     const isStandalone =
@@ -99,7 +101,7 @@ export default function InstallPrompt() {
   };
 
   return (
-    <div role="region" aria-label={isEn ? "App installation" : "نصب برنامه"} className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 left-4 sm:left-auto sm:max-w-sm z-50 max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain rounded-xl border bg-card p-4 shadow-xl">
+    <div ref={overlayRef} role="region" aria-label={isEn ? "App installation" : "نصب برنامه"} className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 left-4 sm:left-auto sm:max-w-sm z-50 max-h-[min(35dvh,16rem)] overflow-y-auto overscroll-contain rounded-xl border bg-card p-4 shadow-xl">
       <div className="flex items-start gap-3">
         <div className="rounded-lg bg-primary/10 p-2">
           <Download className="h-5 w-5 text-primary" />

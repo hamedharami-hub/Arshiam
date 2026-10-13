@@ -1,4 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { pushUndo } from "@/lib/undoStack";
 import {
   Sparkles, Trash2, Languages, Shield, Wand2, Star, RefreshCw, Eye, Cpu, Settings2,
 } from "lucide-react";
@@ -14,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { SectionCard } from "./SectionCard";
+import { SaveStatus, type SaveState } from "./SaveStatus";
 import { AIProviderKeysCard } from "./AIProviderKeysCard";
 import { OfflineIntelligenceSettings } from "@/components/OfflineIntelligenceSettings";
 import { getAILanguage, setAILanguage, type AILanguage } from "@/lib/ai";
@@ -329,6 +333,17 @@ export interface AISettingsTabProps {
   isEn: boolean;
 }
 
+type StrategySnapshot = Pick<AIPerOpSettings, "opStrategies" | "useRecommended">;
+function snapshotStrategies(settings: StrategySnapshot): StrategySnapshot {
+  return { opStrategies: settings.opStrategies ? { ...settings.opStrategies } : undefined, useRecommended: settings.useRecommended };
+}
+function sameStrategies(left: StrategySnapshot, right: StrategySnapshot): boolean {
+  if (left.useRecommended !== right.useRecommended) return false;
+  if (!left.opStrategies || !right.opStrategies) return left.opStrategies === right.opStrategies;
+  const keys = Object.keys(left.opStrategies) as AIOperation[];
+  return keys.length === Object.keys(right.opStrategies).length && keys.every(key => left.opStrategies![key] === right.opStrategies![key]);
+}
+
 export function AISettingsTab({
   settings,
   setSettings,
@@ -337,6 +352,24 @@ export function AISettingsTab({
   isEn,
 }: AISettingsTabProps) {
   const { t } = useTranslation();
+  const currentSettings = useRef(settings);
+  currentSettings.current = settings;
+  const undoSession = useRef({ mounted: true, owner: auth.currentUser?.uid ?? null, generation: 0 });
+  useEffect(() => {
+    undoSession.current.mounted = true;
+    const unsubscribe = onAuthStateChanged(auth, user => {
+      const owner = user?.uid ?? null;
+      if (owner !== undoSession.current.owner) {
+        undoSession.current.owner = owner;
+        undoSession.current.generation += 1;
+      }
+    });
+    return () => {
+      undoSession.current.mounted = false;
+      undoSession.current.generation += 1;
+      unsubscribe();
+    };
+  }, []);
 
   const grouped = useMemo(() => {
     const GROUP_ORDER = ["General", "Tasks", "Notes", "Folder", "Mental health"];
@@ -351,49 +384,100 @@ export function AISettingsTab({
   }, [isEn]);
 
   const [confirmation, setConfirmation] = useState<{ title: string; description: string; apply: () => void } | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [keysRevision, setKeysRevision] = useState(0);
+  const persist = (next: AIPerOpSettings, success?: string) => {
+    setSaveState("saving");
+    try {
+      saveAISettings(next);
+      const saved = loadAISettings();
+      currentSettings.current = saved;
+      setSettings(saved);
+      setSaveState("saved");
+      if (success) toast.success(success);
+      return true;
+    } catch {
+      setSaveState("error");
+      return false;
+    }
+  };
+  const registerStrategyUndo = (before: StrategySnapshot, expected: StrategySnapshot, label: string) => {
+    const owner = auth.currentUser?.uid ?? null;
+    const generation = undoSession.current.generation;
+    pushUndo({
+      importance: "bulk",
+      label,
+      undo: () => {
+        if (!undoSession.current.mounted || generation !== undoSession.current.generation || owner !== undoSession.current.owner || owner !== (auth.currentUser?.uid ?? null)) {
+          throw new Error(isEn ? "This bulk change can only be undone in the same Settings session and account." : "این تغییر کلی فقط در همان نشست تنظیمات و حساب قابل بازگردانی است.");
+        }
+        try {
+          // loadAISettings falls back on read errors; explicitly reject unreadable storage.
+          localStorage.getItem("ai_settings_v2");
+          const current = loadAISettings();
+          if (!sameStrategies(current, expected) || !sameStrategies(currentSettings.current, expected)) {
+            throw new Error(isEn ? "AI strategies changed since this bulk action. Undo was not applied." : "راهبردهای هوش مصنوعی پس از این تغییر عوض شده‌اند؛ بازگردانی اعمال نشد.");
+          }
+          setSaveState("saving");
+          // Never restore an old provider, key, personalization, or model visibility.
+          const restored = { ...current, ...snapshotStrategies(before) };
+          saveAISettings(restored);
+          const saved = loadAISettings();
+          currentSettings.current = saved;
+          setSettings(saved);
+          setSaveState("saved");
+        } catch (error) {
+          setSaveState("error");
+          // The global stack retains failed entries for retry and reports the failure.
+          throw error;
+        }
+      },
+    });
+  };
   const confirmChange = (title: string, description: string, apply: () => void) =>
     setConfirmation({ title, description, apply });
 
   const onLangChange = (v: AILanguage) => {
-    setLang(v);
-    setAILanguage(v);
-    toast.success(t("toasts.aiLangSaved"));
+    setSaveState("saving");
+    try {
+      setAILanguage(v);
+      // The shared setter catches storage errors, so verify the actual value.
+      if (localStorage.getItem("ai_language_v1") !== v) throw new Error("language-not-saved");
+      setLang(v);
+      setSaveState("saved");
+    } catch { setSaveState("error"); }
   };
 
   const reset = () => {
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "recommended";
     const fresh: AIPerOpSettings = { default: defaultConfig(), perOp: {}, useRecommended: true, opStrategies: strategies, providerHiddenModels: {} };
-    setSettings(fresh);
-    saveAISettings(fresh);
-    toast.success(t("settings.resetDone"));
+    persist(fresh, t("settings.resetDone"));
   };
 
   const applyRecommendedToAll = () => {
+    const before = snapshotStrategies(settings);
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "recommended";
     const next = { ...settings, opStrategies: strategies, useRecommended: true };
-    setSettings(next);
-    saveAISettings(next);
-    toast.success(isEn ? "Recommended models applied to all sections." : "مدل پیشنهادی روی همه بخش‌ها اعمال شد.");
+    const label = isEn ? "Recommended models applied to all sections." : "مدل پیشنهادی روی همه بخش‌ها اعمال شد.";
+    if (persist(next)) registerStrategyUndo(before, snapshotStrategies(next), label);
   };
 
   const applyDefaultToAll = () => {
+    const before = snapshotStrategies(settings);
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "global";
     const next = { ...settings, opStrategies: strategies, useRecommended: false };
-    setSettings(next);
-    saveAISettings(next);
-    toast.success(isEn ? "Default model applied to every AI feature." : "مدل پیش‌فرض برای همهٔ بخش‌های هوش مصنوعی فعال شد.");
+    const label = isEn ? "Default model applied to every AI feature." : "مدل پیش‌فرض برای همهٔ بخش‌های هوش مصنوعی فعال شد.";
+    if (persist(next)) registerStrategyUndo(before, snapshotStrategies(next), label);
   };
 
   const clearAllOverrides = () => {
     const strategies: Partial<Record<AIOperation, OpStrategy>> = {};
     for (const op of OPERATIONS) strategies[op.key] = "recommended";
     const next = { ...settings, perOp: {}, opStrategies: strategies, useRecommended: true };
-    setSettings(next);
-    saveAISettings(next);
-    toast.success(isEn ? "All overrides cleared." : "همه overrideها پاک شد.");
+    persist(next, isEn ? "All overrides cleared." : "همه overrideها پاک شد.");
   };
 
   const setOpStrategy = (op: AIOperation, strategy: OpStrategy) => {
@@ -403,8 +487,7 @@ export function AISettingsTab({
     if (strategy === "custom" && !next.perOp[op]) {
       next.perOp = { ...next.perOp, [op]: resolveOpConfig(next, op) };
     }
-    setSettings(next);
-    saveAISettings(next);
+    persist(next);
   };
 
   const updateOpCustom = (op: AIOperation, cfg: ProviderConfig) => {
@@ -413,14 +496,12 @@ export function AISettingsTab({
       opStrategies: { ...settings.opStrategies, [op]: "custom" as OpStrategy },
       perOp: { ...settings.perOp, [op]: cfg },
     };
-    setSettings(next);
-    saveAISettings(next);
+    persist(next);
   };
 
   const updateProviderHidden = (provider: Provider, hidden: string[]) => {
     const next = { ...settings, providerHiddenModels: { ...settings.providerHiddenModels, [provider]: hidden } };
-    setSettings(next);
-    saveAISettings(next);
+    persist(next);
   };
 
   const aiResponseOptions = [
@@ -431,9 +512,8 @@ export function AISettingsTab({
 
   return (
     <div className="space-y-5">
-      <p className="text-xs text-muted-foreground" role="status">
-        {isEn ? "Changes are saved automatically on this device. Bulk changes and removal require confirmation." : "تغییرات به‌صورت خودکار روی این دستگاه ذخیره می‌شوند. تغییرات کلی و حذف نیاز به تأیید دارند."}
-      </p>
+      <SaveStatus state={saveState} isEn={isEn} local />
+      <p className="text-xs text-muted-foreground">{isEn ? "AI language and configuration are device-only. Bulk changes and removal require confirmation." : "زبان و پیکربندی هوش مصنوعی فقط روی همین دستگاه هستند. تغییرات کلی و حذف نیاز به تأیید دارند."}</p>
       <Dialog open={Boolean(confirmation)} onOpenChange={(open) => { if (!open) setConfirmation(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -496,13 +576,33 @@ export function AISettingsTab({
                   isEn ? "Remove all AI keys?" : "حذف همه کلیدهای هوش مصنوعی؟",
                   isEn ? "All locally stored AI keys will be removed. AI features may stop working until you enter keys again. This cannot be undone." : "همه کلیدهای محلی حذف می‌شوند. قابلیت‌های هوش مصنوعی ممکن است تا ورود دوباره کلیدها کار نکنند. این حذف قابل بازگردانی نیست.",
                   () => {
-                  clearAllStoredAIKeys();
-                  setSettings(loadAISettings());
-                  toast.success(
+                  setSaveState("saving");
+                  try {
+                    // Fail closed if storage cannot be read, rather than clearing defaults.
+                    localStorage.getItem("ai_settings_v2");
+                    clearAllStoredAIKeys();
+                    // Shared removal is best-effort: repeat checked writes here.
+                    localStorage.removeItem("gemini_api_key");
+                    localStorage.removeItem("ai_provider_keys_v1");
+                    const legacyRaw = localStorage.getItem("ai_settings_v1");
+                    if (legacyRaw) {
+                      const legacy = JSON.parse(legacyRaw);
+                      localStorage.setItem("ai_settings_v1", JSON.stringify({ ...legacy, apiKey: "" }));
+                    }
+                    const current = loadAISettings();
+                    localStorage.getItem("ai_settings_v2");
+                    const cleared = { ...current, default: { ...current.default, apiKey: "" }, perOp: Object.fromEntries(Object.entries(current.perOp).map(([op, cfg]) => [op, { ...cfg, apiKey: "" }])) };
+                    if (!persist(cleared)) return;
+                    toast.success(
                     isEn
                       ? "All locally stored AI keys have been completely removed from this device."
                       : "تمام کلیدهای ذخیره‌شده هوش مصنوعی با موفقیت از این دستگاه حذف شدند."
-                  );
+                    );
+                  } catch { setSaveState("error"); }
+                  finally {
+                    setSettings(loadAISettings());
+                    setKeysRevision(value => value + 1);
+                  }
                 })}
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -528,9 +628,7 @@ export function AISettingsTab({
                 checked={settings.personalizationOptIn === true}
                 onCheckedChange={(checked) => {
                   const next = { ...settings, personalizationOptIn: checked };
-                  setSettings(next);
-                  saveAISettings(next);
-                  toast.success(
+                  persist(next,
                     isEn
                       ? (checked ? "Personalization enabled" : "Personalization disabled")
                       : (checked ? "شخصی‌سازی فعال شد" : "شخصی‌سازی غیرفعال شد")
@@ -564,12 +662,12 @@ export function AISettingsTab({
         description={t("settings.aiGlobalDefaultDesc")}
       >
         <p className="mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed text-muted-foreground">
-          {isEn ? "Provider and model changes save automatically. Applying them everywhere requires confirmation and keeps your custom configurations for later reuse." : "تغییرات سرویس و مدل خودکار ذخیره می‌شوند. اعمال روی همه بخش‌ها نیاز به تأیید دارد و تنظیمات اختصاصی برای استفاده دوباره حفظ می‌شوند."}
+           {isEn ? "Provider and model changes are saved on this device; check the save status above. Applying them everywhere requires confirmation and keeps your custom configurations for later reuse." : "تغییرات سرویس و مدل روی این دستگاه ذخیره می‌شوند؛ وضعیت ذخیره را در بالا بررسی کن. اعمال روی همه بخش‌ها نیاز به تأیید دارد و تنظیمات اختصاصی حفظ می‌شوند."}
         </p>
         <ProviderEditor
           isEn={isEn}
           value={settings.default}
-          onChange={(c) => { const next = { ...settings, default: c }; setSettings(next); saveAISettings(next); }}
+          onChange={(c) => persist({ ...settings, default: c })}
           hiddenModels={settings.providerHiddenModels}
           onUpdateHidden={updateProviderHidden}
         />
@@ -580,7 +678,7 @@ export function AISettingsTab({
         </div>
       </SectionCard>
 
-      <AIProviderKeysCard isEn={isEn} />
+      <AIProviderKeysCard key={keysRevision} isEn={isEn} />
       <ProviderModelManager settings={settings} isEn={isEn} onUpdateHidden={updateProviderHidden} />
 
       <SectionCard
@@ -589,7 +687,7 @@ export function AISettingsTab({
         description={t("settings.aiPerSectionDesc")}
       >
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => confirmChange(isEn ? "Use recommended models everywhere?" : "استفاده از مدل‌های پیشنهادی در همه بخش‌ها؟", isEn ? "Every AI feature will use its recommended model. Custom configurations and their keys will be kept but inactive." : "همه قابلیت‌ها از مدل پیشنهادی استفاده می‌کنند. تنظیمات اختصاصی و کلیدهای آن‌ها حفظ اما غیرفعال می‌شوند.", applyRecommendedToAll)}>
+          <Button size="sm" onClick={() => confirmChange(isEn ? "Use recommended models everywhere?" : "استفاده از مدل‌های پیشنهادی در همه بخش‌ها؟", isEn ? "Every AI feature will use its recommended model. Custom configurations and their keys will be kept but inactive." : "همه قابلیت‌ها از مدل پیشنهادی استفاده می‌کنند. تنظیمات اختصاصی و کلیدهای آن‌ها حفظ اما غیرفعال می‌شوند.", applyRecommendedToAll)}>
             <Star className="w-3.5 h-3.5 me-1" /> {t("settings.applyRecommendedToAll")}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => confirmChange(isEn ? "Clear all custom configurations?" : "حذف همه تنظیمات اختصاصی؟", isEn ? "All per-feature custom configurations, including keys stored in them, will be deleted and recommended models enabled. This cannot be undone." : "همه تنظیمات اختصاصی هر قابلیت و کلیدهای داخل آن حذف و مدل‌های پیشنهادی فعال می‌شوند. این حذف قابل بازگردانی نیست.", clearAllOverrides)}>
@@ -609,7 +707,7 @@ export function AISettingsTab({
                   const short = (m: string) => m.split("/").pop() || m;
                   return (
                     <div key={op.key} id={`ai-op-${op.key}`} className="border border-border/60 rounded-xl p-4 space-y-3 bg-card/40 transition-shadow hover:shadow-sm">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-medium">{isEn ? op.labelEn : op.labelFa}</span>
@@ -632,7 +730,7 @@ export function AISettingsTab({
                             {strategy === "custom" && <span className="ms-1 text-amber-600 dark:text-amber-400">· {t("ai.strategyCustom")}</span>}
                           </div>
                         </div>
-                        <div className="w-40 shrink-0">
+                        <div className="w-full sm:w-40 shrink-0">
                           <Select value={strategy} onValueChange={(v) => setOpStrategy(op.key, v as OpStrategy)}>
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>

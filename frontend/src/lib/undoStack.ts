@@ -1,11 +1,13 @@
 // Lightweight global undo/redo stack for destructive actions.
 // Items are kept only in memory; capacity = 20. Related saves can opt into a
-// short merge window so autosaving text edits keeps one undo point.
+// short merge window for repeated high-impact actions, never routine autosaves.
 // Each entry has: a label, an `undo` and optional `redo`.
 
 import { toast } from "sonner";
 
 export type UndoEntry = {
+  /** Only high-impact operations belong in application recovery history. */
+  importance?: "delete" | "bulk" | "replace";
   label: string;
   undo: () => Promise<void> | void;
   redo?: () => Promise<void> | void;
@@ -19,6 +21,7 @@ type StoredUndoEntry = UndoEntry & { mergeKey?: string; updatedAt?: number };
 const CAP = 20;
 const undoStack: StoredUndoEntry[] = [];
 const redoStack: StoredUndoEntry[] = [];
+let running = false;
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -30,10 +33,12 @@ export function subscribeUndo(l: Listener) {
 }
 
 export function pushUndo(entry: UndoEntry, opts: { showToast?: boolean; mergeKey?: string; mergeWindowMs?: number } = {}) {
+  if (!entry.importance) return;
   const now = Date.now();
   const previous = undoStack[undoStack.length - 1];
   const shouldMerge = Boolean(
     opts.mergeKey &&
+    previous?.importance === entry.importance &&
     previous?.mergeKey === opts.mergeKey &&
     previous.updatedAt != null &&
     now - previous.updatedAt <= (opts.mergeWindowMs ?? 8000),
@@ -61,21 +66,28 @@ export function pushUndo(entry: UndoEntry, opts: { showToast?: boolean; mergeKey
       duration: 8000,
       action: {
         label: "↶ بازگردانی",
-        onClick: () => undoLast(),
+        onClick: () => undoEntry(entry.undo),
       },
     });
   }
 }
 
 export async function undoLast() {
-  const entry = undoStack.pop();
+  await undoEntry(undoStack[undoStack.length - 1]?.undo);
+}
+
+async function undoEntry(undo?: UndoEntry["undo"]) {
+  if (running) return;
+  const index = undoStack.findIndex(entry => entry.undo === undo);
+  const entry = index >= 0 ? undoStack.splice(index, 1)[0] : undefined;
   if (!entry) {
     toast.info("چیزی برای بازگردانی نیست");
     return;
   }
+  running = true;
   try {
     await entry.undo();
-    if (entry.redo) {
+      if (entry.redo) {
       redoStack.push(entry);
       if (redoStack.length > CAP) redoStack.shift();
     }
@@ -84,24 +96,33 @@ export async function undoLast() {
   } catch (e: any) {
     toast.error(e?.message || "خطا در بازگردانی");
     // put back so user can retry
-    undoStack.push(entry);
+    undoStack.splice(Math.min(index, undoStack.length), 0, entry);
+    if (undoStack.length > CAP) undoStack.shift();
+    notify();
+  } finally {
+    running = false;
   }
 }
 
 export async function redoLast() {
+  if (running) return;
   const entry = redoStack.pop();
   if (!entry || !entry.redo) {
     toast.info("چیزی برای انجام مجدد نیست");
     return;
   }
+  running = true;
   try {
     await entry.redo();
     undoStack.push(entry);
+    if (undoStack.length > CAP) undoStack.shift();
     toast.success(`انجام مجدد: ${entry.label}`);
     notify();
   } catch (e: any) {
     toast.error(e?.message || "خطا در انجام مجدد");
     redoStack.push(entry);
+  } finally {
+    running = false;
   }
 }
 
@@ -122,7 +143,8 @@ export function installUndoShortcuts() {
     const meta = e.metaKey || e.ctrlKey;
     if (!meta) return;
     if (e.key !== "z" && e.key !== "Z") return;
-    if (isEditable(e.target)) return; // let editors handle their own undo
+    if (e.isComposing || isEditable(e.target)) return; // let editors handle their own undo
+    if (e.shiftKey ? !canRedo() : !canUndo()) return;
     e.preventDefault();
     if (e.shiftKey) redoLast();
     else undoLast();

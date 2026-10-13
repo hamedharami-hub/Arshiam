@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { undoLast, redoLast } from "@/lib/undoStack";
+import { canUndo, canRedo, undoLast, redoLast } from "@/lib/undoStack";
 import { haptic } from "@/lib/haptics";
 
 /**
@@ -18,6 +18,8 @@ export function useTwoFingerSwipe() {
     let tracking = false;
 
     const onStart = (e: TouchEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"], [role="alertdialog"]')) { tracking = false; return; }
       if (!e.touches || e.touches.length !== 2 || !e.touches[0] || !e.touches[1]) {
         tracking = false;
         return;
@@ -45,16 +47,20 @@ export function useTwoFingerSwipe() {
       const avgDx = (dx0 + dx1) / 2;
       const maxDy = Math.max(dy0, dy1);
       if (Math.abs(avgDx) < MIN_DX || maxDy > MAX_DY) return;
+      if (avgDx < 0 ? !canUndo() : !canRedo()) return;
       haptic("light");
       if (avgDx < 0) undoLast();
       else redoLast();
     };
+    const cancel = () => { tracking = false; };
 
     window.addEventListener("touchstart", onStart, { passive: true });
     window.addEventListener("touchend", onEnd, { passive: true });
+    window.addEventListener("touchcancel", cancel, { passive: true });
     return () => {
       window.removeEventListener("touchstart", onStart);
       window.removeEventListener("touchend", onEnd);
+      window.removeEventListener("touchcancel", cancel);
     };
   }, []);
 }

@@ -962,7 +962,10 @@ export default function TasksView({ scope }: { scope: "inbox" | "today" | "tomor
       load();
       return true;
     };
-    pushUndo({ label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: async () => { await restore(); } });
+    pushUndo({ importance: "delete", label: T(`تسک «${title}» حذف شد`, `Task "${title}" deleted`), undo: async () => {
+      if (activeUserId.current !== ownerId) throw new Error(T("برای بازگردانی وارد همان حساب شوید", "Sign in to the same account to restore"));
+      if (!await restore()) throw new Error(T("بازگردانی کامل نشد؛ دوباره تلاش کنید", "Recovery was incomplete; try again"));
+    } });
     if (recovery) {
       if (!pushDeletedTask(ownerId, title, recovery)) toast.warning(T("بازگردانی فقط تا ۱۰ دقیقه در همین نشست ممکن است؛ با بارگذاری مجدد از دست می‌رود.", "Recovery is available for 10 minutes in this session only; reloading loses it."));
     } else pushDeleted({ kind: "task", label: title, ownerId, restore });

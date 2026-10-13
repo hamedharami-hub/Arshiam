@@ -20,22 +20,36 @@ function ProviderKeyRow({ provider, isEn, model }: { provider: KeyedProvider; is
   const label = PROVIDER_INFO[provider].label;
 
   const save = () => {
-    saveProviderKey(provider, draft);
-    setSaved(getProviderKey(provider as Provider));
-    setDraft("");
-    setOutcome({ kind: "ok", text: isEn ? "Key saved on this device." : "کلید روی این دستگاه ذخیره شد." });
+    try {
+      saveProviderKey(provider, draft);
+      if (getProviderKey(provider as Provider) !== draft.trim()) throw new Error("key-not-saved");
+      setSaved(draft.trim());
+      setDraft("");
+      setOutcome({ kind: "ok", text: isEn ? "Key saved on this device." : "کلید روی این دستگاه ذخیره شد." });
+    } catch {
+      setOutcome({ kind: "error", text: isEn ? "Key could not be saved. Your draft is kept; try again." : "کلید ذخیره نشد. پیش‌نویس حفظ شده؛ دوباره تلاش کن." });
+    }
   };
   const remove = () => {
-    deleteProviderKey(provider);
-    setSaved("");
-    setOutcome({ kind: "ok", text: isEn ? "Key deleted." : "کلید حذف شد." });
+    try {
+      deleteProviderKey(provider);
+      if (getProviderKey(provider as Provider)) throw new Error("key-not-deleted");
+      setSaved("");
+      setOutcome({ kind: "ok", text: isEn ? "Key deleted." : "کلید حذف شد." });
+    } catch {
+      setOutcome({ kind: "error", text: isEn ? "Key deletion failed. The key may still be stored on this device." : "حذف کلید ناموفق بود. ممکن است کلید هنوز روی این دستگاه ذخیره باشد." });
+    }
   };
   const test = async () => {
     const key = draft.trim() || saved;
     if (!key) { setOutcome({ kind: "error", text: aiErrorMessage("invalid_key", lang, { provider: label }) }); return; }
     setBusy(true); setOutcome(null);
-    const result: KeyTestResult = await testProviderKey(provider, key, model);
-    setBusy(false);
+    let result: KeyTestResult;
+    try { result = await testProviderKey(provider, key, model); }
+    catch {
+      setOutcome({ kind: "error", text: aiErrorMessage("network", lang, { provider: label }) });
+      return;
+    } finally { setBusy(false); }
     if (!result.ok) { setOutcome({ kind: "error", text: aiErrorMessage(result.kind ?? "unknown", lang, { provider: label }) }); return; }
     if (result.modelAvailable === false) {
       setOutcome({ kind: "error", text: (isEn ? "Key is valid. " : "کلید معتبر است. ") + aiErrorMessage("model_unavailable", lang, { provider: label, model, fallback: result.fallback }) });
@@ -53,7 +67,7 @@ function ProviderKeyRow({ provider, isEn, model }: { provider: KeyedProvider; is
         </span>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Input type="password" autoComplete="off" dir="ltr" value={draft} onChange={e => setDraft(e.target.value)} placeholder={saved ? (isEn ? "Replace key…" : "جایگزینی کلید…") : "API key"} aria-label={`${label} API key`} className="min-w-0 flex-1 basis-48" data-testid={`ai-key-input-${provider}`} />
+        <Input type="password" autoComplete="off" dir="ltr" value={draft} onChange={e => { setDraft(e.target.value); setOutcome(null); }} placeholder={saved ? (isEn ? "Replace key…" : "جایگزینی کلید…") : "API key"} aria-label={`${label} API key`} className="min-w-0 flex-1 basis-48" data-testid={`ai-key-input-${provider}`} />
         <Button type="button" size="sm" onClick={save} disabled={!draft.trim()} data-testid={`ai-key-save-${provider}`}>{isEn ? "Save" : "ذخیره"}</Button>
         <Button type="button" size="sm" variant="outline" onClick={test} disabled={busy} data-testid={`ai-key-test-${provider}`}>
           {busy && <Loader2 className="me-1 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}{isEn ? "Test key" : "تست کلید"}

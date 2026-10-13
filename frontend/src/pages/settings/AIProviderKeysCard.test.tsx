@@ -4,9 +4,28 @@ import { AIProviderKeysCard } from "./AIProviderKeysCard";
 import { getProviderKey } from "@/lib/aiProviders";
 
 beforeEach(() => localStorage.clear());
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("AIProviderKeysCard", () => {
+  it("keeps the draft and previous key when storage is full, then allows retry", () => {
+    render(<AIProviderKeysCard isEn />);
+    const input = screen.getByTestId("ai-key-input-openai");
+    fireEvent.change(input, { target: { value: "sk-original" } });
+    fireEvent.click(screen.getByTestId("ai-key-save-openai"));
+    const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("Full", "QuotaExceededError"); });
+    fireEvent.change(input, { target: { value: "sk-replacement" } });
+    fireEvent.click(screen.getByTestId("ai-key-save-openai"));
+    expect(screen.getByRole("alert")).toHaveTextContent("draft is kept");
+    expect(input).toHaveValue("sk-replacement");
+    expect(getProviderKey("openai")).toBe("sk-original");
+    fireEvent.click(screen.getByTestId("ai-key-delete-openai"));
+    expect(screen.getByRole("alert")).toHaveTextContent("deletion failed");
+    expect(screen.getByTestId("ai-key-mask-openai")).not.toHaveTextContent("No key saved");
+    write.mockRestore();
+    fireEvent.click(screen.getByTestId("ai-key-save-openai"));
+    expect(screen.getByRole("status")).toHaveTextContent("Key saved on this device");
+    expect(getProviderKey("openai")).toBe("sk-replacement");
+  });
   it("saves a key per provider, masks it, and deletes it", () => {
     render(<AIProviderKeysCard isEn />);
     fireEvent.change(screen.getByTestId("ai-key-input-anthropic"), { target: { value: "sk-ant-secret-value-7777" } });
