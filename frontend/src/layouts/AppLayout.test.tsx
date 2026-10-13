@@ -7,6 +7,12 @@ const appLayoutMocks = vi.hoisted(() => ({
   user: { current: null as null | { id: string } },
   loadSettings: vi.fn(),
   hydrateSidebarPositionFromCloud: vi.fn(),
+  language: "fa",
+}));
+
+vi.mock("react-i18next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-i18next")>()),
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: appLayoutMocks.language } }),
 }));
 
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: appLayoutMocks.user.current }) }));
@@ -129,6 +135,7 @@ describe("AppLayout desktop layout reservation and physical placement", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     appLayoutMocks.user.current = null;
+    appLayoutMocks.language = "fa";
     document.documentElement.dir = "rtl";
     mockSidebarPosition = "right";
   });
@@ -183,6 +190,7 @@ describe("AppLayout desktop layout reservation and physical placement", () => {
   });
 
   it("preserves physical placement (order-2 for right sidebar) when language is LTR", () => {
+    appLayoutMocks.language = "en";
     document.documentElement.dir = "ltr";
     mockSidebarPosition = "right";
 

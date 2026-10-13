@@ -1,10 +1,13 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, configure, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import InteractiveStudyView, { extractStudyFlipCards } from "./InteractiveStudyView";
 import { studyResumeUrl } from "@/lib/lastStudy";
 import { learningVersion } from "@/lib/learningWorkspace";
+// Allow asynchronous resume/draft effects to settle under full-suite load.
+// This changes test polling only, not the application's save debounce.
+configure({ asyncUtilTimeout: 5000 });
 vi.mock("@/lib/lastStudy", async () => ({ ...(await vi.importActual<object>("@/lib/lastStudy")), recordLastStudy: vi.fn() }));
 
 const {
@@ -149,7 +152,10 @@ describe("InteractiveStudyView", () => {
     mockLoadStudyDraft.mockResolvedValue({ ok: true, source: "cache", session: { id: "resume-session", user_id: "study-user", document_id: "doc-1", document_title: "Sample guide", language: "fa", content_html: html, status: "in_progress", created_at: studyDocuments[0].created_at, updated_at: studyDocuments[0].updated_at } });
     const url = studyResumeUrl({ docId: "doc-1", title: "Sample guide", openedAt: 1, practice: true, language: "fa", version: learningVersion(studyDocuments[0].content_html), card: "card-1" });
     const { container } = render(<MemoryRouter initialEntries={[url]}><InteractiveStudyView /></MemoryRouter>);
-    await screen.findByText("Resume question");
+    // Wait for the requested-language load before interacting with its DOM;
+    // resume selection and draft restoration finish in separate effects.
+    await waitFor(() => expect(mockLoadStudyDraft).toHaveBeenCalledWith("study-user", "doc-1", "fa"));
+    await screen.findByText("Resume question", {}, { timeout: 5000 });
     expect(mockLoadStudyDraft).toHaveBeenCalledWith("study-user", "doc-1", "fa");
     expect(mockCreateStudyDraft).not.toHaveBeenCalled();
     // Advance the actual 650ms save debounce deterministically, rather than
