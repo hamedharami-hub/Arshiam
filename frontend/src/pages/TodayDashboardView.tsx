@@ -1,4 +1,5 @@
 import { useTaskListSort } from "@/lib/taskListSort";
+import { DailyExtras } from "@/components/DailyExtras";
 import { planOf } from "@/lib/planCascade";
 import { isTaskOverdue, isTaskMissedWorkDay } from "@/lib/taskPlanning";
 import { getTimeSettings, todayISO } from "@/lib/timeHorizon";
@@ -770,6 +771,8 @@ export default function TodayDashboardView() {
           )}
         </div>
       </HeaderActionsPortal>
+
+      <div className="max-h-[35dvh] shrink-0 overflow-y-auto"><DailyExtras isEn={isEn} /></div>
 
       <div
         ref={splitContainerRef}

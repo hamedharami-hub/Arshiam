@@ -58,28 +58,54 @@ function TaskNoteEditorContent({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const operation = useRef(0);
+  const busy = useRef(false);
+  const creationId = useRef<string>();
+  const baseline = useRef({ title: note?.title, content: note?.content });
   const dirty = useRef(false);
   const wasOpen = useRef(false);
   const identity = useRef("");
   identity.current = `${userId}:${taskId}:${note?.id ?? "new"}:${open}`;
   useEffect(() => {
-    if (open && (!wasOpen.current || !dirty.current)) {
+    if (open && !busy.current && (!wasOpen.current || !dirty.current)) {
       dirty.current = false;
+      baseline.current = { title: note?.title, content: note?.content };
       setTitle(typeof note?.title === "string" ? note.title : "");
       setContent(typeof note?.content === "string" ? note.content : "");
       setConfirmDelete(false);
+      setConfirmDiscard(false);
+      if (!busy.current) setSaving(false);
+    }
+    if (wasOpen.current !== open) {
+      operation.current++;
+      busy.current = false;
       setSaving(false);
     }
-    if (wasOpen.current !== open) operation.current++;
     wasOpen.current = open;
   }, [open, note]);
   useEffect(() => () => { operation.current++; }, []);
+  useEffect(() => {
+    if (!open) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirty.current && !busy.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [open]);
 
   if (!open) return null;
 
+  const requestClose = (next: boolean) => {
+    if (saving || uploading) return;
+    if (!next && dirty.current) { setConfirmDiscard(true); return; }
+    onOpenChange(next);
+  };
+
   const handleSave = async () => {
-    if (!canEdit || saving || uploading) return;
+    if (!canEdit || busy.current || saving || uploading) return;
     const trimmedTitle = title.trim();
     const trimmedContent = content.trim();
 
@@ -90,6 +116,7 @@ function TaskNoteEditorContent({
 
     const sequence = ++operation.current;
     const target = identity.current;
+    busy.current = true;
     setSaving(true);
     try {
       const patch = {
@@ -97,9 +124,16 @@ function TaskNoteEditorContent({
         content: trimmedContent,
       };
       const updated = note
-        ? await updateTaskNote(userId, note.id, taskId, patch, { title: note.title, content: note.content })
-        : await createTaskNote(userId, taskId, patch);
+        ? await updateTaskNote(userId, note.id, taskId, patch, baseline.current)
+        : await createTaskNote(userId, taskId, { ...patch, id: creationId.current ??= (
+          typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`
+        ) });
       if (operation.current !== sequence || identity.current !== target) return;
+      dirty.current = false;
+      baseline.current = { title: updated.title, content: updated.content };
+      creationId.current = undefined;
       if (note) onSaved(updated);
       else if (onCreated) onCreated(updated);
       else onSaved(updated);
@@ -107,18 +141,22 @@ function TaskNoteEditorContent({
     } catch (err) {
       if (operation.current === sequence && identity.current === target) toast.error(err instanceof Error ? err.message : T("خطا در ذخیره نوت", "Error saving note"));
     } finally {
-      if (operation.current === sequence && identity.current === target) setSaving(false);
+      if (operation.current === sequence && identity.current === target) { busy.current = false; setSaving(false); }
     }
   };
 
   const handleDelete = async () => {
-    if (!note || !canEdit || saving || uploading) return;
+    if (!note || !canEdit || busy.current || saving || uploading) return;
     const sequence = ++operation.current;
     const target = identity.current;
+    busy.current = true;
     setSaving(true);
     try {
-      await deleteTaskNote(userId, note.id, taskId);
+      const deleted = await deleteTaskNote(userId, note.id, taskId, baseline.current);
       if (operation.current !== sequence || identity.current !== target) return;
+      if (!deleted) throw new Error(T("خطا در حذف نوت", "Error deleting note"));
+      dirty.current = false;
+      creationId.current = undefined;
       toast.success(T("نوت حذف شد", "Note deleted"));
       onDeleted(note.id);
       setConfirmDelete(false);
@@ -126,17 +164,18 @@ function TaskNoteEditorContent({
     } catch (err) {
       if (operation.current === sequence && identity.current === target) toast.error(err instanceof Error ? err.message : T("خطا در حذف نوت", "Error deleting note"));
     } finally {
-      if (operation.current === sequence && identity.current === target) setSaving(false);
+      if (operation.current === sequence && identity.current === target) { busy.current = false; setSaving(false); }
     }
   };
 
   const editorBody = (
     <div className="space-y-3 py-1 flex flex-col min-h-0 flex-1">
       <div>
-        <label className="text-xs font-semibold text-muted-foreground block mb-1">
+        <label htmlFor="task-note-title" className="text-xs font-semibold text-muted-foreground block mb-1">
           {T("عنوان نوت", "Note Title")}
         </label>
         <Input
+          id="task-note-title"
           value={title}
           onChange={(e) => { dirty.current = true; setTitle(e.target.value); }}
           disabled={!canEdit || saving}
@@ -178,7 +217,7 @@ function TaskNoteEditorContent({
             variant="outline"
             size="sm"
             disabled={saving || uploading}
-            onClick={() => onOpenChange(false)}
+            onClick={() => requestClose(false)}
             className="h-8 text-xs"
           >
             {T("بستن", "Close")}
@@ -203,8 +242,20 @@ function TaskNoteEditorContent({
 
   return (
     <>
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent dir={isEn ? "ltr" : "rtl"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T("تغییرات ذخیره نشده‌اند", "Unsaved changes")}</AlertDialogTitle>
+            <AlertDialogDescription>{T("با بستن، ویرایش‌های ذخیره‌نشده کنار گذاشته می‌شوند. برای ذخیره به ویرایش برگرد.", "Closing will discard your unsaved edits. Return to the editor to save your note.")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{T("ادامهٔ ویرایش", "Keep editing")}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { dirty.current = false; creationId.current = undefined; onOpenChange(false); }}>{T("کنارگذاشتن و بستن", "Discard and close")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {prefersDialog ? (
-        <Dialog open={open} onOpenChange={next => { if (!saving && !uploading) onOpenChange(next); }}>
+        <Dialog open={open} onOpenChange={requestClose}>
           <DialogContent
             dir={isEn ? "ltr" : "rtl"}
             className="w-full max-w-3xl max-h-[90vh] flex flex-col p-4 sm:p-5 overflow-hidden rounded-2xl"
@@ -228,7 +279,7 @@ function TaskNoteEditorContent({
           </DialogContent>
         </Dialog>
       ) : (
-        <Sheet open={open} onOpenChange={next => { if (!saving && !uploading) onOpenChange(next); }}>
+        <Sheet open={open} onOpenChange={requestClose}>
           <SheetContent
             side="bottom"
             dir={isEn ? "ltr" : "rtl"}

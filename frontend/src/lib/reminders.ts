@@ -483,27 +483,55 @@ export async function loadSettings(userId: string): Promise<UserSettings | null>
   return p;
 }
 
-export async function saveSettings(userId: string, patch: Partial<UserSettings>) {
-  settingsCache.delete(userId);
-  const current = (await cacheGet<UserSettings>(SETTINGS_CACHE_KEY(userId))) || { ...DEFAULT_SETTINGS, user_id: userId };
-  const next = { ...current, ...patch, user_id: userId };
-  await cacheSet(SETTINGS_CACHE_KEY(userId), next);
-  if (isAndroid() && patch.notifications_enabled !== undefined) {
-    await nativeExperience.configure({ remindersEnabled: patch.notifications_enabled });
-  }
+const settingsSaveQueue = new Map<string, Promise<void>>();
 
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    await enqueueOp({
-      ownerId: userId,
-      table: "user_settings",
-      op: "upsert",
-      payload: { user_id: userId, ...patch },
-      upsertOptions: { onConflict: "user_id" },
-    });
-    return;
+export async function saveSettings(userId: string, patch: Partial<UserSettings>): Promise<void> {
+  const assertOwner = () => {
+    if (!userId || auth.currentUser?.uid !== userId) {
+      throw new Error("Settings account changed; please retry for the current account.");
+    }
+  };
+  assertOwner();
+  const payload = { ...patch, user_id: userId };
+  // Include every caller (including ThemeToggle), not just SettingsView's queue.
+  // A failed save must not prevent the next save from being attempted.
+  const write = (settingsSaveQueue.get(userId) || Promise.resolve()).catch(() => {}).then(async () => {
+    assertOwner();
+    settingsCache.delete(userId);
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      const queued = await enqueueOp({
+        ownerId: userId,
+        table: "user_settings",
+        op: "upsert",
+        payload,
+        upsertOptions: { onConflict: "user_id" },
+      });
+      if (!queued) throw new Error("Could not durably queue settings; please retry.");
+    } else {
+      const { error } = await firebaseStore
+        .from("user_settings")
+        .upsert(payload as never, { onConflict: "user_id" });
+      if (error) throw error;
+    }
+
+    // Publish only confirmed writes. cacheSet can fall back to memory, which is
+    // not proof that an offline mutation was durably queued. No optimistic cache
+    // is left to roll back on failure (or overwrite a newer preference).
+    assertOwner();
+    const current = (await cacheGet<UserSettings>(SETTINGS_CACHE_KEY(userId))) || { ...DEFAULT_SETTINGS, user_id: userId };
+    assertOwner();
+    await cacheSet(SETTINGS_CACHE_KEY(userId), { ...current, ...payload });
+    settingsCache.delete(userId);
+    assertOwner();
+    if (isAndroid() && payload.notifications_enabled !== undefined) {
+      await nativeExperience.configure({ remindersEnabled: payload.notifications_enabled });
+      assertOwner();
+    }
+  });
+  settingsSaveQueue.set(userId, write);
+  try {
+    await write;
+  } finally {
+    if (settingsSaveQueue.get(userId) === write) settingsSaveQueue.delete(userId);
   }
-  const { error } = await firebaseStore
-    .from("user_settings")
-    .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
-  if (error) throw error;
 }

@@ -90,27 +90,28 @@ export function TaskPlanningBody({ task, onPatch, onDone, onPickDay }: {
   const customActive = !!plan && !rows.some(({ period }) => plan.horizon === period.horizon && plan.start === period.start && plan.end === period.end);
   return (
     <div className="space-y-2.5" dir={fa ? "rtl" : "ltr"} onClick={e => e.stopPropagation()} data-testid="task-planning-body">
-      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
         {rows.map(({ key, icon: Icon, label, period }) => {
           const active = !!plan && plan.horizon === period.horizon && plan.start === period.start && plan.end === period.end;
           return (
             <button key={key} type="button" aria-pressed={active} onClick={() => choose(period)} data-testid={`planning-quick-${key}`}
-              className={`when-icon-btn ${active ? "when-icon-btn--active" : ""} min-h-[4.5rem] flex-col gap-0.5 px-1 py-2`}>
-              <Icon className="h-5 w-5" strokeWidth={1.6} />
-              <span className="max-w-full truncate text-[11px] font-medium leading-tight text-foreground/90">{label}</span>
-              <span className="max-w-full truncate text-[9.5px] leading-tight text-muted-foreground" dir="auto"><bdi>{num(rangeText(period, settings, lang))}</bdi></span>
+              className={`when-icon-btn ${active ? "when-icon-btn--active" : ""} min-h-14 justify-start gap-2 px-3 py-2 text-start`}>
+              <Icon className="h-4 w-4 shrink-0" strokeWidth={1.6} aria-hidden />
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-medium leading-5 text-foreground/90">{label}</span>
+                <span className="block truncate text-[10px] leading-4 text-muted-foreground" dir="auto"><bdi>{num(rangeText(period, settings, lang))}</bdi></span>
+              </span>
             </button>
           );
         })}
         <IconTip label={fa ? "بازهٔ دلخواه" : "Custom range"} active={customActive || customOpen} expanded={customOpen}
-          onClick={() => setCustomOpen(v => !v)} testid="planning-custom-toggle" className="min-h-[4.5rem] flex-col gap-0.5 px-1 py-2">
+          onClick={() => setCustomOpen(v => !v)} testid="planning-custom-toggle" className="col-span-full min-h-11 justify-start gap-2 px-3 py-2 text-xs">
           <span className="relative">
             <CalendarRange className="h-5 w-5" strokeWidth={1.6} />
             <Pencil className="absolute -bottom-1 -end-1.5 h-3 w-3 rounded-full bg-card p-px" strokeWidth={2} />
           </span>
-          {customActive && plan
-            ? <span className="max-w-full truncate text-[9.5px] leading-tight" dir="auto"><bdi>{num(rangeText(plan, settings, lang))}</bdi></span>
-            : <span className="h-[1.1rem]" aria-hidden />}
+          <span>{fa ? "بازهٔ دلخواه" : "Custom range"}</span>
+          {customActive && plan && <span className="min-w-0 truncate text-[10px] text-muted-foreground" dir="auto"><bdi>{num(rangeText(plan, settings, lang))}</bdi></span>}
         </IconTip>
       </div>
       {customOpen && (

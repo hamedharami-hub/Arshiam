@@ -22,8 +22,11 @@ export function setMindDraft(userId: string | null | undefined, patch: Partial<P
   try {
     if (!String(next.text).trim() && !next.path) localStorage.removeItem(key(userId));
     else localStorage.setItem(key(userId), JSON.stringify(next));
+    const expected = !String(next.text).trim() && !next.path ? null : JSON.stringify(next);
+    if (localStorage.getItem(key(userId)) !== expected) return false;
     window.dispatchEvent(new CustomEvent(EVENT));
-  } catch {}
+    return true;
+  } catch { return false; }
 }
 
 export function clearMindDraft(userId?: string | null) {

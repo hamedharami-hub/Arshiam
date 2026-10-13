@@ -53,7 +53,10 @@ export async function callDirectOpenAICompat(
     Authorization: `Bearer ${apiKey.trim()}`,
   };
 
-  if (provider === "groq") {
+  if (provider === "xai") {
+    if (!model?.trim()) throw new Error("Choose an available xAI model in Settings → AI before sending a request.");
+    endpoint = "https://api.x.ai/v1/chat/completions";
+  } else if (provider === "groq") {
     endpoint = "https://api.groq.com/openai/v1/chat/completions";
   } else if (provider === "openrouter") {
     endpoint = "https://openrouter.ai/api/v1/chat/completions";

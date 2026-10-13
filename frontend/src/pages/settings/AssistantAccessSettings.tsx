@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { requestDeadline } from "@/lib/requestDeadline";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +63,7 @@ const SCOPE_GROUPS = [
     icon: CheckSquare,
     scopes: [
       { id: "tasks:read" as Scope, labelFa: "خواندن وظایف و جزئیات", labelEn: "Read tasks & details" },
-      { id: "tasks:write" as Scope, labelFa: "ساخت، ویرایش و تکمیل وظایف", labelEn: "Create, edit & complete tasks" },
+      { id: "tasks:write" as Scope, labelFa: "خواندن، ساخت، ویرایش، تکمیل و مجوز حذف وظایف", labelEn: "Read, create, edit, complete & grant task deletion permission" },
     ],
   },
   {
@@ -142,6 +144,14 @@ async function request(path: string, isEn: boolean, init: RequestInit = {}) {
 }
 
 export function AssistantAccessSettings() {
+  const { user } = useAuth();
+  return <AssistantAccessSettingsContent key={user?.id ?? "signed-out"} />;
+}
+
+function AssistantAccessSettingsContent() {
+  const active = useRef(true);
+  const requestGeneration = useRef(0);
+  useLayoutEffect(() => { active.current = true; return () => { active.current = false; requestGeneration.current++; }; }, []);
   const { i18n } = useTranslation();
   const isEn = Boolean(i18n.language?.startsWith("en"));
   const T = (fa: string, en: string) => (isEn ? en : fa);
@@ -157,6 +167,27 @@ export function AssistantAccessSettings() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [testing, setTesting] = useState(false);
+  const [connectionResult, setConnectionResult] = useState("");
+
+  const testConnection = async () => {
+    if (!newToken || testing) return;
+    setTesting(true);
+    setConnectionResult("");
+    const deadline = requestDeadline(15000);
+    try {
+      const response = await fetch(`${baseApiUrl}/me`, {
+        headers: { Authorization: `Bearer ${newToken}` }, cache: "no-store",
+        signal: deadline.signal,
+      });
+      const result = await readAgentResponse(response, isEn);
+      if (!active.current) return;
+      if (!Array.isArray(result.data?.scopes)) throw new Error(T("پاسخ اتصال معتبر نیست", "Invalid connection response"));
+      setConnectionResult(T("اتصال توکن تأیید شد؛ این آزمایش فقط مجوز را خواند و داده‌ای تغییر نداد.", "Token connection verified. This test only read permissions; no account data was changed."));
+    } catch (error) {
+      if (active.current) setConnectionResult(error instanceof Error ? error.message : T("آزمایش اتصال ناموفق بود", "Connection test failed"));
+    } finally { deadline.dispose(); if (active.current) setTesting(false); }
+  };
 
   const baseApiUrl =
     typeof window !== "undefined"
@@ -165,16 +196,20 @@ export function AssistantAccessSettings() {
   const serverOrigin = baseApiUrl.replace(/\/api\/v1\/agent$/, "");
 
   const refresh = async () => {
+    if (!active.current) return;
+    const ticket = ++requestGeneration.current;
     setLoading(true);
     try {
       const result = await request("/api/assistant-access", isEn);
+      if (!active.current || ticket !== requestGeneration.current) return;
       setGrants(result.data || []);
       setLoadError("");
     } catch (err: any) {
+      if (!active.current || ticket !== requestGeneration.current) return;
       setLoadError(err.message || T("خطا در اتصال به سرور عامل", "Could not connect to the agent server"));
       toast.error(err.message || "خطا در بارگیری توکن‌ها");
     } finally {
-      setLoading(false);
+      if (active.current && ticket === requestGeneration.current) setLoading(false);
     }
   };
 
@@ -208,14 +243,16 @@ export function AssistantAccessSettings() {
         method: "POST",
         body: JSON.stringify({ name: name.trim(), scopes, expiresInDays: days }),
       });
+      if (!active.current) return;
+      if (typeof result.token !== "string" || !result.token.trim()) throw new Error(T("پاسخ ساخت توکن معتبر نیست", "Invalid token creation response"));
       setNewToken(result.token);
       setName("");
       toast.success(T("توکن عامل هوش مصنوعی با موفقیت ساخته شد", "AI agent token created successfully"));
       await refresh();
     } catch (err: any) {
-      toast.error(err.message || T("خطا در ایجاد توکن", "Failed to create token"));
+      if (active.current) toast.error(err.message || T("خطا در ایجاد توکن", "Failed to create token"));
     } finally {
-      setBusy(false);
+      if (active.current) setBusy(false);
     }
   };
 
@@ -223,12 +260,13 @@ export function AssistantAccessSettings() {
     setBusy(true);
     try {
       await request(`/api/assistant-access/${id}`, isEn, { method: "DELETE" });
+      if (!active.current) return;
       toast.success(T("توکن با موفقیت لغو و غیرفعال شد", "Token successfully revoked"));
       await refresh();
     } catch (err: any) {
-      toast.error(err.message || T("خطا در لغو توکن", "Failed to revoke token"));
+      if (active.current) toast.error(err.message || T("خطا در لغو توکن", "Failed to revoke token"));
     } finally {
-      setBusy(false);
+      if (active.current) setBusy(false);
     }
   };
 
@@ -523,6 +561,7 @@ export function AssistantAccessSettings() {
           <div className="flex items-center gap-2">
             <Input
               value={newToken}
+              aria-label={T("توکن تازهٔ ایجنت", "New agent token")}
               readOnly
               dir="ltr"
               className="font-mono text-xs bg-background border-emerald-500/30 text-emerald-700 dark:text-emerald-300 h-9"
@@ -536,6 +575,11 @@ export function AssistantAccessSettings() {
               <span className="text-xs">{copiedToken ? T("کپی شد", "Copied") : T("کپی کلید", "Copy Token")}</span>
             </Button>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={testing} onClick={() => void testConnection()}>{testing ? T("در حال آزمایش…", "Testing…") : T("آزمایش اتصال توکن", "Test token connection")}</Button>
+            <Button type="button" variant="ghost" onClick={() => { setNewToken(""); setConnectionResult(""); }}>{T("پنهان‌کردن کلید", "Hide secret")}</Button>
+          </div>
+          {connectionResult && <p role="status" className="text-xs leading-6">{connectionResult}</p>}
         </div>
       )}
 

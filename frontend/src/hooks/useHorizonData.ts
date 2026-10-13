@@ -37,24 +37,28 @@ export function useHorizonData(userId: string | undefined, settings: TimeSetting
   const patchJournal = useRef(createTaskPatchJournal());
 
   useEffect(() => {
+    let cancelled = false;
     // Never show the previous account's tasks while the next one loads.
-    setTasks([]); setLoading(true);
+    setTasks([]); setLoading(Boolean(userId)); setFolders([]); setTags([]); setTaskTags(new Map());
     if (!userId) return;
-    const offT = subscribeToTasks(userId, (list) => { setTasks(list); setLoading(false); });
-    const offF = subscribeFolders(userId, setFolders);
-    const offG = subscribeTags(userId, setTags);
-    return () => { offT(); offF(); offG(); };
+    const offT = subscribeToTasks(userId, (list) => { if (!cancelled && activeUserId.current === userId) { setTasks(list); setLoading(false); } });
+    const offF = subscribeFolders(userId, list => { if (!cancelled && activeUserId.current === userId) setFolders(list); });
+    const offG = subscribeTags(userId, list => { if (!cancelled && activeUserId.current === userId) setTags(list); });
+    return () => { cancelled = true; offT(); offF(); offG(); };
   }, [userId]);
 
   const reloadTaskTags = useCallback(async () => {
     if (!userId) return;
+    try {
     const { data } = await firebaseStore.from("task_tags").select("task_id,tag_id").eq("user_id", userId);
+    if (activeUserId.current !== userId) return;
     const map = new Map<string, Set<string>>();
     for (const r of (data || []) as any[]) {
       if (!map.has(r.task_id)) map.set(r.task_id, new Set());
       map.get(r.task_id)!.add(r.tag_id);
     }
     setTaskTags(map);
+    } catch { /* A failed metadata read must not become an unhandled rejection. */ }
   }, [userId]);
   useEffect(() => { void reloadTaskTags(); }, [reloadTaskTags]);
 

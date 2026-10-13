@@ -9,19 +9,15 @@ vi.mock("./MobileSpeedDialMenu", () => ({ MobileSpeedDialMenu: ({ open }: { open
 afterEach(() => vi.useRealTimers());
 
 describe("BottomQuickAddButton", () => {
-  it("keeps two sibling 44px targets in a non-overlapping flex row", () => {
+  it("floats one 44px add target above the right edge, without an arrow button", () => {
     render(<BottomQuickAddButton />);
     const quick = screen.getByRole("button", { name: "افزودن سریع" });
-    const more = screen.getByRole("button", { name: "More actions" });
-    for (const button of [quick, more]) {
-      expect(button).toHaveClass("h-11", "w-11", "shrink-0");
-      expect(button).not.toHaveClass("absolute");
-    }
-    expect(quick.parentElement).toBe(more.parentElement);
-    expect(quick.parentElement).toHaveClass("flex", "gap-1");
-    expect(more).toHaveAttribute("aria-expanded", "false");
-    fireEvent.click(more);
-    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(quick).toHaveClass("h-11", "w-11", "shrink-0");
+    expect(quick.parentElement).toHaveClass("absolute", "right-0", "bottom-[calc(100%+12px)]");
+    expect(quick).toHaveAttribute("aria-expanded", "false");
+    fireEvent.keyDown(quick, { key: "F10", shiftKey: true });
+    expect(quick).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("dialog", { name: "More actions" })).toBeInTheDocument();
   });
 
@@ -32,8 +28,6 @@ describe("BottomQuickAddButton", () => {
     try {
       render(<BottomQuickAddButton />);
       const quick = screen.getByRole("button", { name: "افزودن سریع" });
-      fireEvent.click(screen.getByRole("button", { name: "More actions" }));
-      expect(capture).not.toHaveBeenCalled();
       fireEvent.click(quick);
       expect(capture).toHaveBeenCalledTimes(1);
       fireEvent.touchStart(quick, { touches: [{ clientX: 10, clientY: 10 }] });
@@ -41,8 +35,23 @@ describe("BottomQuickAddButton", () => {
       fireEvent.touchEnd(quick, { touches: [] });
       fireEvent.click(quick);
       expect(capture).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("dialog", { name: "More actions" })).toBeInTheDocument();
     } finally {
       window.removeEventListener("lov:open-quick-capture", capture);
     }
+  });
+
+  it("cancels a hold when the finger moves or touch is cancelled", () => {
+    vi.useFakeTimers();
+    render(<BottomQuickAddButton />);
+    const quick = screen.getByRole("button", { name: "افزودن سریع" });
+    fireEvent.touchStart(quick, { touches: [{ clientX: 10, clientY: 10 }] });
+    fireEvent.touchMove(quick, { touches: [{ clientX: 40, clientY: 10 }] });
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.touchStart(quick, { touches: [{ clientX: 10, clientY: 10 }] });
+    fireEvent.touchCancel(quick);
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

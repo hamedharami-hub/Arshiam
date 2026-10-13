@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Crosshair, Loader2, MapPin, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,37 +12,53 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
   const [gpsDenied, setGpsDenied] = useState(false);
   const [err, setErr] = useState<{ message: string; kind: "gps" | "search" } | null>(null);
   const [noResults, setNoResults] = useState(false);
+  const operation = useRef(0);
+  const busyRef = useRef(false);
+  useEffect(() => () => { operation.current++; }, []);
 
   const requestGps = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    const ticket = ++operation.current;
     setBusy("gps");
     setErr(null);
     setNoResults(false);
     try {
       const { lat, lon } = await locateByGps();
-      setWeatherLocation({ mode: "gps", name: isEn ? "Current location" : "موقعیت فعلی", lat, lon });
+      if (ticket !== operation.current) return;
+      if (!setWeatherLocation({ mode: "gps", name: isEn ? "Current location" : "موقعیت فعلی", lat, lon })) {
+        setErr({ message: isEn ? "Location could not be saved. Try again." : "موقعیت ذخیره نشد؛ دوباره تلاش کن.", kind: "gps" });
+        return;
+      }
       setGpsDenied(false);
       onDone?.();
     } catch (e: any) {
+      if (ticket !== operation.current) return;
       if (e?.code === 1) setGpsDenied(true);
       else setErr({ message: isEn ? "Could not get your location." : "موقعیت پیدا نشد.", kind: "gps" });
     } finally {
-      setBusy(null);
+      if (ticket === operation.current) { busyRef.current = false; setBusy(null); }
     }
   };
 
   const search = async () => {
-    if (q.trim().length < 2) return;
+    if (q.trim().length < 2 || busyRef.current) return;
+    busyRef.current = true;
+    const ticket = ++operation.current;
     setBusy("search");
     setErr(null);
     setNoResults(false);
+    setResults([]);
     try {
       const items = await searchCity(q.trim(), isEn ? "en" : "fa");
+      if (ticket !== operation.current) return;
       setResults(items);
       setNoResults(items.length === 0);
     } catch {
-      setErr({ message: isEn ? "City search is unavailable offline." : "جستجوی شهر آفلاین در دسترس نیست.", kind: "search" });
+      if (ticket !== operation.current) return;
+      setErr({ message: isEn ? "City search failed. Check your connection and retry." : "جستجوی شهر ناموفق بود؛ اتصال را بررسی کن و دوباره تلاش کن.", kind: "search" });
     } finally {
-      setBusy(null);
+      if (ticket === operation.current) { busyRef.current = false; setBusy(null); }
     }
   };
 
@@ -67,7 +83,10 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
         </div>
       )}
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); void search(); }}>
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={isEn ? "City, e.g. Sydney" : "نام شهر، مثلاً Sydney یا تهران"} className="h-11" data-testid="weather-city-input" dir="auto" />
+        <Input aria-label={isEn ? "City name" : "نام شهر"} value={q} onChange={(e) => {
+          setQ(e.target.value); operation.current++; busyRef.current = false;
+          setBusy(null); setResults([]); setNoResults(false); setErr(null);
+        }} placeholder={isEn ? "City, e.g. Sydney" : "نام شهر، مثلاً Sydney یا تهران"} className="h-11" data-testid="weather-city-input" dir="auto" />
         <Button type="submit" className="h-11 w-11 shrink-0" size="icon" disabled={busy !== null} aria-label={isEn ? "Search" : "جستجو"} data-testid="weather-city-search">
           {busy === "search" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
         </Button>
@@ -98,7 +117,13 @@ export function WeatherLocationPicker({ location, isEn, onDone }: { location: We
               <button
                 type="button"
                 className="w-full text-start rounded-lg px-3 py-2 hover:bg-muted text-sm min-h-[44px]"
-                onClick={() => { setWeatherLocation({ mode: "city", name: r.name, lat: r.lat, lon: r.lon }); setResults([]); onDone?.(); }}
+                onClick={() => {
+                  if (!setWeatherLocation({ mode: "city", name: r.name, lat: r.lat, lon: r.lon })) {
+                    setErr({ message: isEn ? "Location could not be saved. Try again." : "موقعیت ذخیره نشد؛ دوباره تلاش کن.", kind: "search" });
+                    return;
+                  }
+                  setResults([]); onDone?.();
+                }}
                 data-testid={`weather-city-result-${i}`}
               >
                 <span className="font-semibold">{r.name}</span>

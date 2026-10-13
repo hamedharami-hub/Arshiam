@@ -39,8 +39,9 @@ import FirebaseSyncCard from "@/components/FirebaseSyncCard";
 import { FirestoreUsageCard } from "@/components/FirestoreUsageCard";
 import { fetchFromFirestore } from "@/lib/firestoreSync";
 import { restoreBackupRows } from "@/lib/backupRestoreService";
-import { cacheGet, cacheSet, getQueue, onQueueChange, canReplayForOwner } from "@/lib/offlineQueue";
-import { extractTasksFromCache, createTaskCacheEnvelope } from "@/features/tasks/taskCache";
+import { readBackupTasks, readBackupNotes } from "@/lib/backupCache";
+import { cacheSet, getQueue, onQueueChange, canReplayForOwner } from "@/lib/offlineQueue";
+import { createTaskCacheEnvelope } from "@/features/tasks/taskCache";
 import type { TaskDefaults } from "@/lib/reminders";
 import { cn } from "@/lib/utils";
 import AndroidSettings from "@/components/AndroidSettings";
@@ -56,6 +57,7 @@ import { CompletedTasksSettings } from "./settings/CompletedTasksSettings";
 import { CrisisSupportSettings } from "./settings/CrisisSupportSettings";
 import { SidebarQuickLinksSettings } from "./settings/SidebarQuickLinksSettings";
 import { MobileBottomBarSettings } from "./settings/MobileBottomBarSettings";
+import { DailyExtrasSettings } from "./settings/DailyExtrasSettings";
 import { AISettingsTab } from "./settings/AISettingsTab";
 import { AppearanceSettingsSection } from "./settings/AppearanceSettingsSection";
 import { AssistantAccessSettings } from "./settings/AssistantAccessSettings";
@@ -76,6 +78,8 @@ const BACKUP_REMOTE_TABLES = [
 ] as const;
 
 type PendingImport = {
+  ownerId: string;
+  session: number;
   fileName: string;
   tasks: any[];
   notes: any[];
@@ -549,6 +553,26 @@ export default function SettingsView() {
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const backupMounted = useRef(true);
+  // An owner id alone is insufficient: A → B → A must not revive A's old
+  // file picker, parse continuation, reviewed preview, or restore callback.
+  const backupSession = useRef({ ownerId: user?.id, version: 0 });
+  if (backupSession.current.ownerId !== user?.id) {
+    backupSession.current = { ownerId: user?.id, version: backupSession.current.version + 1 };
+  }
+  const backupSessionVersion = backupSession.current.version;
+  const isBackupSessionCurrent = (ownerId: string, session: number) =>
+    backupMounted.current && backupSession.current.ownerId === ownerId && backupSession.current.version === session;
+  const reviewedImport = pendingImport && isBackupSessionCurrent(pendingImport.ownerId, pendingImport.session)
+    ? pendingImport : null;
+  useEffect(() => {
+    setPendingImport(null);
+    setExporting(false);
+  }, [backupSessionVersion]);
+  useEffect(() => {
+    backupMounted.current = true;
+    return () => { backupMounted.current = false; };
+  }, []);
   const [reminders, setReminders] = useState<UserSettings | null>(null);
   const [reminderSaveState, setReminderSaveState] = useState<SaveState>("idle");
   const reminderSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
@@ -674,21 +698,18 @@ export default function SettingsView() {
       toast.error(isEn ? "Please sign in first" : "لطفاً ابتدا وارد حساب کاربری شوید");
       return;
     }
+    const ownerId = user.id;
+    const session = backupSessionVersion;
+    const isCurrent = () => isBackupSessionCurrent(ownerId, session);
+    if (!isCurrent()) return;
     setExporting(true);
     try {
       // 1. Gather from Firestore (best-effort: local caches are exported either way)
       const firestoreData = await fetchFromFirestore(user.id);
 
       // 2. Gather from local caches
-      const cachedTasksRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
-      const cachedTasks = extractTasksFromCache(cachedTasksRaw);
-      let cachedNotes: any[] = (await cacheGet<any[]>(`notes:all:${user.id}`)) || [];
-      if (!cachedNotes.length) {
-        try {
-          const rawNotes = localStorage.getItem("arshnaz_notes") || localStorage.getItem("notes");
-          if (rawNotes) cachedNotes = JSON.parse(rawNotes);
-        } catch {}
-      }
+      const cachedTasks = await readBackupTasks(ownerId);
+      const cachedNotes = await readBackupNotes(ownerId);
 
       // 3. Gather from firebaseStore if reachable
       const remoteData: Record<string, unknown> = {};
@@ -746,6 +767,7 @@ export default function SettingsView() {
       };
 
       const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+      if (!isCurrent()) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -774,9 +796,9 @@ export default function SettingsView() {
         );
       }
     } catch (e: any) {
-      toast.error(e?.message || (isEn ? "Export error" : "خطا در خروجی فایل"));
+      if (isCurrent()) toast.error(e?.message || (isEn ? "Export error" : "خطا در خروجی فایل"));
     } finally {
-      setExporting(false);
+      if (isCurrent()) setExporting(false);
     }
   }
 
@@ -786,8 +808,13 @@ export default function SettingsView() {
       toast.error(isEn ? "Please sign in first" : "لطفاً ابتدا وارد حساب شوید");
       return;
     }
+    const ownerId = user.id;
+    const session = backupSessionVersion;
+    const isCurrent = () => isBackupSessionCurrent(ownerId, session);
+    if (!isCurrent()) return;
     try {
       const text = await file.text();
+      if (!isCurrent()) return;
       const data = JSON.parse(text) as Record<string, any>;
 
       if (!data || typeof data !== "object" || Array.isArray(data)) {
@@ -808,46 +835,50 @@ export default function SettingsView() {
       let taskCollisions = 0;
       let noteCollisions = 0;
       try {
-        const existingTasksRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
-        const existingTaskIds = new Set(extractTasksFromCache(existingTasksRaw).map((t: any) => t?.id).filter(Boolean));
+        const existingTaskIds = new Set((await readBackupTasks(ownerId)).map((t: any) => t?.id).filter(Boolean));
         taskCollisions = tasks.filter((t) => t && existingTaskIds.has(t.id)).length;
       } catch {}
       try {
-        const existingNotes = await cacheGet<any[]>(`notes:all:${user.id}`);
+        const existingNotes = await readBackupNotes(ownerId);
         const existingNoteIds = new Set((Array.isArray(existingNotes) ? existingNotes : []).map((n: any) => n?.id).filter(Boolean));
         noteCollisions = notes.filter((n) => n && existingNoteIds.has(n.id)).length;
       } catch {}
 
-      setPendingImport({ fileName: file.name, tasks, notes, unsupported, taskCollisions, noteCollisions });
+      if (!isCurrent()) return;
+      setPendingImport({ ownerId, session, fileName: file.name, tasks, notes, unsupported, taskCollisions, noteCollisions });
     } catch (e: any) {
-      toast.error(e?.message || (isEn ? "Import error" : "خطا در خواندن و وارد کردن فایل"));
+      if (isCurrent()) toast.error(e?.message || (isEn ? "Import error" : "خطا در خواندن و وارد کردن فایل"));
     }
   }
 
   async function applyImport() {
-    const pending = pendingImport;
+    const pending = reviewedImport;
     if (!user || !pending) return;
+    const { ownerId, session } = pending;
+    const isCurrent = () => isBackupSessionCurrent(ownerId, session);
+    if (!isCurrent()) return;
     setExporting(true);
     try {
       const tasksList = pending.tasks;
       const notesList = pending.notes;
-      const taskResult = await restoreBackupRows(user.id, "tasks", tasksList);
-      const noteResult = await restoreBackupRows(user.id, "notes", notesList);
+      const taskResult = await restoreBackupRows(ownerId, "tasks", tasksList);
+      if (!isCurrent()) return;
+      const noteResult = await restoreBackupRows(ownerId, "notes", notesList);
+      if (!isCurrent()) return;
       const acceptedTasks = [...taskResult.saved, ...taskResult.queued];
       const acceptedNotes = [...noteResult.saved, ...noteResult.queued];
       let localCacheWarning = false;
 
       if (acceptedTasks.length) {
         try {
-          const existingCachedRaw = (await cacheGet<any>(`tasks:all:${user.id}`)) ?? (await cacheGet<any>("tasks"));
-          const mergedTasks = extractTasksFromCache(existingCachedRaw);
+          const mergedTasks = await readBackupTasks(ownerId);
+          if (!isCurrent()) return;
           for (const task of acceptedTasks) {
             const index = mergedTasks.findIndex((existing) => existing.id === task.id);
             if (index >= 0) mergedTasks[index] = task as any;
             else mergedTasks.push(task as any);
           }
-          await cacheSet(`tasks:all:${user.id}`, createTaskCacheEnvelope(mergedTasks));
-          await cacheSet("tasks", mergedTasks);
+          await cacheSet(`tasks:all:${ownerId}`, createTaskCacheEnvelope(mergedTasks));
         } catch {
           localCacheWarning = true;
         }
@@ -855,27 +886,21 @@ export default function SettingsView() {
 
       if (acceptedNotes.length) {
         try {
-          const existingCachedNotes = await cacheGet<any>(`notes:all:${user.id}`);
-          let mergedNotes: any[];
-          if (Array.isArray(existingCachedNotes)) {
-            mergedNotes = existingCachedNotes;
-          } else {
-            const rawNotes = localStorage.getItem("arshnaz_notes") || localStorage.getItem("notes");
-            const parsedNotes = rawNotes ? JSON.parse(rawNotes) : [];
-            mergedNotes = Array.isArray(parsedNotes) ? parsedNotes : [];
-          }
+          if (!isCurrent()) return;
+          const mergedNotes = await readBackupNotes(ownerId);
+          if (!isCurrent()) return;
           for (const note of acceptedNotes) {
             const index = mergedNotes.findIndex((existing) => existing.id === note.id);
             if (index >= 0) mergedNotes[index] = note;
             else mergedNotes.push(note);
           }
-          await cacheSet(`notes:all:${user.id}`, mergedNotes);
-          localStorage.setItem("arshnaz_notes", JSON.stringify(mergedNotes));
+          await cacheSet(`notes:all:${ownerId}`, mergedNotes);
         } catch {
           localCacheWarning = true;
         }
       }
 
+      if (!isCurrent()) return;
       if (acceptedTasks.length) window.dispatchEvent(new Event("arshnaz:tasks-updated"));
 
       const savedTasks = taskResult.saved.length;
@@ -895,10 +920,12 @@ export default function SettingsView() {
         toast.success(isEn ? "Backup restored to Firestore" : "بازیابی پشتیبان در Firestore انجام شد", { description: details });
       }
     } catch (e: any) {
-      toast.error(e?.message || (isEn ? "Import error" : "خطا در وارد کردن فایل"));
+      if (isCurrent()) toast.error(e?.message || (isEn ? "Import error" : "خطا در وارد کردن فایل"));
     } finally {
-      setExporting(false);
-      setPendingImport(null);
+      if (isCurrent()) {
+        setExporting(false);
+        setPendingImport(null);
+      }
     }
   }
 
@@ -983,6 +1010,7 @@ export default function SettingsView() {
 
           <SidebarQuickLinksSettings isEn={isEn} />
           <MobileBottomBarSettings isEn={isEn} />
+          <DailyExtrasSettings isEn={isEn} />
           <AppearanceSettingsSection
             isEn={isEn}
             reminders={reminders}
@@ -1166,35 +1194,35 @@ export default function SettingsView() {
             <FirestoreUsageCard />
           </AdvancedDisclosure>
 
-          <Dialog open={!!pendingImport} onOpenChange={(o) => { if (!o) setPendingImport(null); }}>
+          <Dialog open={!!reviewedImport} onOpenChange={(o) => { if (!o) setPendingImport(null); }}>
             <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{isEn ? "Review restore" : "بازبینی بازیابی"}</DialogTitle>
                 <DialogDescription className="leading-6">
                   {isEn
-                    ? `Tasks-and-notes restore from “${pendingImport?.fileName ?? ""}”. Review what will happen before applying.`
-                    : `بازیابی تسک‌ها و یادداشت‌ها از «${pendingImport?.fileName ?? ""}». پیش از اعمال، نتیجه را بررسی کن.`}
+                    ? `Tasks-and-notes restore from “${reviewedImport?.fileName ?? ""}”. Review what will happen before applying.`
+                    : `بازیابی تسک‌ها و یادداشت‌ها از «${reviewedImport?.fileName ?? ""}». پیش از اعمال، نتیجه را بررسی کن.`}
                 </DialogDescription>
               </DialogHeader>
-              {pendingImport && (
+              {reviewedImport && (
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2">
                     <span>{isEn ? "Tasks" : "تسک‌ها"}</span>
-                    <span className="font-mono">{pendingImport.tasks.length}</span>
+                    <span className="font-mono">{reviewedImport.tasks.length}</span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2">
                     <span>{isEn ? "Notes" : "یادداشت‌ها"}</span>
-                    <span className="font-mono">{pendingImport.notes.length}</span>
+                    <span className="font-mono">{reviewedImport.notes.length}</span>
                   </div>
                   <div className="flex items-center justify-between rounded-lg border border-border/60 bg-card/40 px-3 py-2">
                     <span className="pe-2">{isEn ? "Matching items already on this device" : "موارد هم‌شناسه روی این دستگاه"}</span>
-                    <span className="font-mono">{pendingImport.taskCollisions + pendingImport.noteCollisions}</span>
+                    <span className="font-mono">{reviewedImport.taskCollisions + reviewedImport.noteCollisions}</span>
                   </div>
-                  {pendingImport.unsupported.length > 0 && (
+                  {reviewedImport.unsupported.length > 0 && (
                     <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] leading-5">
                       {isEn
-                        ? `Not restorable in this version (left out): ${pendingImport.unsupported.join(", ")}`
-                        : `در این نسخه بازیابی نمی‌شود (نادیده گرفته می‌شود): ${pendingImport.unsupported.join("، ")}`}
+                        ? `Not restorable in this version (left out): ${reviewedImport.unsupported.join(", ")}`
+                        : `در این نسخه بازیابی نمی‌شود (نادیده گرفته می‌شود): ${reviewedImport.unsupported.join("، ")}`}
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground leading-5">

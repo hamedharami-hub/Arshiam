@@ -98,7 +98,7 @@ export function BottomTabItem({
     >
       {/* Material 3 Capsule Active Indicator (68px x 36px) */}
       <div
-        className={`relative flex items-center justify-center h-9 w-[4.25rem] max-w-full rounded-full transition-all duration-300 ease-out ${
+        className={`relative flex items-center justify-center h-7 w-12 max-w-full rounded-full transition-all duration-300 ease-out ${
           isActive
             ? "bg-primary/15 dark:bg-primary/25 text-primary scale-100 ring-1 ring-primary/20 shadow-[0_3px_14px_hsl(var(--primary)/0.14),inset_0_1px_0_hsl(var(--primary-foreground)/0.18)]"
             : "text-muted-foreground/75 group-hover/tab:text-foreground group-hover/tab:bg-muted/45 group-hover/tab:scale-[1.04]"

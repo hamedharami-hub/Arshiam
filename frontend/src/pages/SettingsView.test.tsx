@@ -43,7 +43,7 @@ describe("settings navigation", () => {
 
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent || "");
     const sidebarSettingsIndex = headings.findIndex((heading) => /Sidebar & Icons Settings|تنظیمات نوار کناری/.test(heading));
-    const bottomBarSettingsIndex = headings.findIndex((heading) => /Mobile Bottom Navigation Bar|شخصی‌سازی نوار پایین موبایل/.test(heading));
+    const bottomBarSettingsIndex = headings.findIndex((heading) => /Bottom navigation|نوار پایین موبایل/.test(heading));
     const lifeArchitectIndex = headings.findIndex((heading) => /Life Architect & System Design|معمار هوشمند زندگی/.test(heading));
 
     expect(sidebarSettingsIndex).toBeGreaterThanOrEqual(0);

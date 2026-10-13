@@ -4,7 +4,7 @@
 
 import { auth } from "./firebase";
 
-export type Provider = "offline" | "openai" | "anthropic" | "gemini" | "groq" | "openrouter" | "custom";
+export type Provider = "offline" | "openai" | "anthropic" | "gemini" | "xai" | "groq" | "openrouter" | "custom";
 
 export type ProviderConfig = {
   provider: Provider;
@@ -158,6 +158,13 @@ export const PROVIDER_INFO: Record<Provider, { label: string; defaultModel: stri
     baseUrl: "https://openrouter.ai/api/v1",
     help: "از openrouter.ai کلید بگیرید — دسترسی به صدها مدل.",
     models: ["openai/gpt-5", "openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet", "google/gemini-pro-1.5", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-r1"],
+  },
+  xai: {
+    label: "xAI (Grok)",
+    defaultModel: "",
+    baseUrl: "https://api.x.ai/v1",
+    help: "از console.x.ai کلید API بگیرید و مدل در دسترس حساب را دریافت یا وارد کنید. اشتراک اپ Grok جایگزین اعتبار API نیست.",
+    models: [],
   },
   custom: { label: "OpenAI-compatible سفارشی", defaultModel: "", baseUrl: "", help: "هر سرویس سازگار با OpenAI API.", models: [] },
 };

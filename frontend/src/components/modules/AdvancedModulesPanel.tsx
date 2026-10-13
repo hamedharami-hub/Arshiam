@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { KeyRound, Loader2, Puzzle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,32 +6,41 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useBilingual } from "@/hooks/useBilingual";
-import { APP_MODULES, MODULE_IDS, redeemModuleCode, setModuleInstalled, useModules, type ModuleId } from "@/lib/appModules";
+import { APP_MODULES, MODULE_IDS, getModulesSession, redeemModuleCode, setModuleInstalled, StaleModulesSessionError, useModules, useModulesSession, type ModuleId } from "@/lib/appModules";
 import { OPEN_MODULES_PANEL_EVENT } from "./VersionTapTarget";
 import { ModuleCodesAdmin } from "./ModuleCodesAdmin";
 
 export function AdvancedModulesPanel() {
   const { T, isEn } = useBilingual();
   const modules = useModules();
+  const session = useModulesSession();
+  const mounted = useRef(false);
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
+    mounted.current = true;
     const onOpen = () => setOpen(true);
     window.addEventListener(OPEN_MODULES_PANEL_EVENT, onOpen);
-    return () => window.removeEventListener(OPEN_MODULES_PANEL_EVENT, onOpen);
+    return () => { mounted.current = false; window.removeEventListener(OPEN_MODULES_PANEL_EVENT, onOpen); };
   }, []);
 
+  useEffect(() => { setCode(""); setBusy(null); }, [session]);
+
   const redeem = async () => {
+    const requestSession = getModulesSession();
+    const isCurrent = () => mounted.current && requestSession === getModulesSession();
     setBusy("redeem");
     try {
       const added = await redeemModuleCode(code.trim());
+      if (!isCurrent()) return;
       setCode("");
       toast.success(added.length
         ? T(`${added.length} بخش نصب شد`, `${added.length} section(s) installed`)
         : T("این کد چیز تازه‌ای باز نکرد", "Nothing new was unlocked"));
     } catch (e: any) {
+      if (!isCurrent() || e instanceof StaleModulesSessionError) return;
       const message = e?.status === 429
         ? T("تلاش‌های اشتباه زیاد بود؛ ۱۵ دقیقه بعد دوباره امتحان کن", "Too many wrong codes, try again in 15 minutes")
         : e?.status === 400
@@ -41,19 +50,23 @@ export function AdvancedModulesPanel() {
             : T("سرویس فعال‌سازی در دسترس نیست؛ این خطا به معنی نادرست بودن کد نیست", "Unlock service is unavailable; this does not mean your code is wrong");
       toast.error(message);
     } finally {
-      setBusy(null);
+      if (isCurrent()) setBusy(null);
     }
   };
 
   const toggle = async (id: ModuleId, on: boolean) => {
+    const requestSession = getModulesSession();
+    const isCurrent = () => mounted.current && requestSession === getModulesSession();
     setBusy(id);
     try {
       await setModuleInstalled(id, on);
+      if (!isCurrent()) return;
       toast.success(on ? T("نصب شد", "Installed") : T("حذف شد؛ داده‌هایت سر جایش می‌ماند", "Removed — your data is kept"));
     } catch (e: any) {
+      if (!isCurrent() || e instanceof StaleModulesSessionError) return;
       toast.error(e?.message || T("خطا", "Error"));
     } finally {
-      setBusy(null);
+      if (isCurrent()) setBusy(null);
     }
   };
 

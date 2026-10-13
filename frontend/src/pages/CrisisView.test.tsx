@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { toast } from "sonner";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import CrisisView from "./CrisisView";
 import { CRISIS_REGION_STORAGE_KEY } from "@/lib/crisisResources";
@@ -21,6 +22,16 @@ vi.mock("sonner", () => ({
 }));
 
 describe("CrisisView (/app/crisis) Route & Component Verification", () => {
+  afterEach(() => vi.restoreAllMocks());
+  it("keeps emergency resources available for the chosen region but reports persistence failure", () => {
+    render(<MemoryRouter><CrisisView /></MemoryRouter>);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("unavailable"); });
+    fireEvent.click(screen.getByTestId("region-btn-ir"));
+    expect(screen.getByTestId("call-btn-ir-ems")).toHaveAttribute("href", "tel:115");
+    expect(localStorage.getItem(CRISIS_REGION_STORAGE_KEY)).toBeNull();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("Region changed for this page only; it could not be saved for your next visit.");
+  });
   beforeEach(() => {
     mockIsEn = true;
     localStorage.clear();

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, CornerDownLeft, Sparkles, Target, CalendarClock } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CornerDownLeft, Sparkles, Target, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,12 +43,20 @@ export type PlanningBoardProps = {
 
 const newId = () => (crypto?.randomUUID ? crypto.randomUUID() : `t_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
-export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen, defaults, onCreated, compact }: PlanningBoardProps) {
+export function PlanningBoard(props: PlanningBoardProps) {
   const { user } = useAuth();
+  return <PlanningBoardContent key={user?.id ?? "signed-out"} {...props} />;
+}
+
+function PlanningBoardContent({ tasks, settings, fa, onToggle, onUpdate, onOpen, defaults, onCreated, compact }: PlanningBoardProps) {
+  const { user } = useAuth();
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const lang = fa ? "fa" : "en";
   const levels = levelsFor(settings);
   const [level, setLevelState] = useState<Horizon>(() => {
-    const saved = localStorage.getItem(LEVEL_KEY) as Horizon | null;
+    let saved: Horizon | null = null;
+    try { saved = localStorage.getItem(LEVEL_KEY) as Horizon | null; } catch { /* Storage can be unavailable. */ }
     return saved && levels.includes(saved) ? saved : "week";
   });
   const lv: Horizon = levels.includes(level) ? level : "month";
@@ -72,6 +80,11 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
   const order = (list: Task[]) => [...list].sort((a, b) => Number(isClosed(a)) - Number(isClosed(b)) || String(a.created_at || "").localeCompare(String(b.created_at || "")));
   const items = useMemo(() => order(itemsInPeriod(live, period, settings)), [live, period, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const rows = useMemo(() => topLevelItems(items), [items]);
+  const [showFinerItems, setShowFinerItems] = useState(false);
+  const finerRows = rows.filter(task => planOf(task, settings)?.horizon !== period.horizon);
+  const mainRows = rows.filter(task => planOf(task, settings)?.horizon === period.horizon);
+  const displayedRows = showFinerItems ? rows : mainRows;
+  useEffect(() => { setShowFinerItems(false); }, [period.horizon, period.start]);
   const counted = useMemo(() => items.filter((t) => t.status !== "wont_do"), [items]);
   const carried = useMemo(() => (isCurrent ? carryOver(live, period, settings) : []), [live, period, settings, isCurrent]);
   // The upper column shows the bigger goals of the parent level only (finer items already live in this view).
@@ -147,6 +160,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     setMigrationBusy(migrationKey);
     try {
       const status = await applyTaskScheduleMigration(migration);
+      if (!active.current) return;
       setMigrationResults((all) => ({ ...all, [migrationKey]: status }));
       if (status === "saved" || status === "already_migrated") {
         toast.success(fa ? "زمان‌بندی این تسک به‌روزرسانی شد" : "Task schedule updated");
@@ -161,13 +175,13 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
       } else {
         toast.error(fa ? "تبدیل ذخیره نشد؛ دوباره تلاش کن" : "Conversion failed; retry when ready");
       }
-    } finally { migrationBusyRef.current = false; setMigrationBusy(null); }
+    } finally { migrationBusyRef.current = false; if (active.current) setMigrationBusy(null); }
   };
 
   const setLevel = (h: Horizon) => {
     const focus = isCurrent ? new Date() : fromLocalISO(period.start);
     setAnchor(isCurrent ? null : periodFor(h, focus, settings).start);
-    setLevelState(h); localStorage.setItem(LEVEL_KEY, h); setPane("main"); haptic("light");
+    setLevelState(h); try { localStorage.setItem(LEVEL_KEY, h); } catch { /* Keep navigation usable. */ } setPane("main"); haptic("light");
   };
   const go = (dir: 1 | -1) => { setAnchor((dir === 1 ? nextPeriod(period, settings) : prevPeriod(period, settings)).start); haptic("light"); };
 
@@ -188,6 +202,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     let status: TaskPersistenceStatus;
     try { status = toSaveStatus(await persistTask(user.id, task)); }
     catch { status = "failed"; }
+    if (!active.current) return status;
     const where = readSchedule(task, settings);
     reportSave(status, fa, fa ? `به «${scheduleLabel(where, settings, lang)}» اضافه شد` : `Added to ${scheduleLabel(where, settings, lang)}`);
     if (status === "failed") return status;
@@ -205,6 +220,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     let status: TaskPersistenceStatus;
     try { status = toSaveStatus(await onUpdate(t.id, planPatch(p, settings, parentId))); }
     catch { status = "failed"; }
+    if (!active.current) return status;
     reportSave(status, fa, success);
     return status;
   };
@@ -217,13 +233,15 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     const results: TaskPersistenceStatus[] = [];
     try {
       for (const t of list) {
+        if (!active.current) break;
         try { results.push(toSaveStatus(await onUpdate(t.id, planPatch(period, settings)))); }
         catch { results.push("failed"); }
       }
     } finally {
       busyRef.current = false;
-      setBusy(false);
+      if (active.current) setBusy(false);
     }
+    if (!active.current) return;
     const failed = results.filter((r) => r === "failed").length;
     const queued = results.filter((r) => r === "queued").length;
     const saved = results.filter((r) => r === "saved").length;
@@ -244,7 +262,8 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     let status: TaskPersistenceStatus;
     try { status = await create(title, period, undefined, undefined, intent.id); }
     catch { status = "failed"; }
-    finally { busyRef.current = false; setBusy(false); }
+    finally { busyRef.current = false; if (active.current) setBusy(false); }
+    if (!active.current) return;
     if (status !== "failed") {
       clearTaskCreateIntent(quickAddIntent, intent);
       setDraft((cur) => (cur.trim() === title ? "" : cur));
@@ -255,27 +274,27 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
     let status: TaskPersistenceStatus;
     try { status = toSaveStatus(await onUpdate(t.id, { status: "in_progress", completed: false, waiting_reason: null })); }
     catch { status = "failed"; }
-    reportSave(status, fa, fa ? "ادامهٔ کار ثبت شد" : "Work continued");
+    if (active.current) reportSave(status, fa, fa ? "ادامهٔ کار ثبت شد" : "Work continued");
     return status;
   };
   const markWaiting = async (t: Task, reason?: string): Promise<TaskPersistenceStatus> => {
     let status: TaskPersistenceStatus;
     try { status = toSaveStatus(await onUpdate(t.id, { status: "waiting", completed: false, waiting_reason: reason?.trim() || null })); }
     catch { status = "failed"; }
-    reportSave(status, fa, fa ? "در انتظار ثبت شد" : "Marked waiting");
+    if (active.current) reportSave(status, fa, fa ? "در انتظار ثبت شد" : "Marked waiting");
     return status;
   };
   const setAside = async (t: Task): Promise<TaskPersistenceStatus> => {
     let status: TaskPersistenceStatus;
     try { status = toSaveStatus(await onUpdate(t.id, { status: "wont_do", completed: false })); }
     catch { status = "failed"; }
-    reportSave(status, fa, fa ? "کنار گذاشته شد" : "Set aside");
+    if (active.current) reportSave(status, fa, fa ? "کنار گذاشته شد" : "Set aside");
     return status;
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
     const start = touch.current; touch.current = null;
-    if (!start) return;
+    if (!start || !e.changedTouches[0]) return;
     const dx = e.changedTouches[0].clientX - start.x; const dy = e.changedTouches[0].clientY - start.y;
     if (Math.abs(dx) < 70 || Math.abs(dy) > 45) return;
     go((fa ? dx > 0 : dx < 0) ? 1 : -1);
@@ -342,7 +361,8 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
           <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); void submitDraft(); }}>
             <input value={draft} onChange={(e) => setDraft(e.target.value)} data-testid="planning-quick-add"
               placeholder={fa ? `افزودن به ${targetName}…` : `Add to ${targetName}…`}
-              className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30" />
+               aria-label={fa ? "عنوان کار یا هدف جدید" : "New task or goal title"}
+               className="h-11 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30" />
             <button type="submit" disabled={!draft.trim() || busy} className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40" aria-label={fa ? "افزودن" : "Add"} data-testid="planning-quick-add-submit"><CornerDownLeft className="h-4 w-4" /></button>
           </form>
           {rows.length === 0 ? (
@@ -352,7 +372,12 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
             </div>
           ) : (
             <div className="space-y-2" data-testid="planning-items">
-              {rows.map((t) => (
+              {finerRows.length > 0 && <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border px-3 text-start text-xs text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" aria-expanded={showFinerItems} onClick={() => setShowFinerItems(value => !value)} data-testid="planning-finer-toggle">
+                <span>{fa ? `کارهای بازه‌های کوچک‌تر (${num(finerRows.length)})` : `Tasks in smaller periods (${finerRows.length})`}</span>
+                <ChevronDown className={cn("h-4 w-4", showFinerItems && "rotate-180")} aria-hidden />
+              </button>}
+              {mainRows.length === 0 && !showFinerItems && <p className="px-3 py-2 text-xs text-muted-foreground">{fa ? "برای خود این دوره هدفی ثبت نشده؛ کارهای روزانه و بازه‌های کوچک‌تر در بخش بالا هستند." : "No goals for this period itself. Daily tasks and smaller-period plans are available above."}</p>}
+              {displayedRows.map((t) => (
                 <PlanItemCard key={t.id} task={t} kids={kids} byId={byId} settings={settings} fa={fa} childLevelName={down} valueLabel={valueLabel(t)}
                 onToggle={(x) => void onToggle(x)} onOpen={onOpen} onMoveNext={moveNext} onUnplan={(x) => plan(x, null, undefined, fa ? "از برنامه برداشته شد" : "Removed from the plan")}
                   onSetFinishCriterion={async (x, criterion) => {
@@ -363,7 +388,7 @@ export function PlanningBoard({ tasks, settings, fa, onToggle, onUpdate, onOpen,
               ))}
             </div>
           )}
-          {lv === "week" && <WeekDays period={period} tasks={live} settings={settings} fa={fa} onPick={(d) => { setLevelState("day"); localStorage.setItem(LEVEL_KEY, "day"); setAnchor(d); }} />}
+           {lv === "week" && <WeekDays period={period} tasks={live} settings={settings} fa={fa} onPick={(d) => { setLevelState("day"); try { localStorage.setItem(LEVEL_KEY, "day"); } catch { /* Keep navigation usable. */ } setAnchor(d); }} />}
         </div>
         <PeriodReviewDialog key={reviewP ? `${user?.id}:${reviewP.horizon}:${reviewP.start}:${reviewP.end}:${settings.calendar}` : "none"} period={reviewP} items={reviewItems} settings={settings} fa={fa} onClose={() => setReviewP(null)} reviews={reviews}
           onMove={(t, p) => plan(t, p, undefined, fa ? "منتقل شد" : "Moved")} onDrop={(t) => plan(t, null)} onComplete={complete} onAdd={(title, p, intentId) => create(title, p, undefined, undefined, intentId)}

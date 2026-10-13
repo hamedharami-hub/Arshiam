@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PlanningBoard } from "./PlanningBoard";
 import type { Task } from "@/lib/taskTypes";
@@ -6,6 +6,7 @@ import { planPatch } from "@/lib/planCascade";
 import { currentPeriod } from "@/lib/timeHorizon";
 
 const mocks = vi.hoisted(() => ({
+  owner: "user-1",
   persistTask: vi.fn(),
   success: vi.fn(),
   info: vi.fn(),
@@ -14,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   migrationApply: vi.fn(),
 }));
 
-vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "user-1" } }) }));
+vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: mocks.owner } }) }));
 vi.mock("@/lib/planReviewService", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/planReviewService")>(),
   usePlanReviews: () => ({ reviews: {}, loaded: true }),
@@ -40,6 +41,7 @@ const taskList: Task[] = [];
 describe("PlanningBoard quick add", () => {
   beforeEach(() => {
     localStorage.clear();
+    mocks.owner = "user-1";
     mocks.persistTask.mockReset();
     mocks.success.mockReset();
     mocks.info.mockReset();
@@ -68,6 +70,45 @@ describe("PlanningBoard quick add", () => {
     await waitFor(() => expect(screen.getByTestId("planning-quick-add")).toHaveValue(""));
     expect(mocks.info).toHaveBeenCalledOnce();
     expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it("isolates quick-add drafts and ignores old-account completion after switching owners", async () => {
+    let resolve!: (status: "saved") => void;
+    mocks.persistTask.mockImplementation(() => new Promise(done => { resolve = done; }));
+    const onCreated = vi.fn();
+    const props = { tasks: taskList, settings, fa: false, onToggle: vi.fn(), onUpdate: vi.fn().mockResolvedValue("saved"), onOpen: vi.fn(), onCreated };
+    const { rerender } = render(<PlanningBoard {...props} />);
+    fireEvent.change(screen.getByTestId("planning-quick-add"), { target: { value: "Private owner one draft" } });
+    fireEvent.submit(screen.getByTestId("planning-quick-add").closest("form")!);
+    await waitFor(() => expect(mocks.persistTask).toHaveBeenCalledOnce());
+    mocks.owner = "user-2";
+    rerender(<PlanningBoard {...props} />);
+    expect(screen.getByTestId("planning-quick-add")).toHaveValue("");
+    fireEvent.change(screen.getByTestId("planning-quick-add"), { target: { value: "Owner two draft" } });
+    await act(async () => resolve("saved"));
+    expect(screen.getByTestId("planning-quick-add")).toHaveValue("Owner two draft");
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(mocks.success).not.toHaveBeenCalled();
+    expect(mocks.persistTask.mock.calls[0][0]).toBe("user-1");
+  });
+
+  it("keeps year goals visible and discloses daily tasks without losing them", () => {
+    localStorage.setItem("arsh_planning_level_v2", "year");
+    const year = currentPeriod("year", settings);
+    const day = currentPeriod("day", settings);
+    const tasks = [
+      { id: "year-goal", title: "Annual goal", ...planPatch(year, settings) },
+      { id: "daily-task", title: "Daily task", ...planPatch(day, settings) },
+    ] as Task[];
+    render(<PlanningBoard tasks={tasks} settings={settings} fa={false} onToggle={vi.fn()} onUpdate={vi.fn().mockResolvedValue("saved")} onOpen={vi.fn()} />);
+    expect(screen.getByTestId("plan-item-year-goal")).toBeInTheDocument();
+    expect(screen.queryByTestId("plan-item-daily-task")).toBeNull();
+    fireEvent.click(screen.getByTestId("planning-finer-toggle"));
+    expect(screen.getByTestId("plan-item-daily-task")).toBeInTheDocument();
+    expect(screen.getAllByTestId("plan-item-year-goal")).toHaveLength(1);
+    fireEvent.click(screen.getByTestId("planning-level-day"));
+    expect(screen.getByTestId("plan-item-daily-task")).toBeInTheDocument();
+    expect(screen.queryByTestId("planning-finer-toggle")).toBeNull();
   });
 
   it("shows a scoped dry-run and applies only the ready task after an explicit click", async () => {

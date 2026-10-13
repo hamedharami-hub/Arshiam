@@ -41,6 +41,20 @@ type Sub = Partial<Task> & {
 };
 
 export function TaskSubtasksInline({
+  taskId, ...props
+}: {
+  taskId: string;
+  onOpenSubtask?: (id: string) => void;
+  onProgressChange?: (completed: number, total: number) => void;
+  onSubtasksChange?: (subs: Sub[]) => void;
+  readOnly?: boolean;
+  initialSubs?: Sub[];
+}) {
+  const { user } = useAuth();
+  return <TaskSubtasksContent key={`${user?.id || "guest"}\u0000${taskId}`} taskId={taskId} {...props} />;
+}
+
+function TaskSubtasksContent({
   taskId, onOpenSubtask, onProgressChange, onSubtasksChange, readOnly = false, initialSubs,
 }: {
   taskId: string;
@@ -62,11 +76,27 @@ export function TaskSubtasksInline({
   const [deleteWarning, setDeleteWarning] = useState<"nested" | "unverified">("nested");
   const [deleting, setDeleting] = useState(false);
   const addInFlight = useRef(false);
+  const creationDraft = useRef<Task | null>(null);
+  const writes = useRef(new Map<string, Promise<unknown>>());
+  const toggleVersions = useRef(new Map<string, number>());
+  const togglePending = useRef(new Map<string, number>());
+  const confirmedToggles = useRef(new Map<string, Pick<Sub, "completed" | "status">>());
+  const planningVersions = useRef(new Map<string, number>());
+  const planningPending = useRef(new Map<string, number>());
+  const confirmedPlanning = useRef(new Map<string, unknown>());
+  const reorderInFlight = useRef(false);
+  const removingIds = useRef(new Set<string>());
   const scopeKey = `${user?.id || "guest"}\u0000${taskId}`;
   const activeScope = useRef(scopeKey);
   activeScope.current = scopeKey;
+  useEffect(() => {
+    activeScope.current = scopeKey;
+    return () => { activeScope.current = ""; };
+  }, [scopeKey]);
   const loadGeneration = useRef(0);
   const composition = useRef(false);
+  const draftTitle = useRef(newTitle);
+  draftTitle.current = newTitle;
 
   const editingRef = useRef<Set<string>>(new Set());
   const pendingTitles = useRef<Record<string, string>>({});
@@ -74,6 +104,26 @@ export function TaskSubtasksInline({
   // Guard against stale background Firestore snapshots or un-synced parent initialSubs reverting checks
   const recentTogglesRef = useRef<Map<string, { completed: boolean; time: number }>>(new Map());
   const recentAddsRef = useRef<Map<string, { row: Sub; time: number }>>(new Map());
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!draftTitle.current.trim() && !Object.keys(pendingTitles.current).length && !writes.current.size) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, []);
+  // Serialize writes to each row, including debounce/blur/exit title flushes.
+  const write = useCallback((id: string, patch: Partial<Task>) => {
+    const previous = writes.current.get(id);
+    const persist = () => persistTask(user!.id, { id, ...patch });
+    const next = previous ? previous.catch(() => {}).then(persist) : persist();
+    writes.current.set(id, next);
+    void next.finally(() => {
+      if (writes.current.get(id) === next) writes.current.delete(id);
+    }).catch(() => {});
+    return next;
+  }, [user?.id]);
   const withRecentAdds = (rows: Sub[]) => {
     const ids = new Set(rows.map(row => row.id));
     const result = [...rows];
@@ -85,13 +135,14 @@ export function TaskSubtasksInline({
   };
 
   const flushPendingTitle = useCallback(async (id: string) => {
+    if (removingIds.current.has(id)) return;
     if (writeTimers.current[id]) {
       clearTimeout(writeTimers.current[id]);
       delete writeTimers.current[id];
     }
     const title = pendingTitles.current[id];
     if (title !== undefined && user) {
-      const status = await persistTask(user.id, { id, title });
+      const status = await write(id, { title }).catch(() => "failed" as const);
       if (activeScope.current !== scopeKey) return;
       if (status === "failed") {
         toast.error(T("خطا در ذخیره عنوان زیرتسک", "Failed to save subtask title"));
@@ -103,7 +154,7 @@ export function TaskSubtasksInline({
       }
       window.dispatchEvent(new Event("tasks-changed"));
     }
-  }, [user?.id, taskId]);
+  }, [user?.id, taskId, write]);
 
   useEffect(() => {
     setSubs(initialSubs || []);
@@ -124,13 +175,13 @@ export function TaskSubtasksInline({
       // Flush any debounced title writes on unmount so changes are never lost
       Object.keys(pendingTitles.current).forEach((id) => {
         const title = pendingTitles.current[id];
-        if (title !== undefined && user) {
-          void persistTask(user.id, { id, title });
+        if (title !== undefined && user && !removingIds.current.has(id)) {
+          void write(id, { title }).catch(() => {});
         }
       });
       Object.values(writeTimers.current).forEach(clearTimeout);
     };
-  }, [user?.id, taskId]);
+  }, [user?.id, taskId, write]);
 
   useEffect(() => {
     if (initialSubs) {
@@ -179,6 +230,7 @@ export function TaskSubtasksInline({
     const generation = ++loadGeneration.current;
     const cachedRaw = await cacheGet<unknown>(`tasks:all:${user.id}`);
     if (activeScope.current !== scopeKey || generation !== loadGeneration.current) return;
+    if (cachedRaw == null) return;
     const cached = extractTasksFromCache(cachedRaw);
     if (cached) {
       const childRows = cached
@@ -215,10 +267,9 @@ export function TaskSubtasksInline({
     addInFlight.current = true;
     setAdding(true);
 
-    const newId = crypto.randomUUID();
-    const position = subs.reduce((max, row) => Math.max(max, row.position ?? 0), -1) + 1;
-    const newSubTask: Task = {
-      id: newId,
+    let position = subs.reduce((max, row) => Math.max(max, row.position ?? 0), -1) + 1;
+    const newSubTask: Task = creationDraft.current?.title === title ? creationDraft.current : {
+      id: crypto.randomUUID(),
       user_id: user.id,
       title,
       parent_id: taskId,
@@ -229,6 +280,9 @@ export function TaskSubtasksInline({
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    creationDraft.current = newSubTask;
+    position = newSubTask.position ?? position;
+    const newId = newSubTask.id;
 
     try {
       const status = await persistTask(user.id, newSubTask);
@@ -237,6 +291,7 @@ export function TaskSubtasksInline({
         toast.error(T("خطا در ایجاد زیرتسک", "Failed to create subtask"));
         return;
       }
+      creationDraft.current = null;
       loadGeneration.current += 1;
       recentAddsRef.current.set(newId, { row: { ...newSubTask, position }, time: Date.now() });
       const nextSubs = currentRows.current.some(row => row.id === newId) ? currentRows.current : [...currentRows.current, { ...newSubTask, position }];
@@ -257,7 +312,11 @@ export function TaskSubtasksInline({
   const toggle = async (s: Sub) => {
     if (readOnly || !user) return;
     const next = !s.completed;
-    const prevSubs = subs;
+    const pending = togglePending.current.get(s.id) || 0;
+    if (!pending) confirmedToggles.current.set(s.id, { completed: s.completed, status: s.status });
+    togglePending.current.set(s.id, pending + 1);
+    const version = (toggleVersions.current.get(s.id) || 0) + 1;
+    toggleVersions.current.set(s.id, version);
     const nextSubs = subs.map((x) => (x.id === s.id ? { ...x, completed: next, status: next ? "done" as const : "todo" as const } : x));
     setSubs(nextSubs);
     onSubtasksChange?.(nextSubs);
@@ -270,17 +329,22 @@ export function TaskSubtasksInline({
       awardTaskWatering(s.title, true);
     }
 
-    const status = await persistTask(user.id, {
+    const status = await write(s.id, {
       id: s.id,
       completed: next,
       status: next ? "done" : "todo",
       parent_id: taskId,
       completed_at: next ? new Date().toISOString() : null,
-    });
+    }).catch(() => "failed" as const);
+    if (activeScope.current !== scopeKey) return;
+    togglePending.current.set(s.id, (togglePending.current.get(s.id) || 1) - 1);
+    if (status !== "failed") confirmedToggles.current.set(s.id, { completed: next, status: next ? "done" : "todo" });
+    if (toggleVersions.current.get(s.id) !== version) return;
     if (status === "failed") {
       recentTogglesRef.current.delete(s.id);
-      setSubs(prevSubs);
-      onSubtasksChange?.(prevSubs);
+      const restored = currentRows.current.map(row => row.id === s.id ? { ...row, ...confirmedToggles.current.get(s.id) } : row);
+      setSubs(restored);
+      onSubtasksChange?.(restored);
       toast.error(T("خطا در به‌روزرسانی زیرتسک", "Failed to update subtask"));
       return;
     }
@@ -289,11 +353,25 @@ export function TaskSubtasksInline({
 
   const patchPlanning = async (sub: Sub, patch: Partial<Task>) => {
     if (!user || readOnly) return;
-    const inverse = Object.fromEntries(Object.keys(patch).map(key => [key, sub[key as keyof Sub]]));
+    const versions = Object.keys(patch).map(key => {
+      const field = `${sub.id}\u0000${key}`;
+      const pending = planningPending.current.get(field) || 0;
+      if (!pending) confirmedPlanning.current.set(field, sub[key as keyof Sub]);
+      planningPending.current.set(field, pending + 1);
+      const version = (planningVersions.current.get(field) || 0) + 1;
+      planningVersions.current.set(field, version);
+      return { key, field, version };
+    });
     setSubs(previous => previous.map(row => row.id === sub.id ? { ...row, ...patch } : row));
-    const status = await persistTask(user.id, { id: sub.id, ...patch });
+    const status = await write(sub.id, patch).catch(() => "failed" as const);
+    if (activeScope.current !== scopeKey) return;
+    for (const { key, field } of versions) {
+      planningPending.current.set(field, (planningPending.current.get(field) || 1) - 1);
+      if (status !== "failed") confirmedPlanning.current.set(field, patch[key as keyof Task]);
+    }
     if (status === "failed") {
-      setSubs(previous => previous.map(row => row.id === sub.id ? { ...row, ...inverse } : row));
+      const rollback = Object.fromEntries(versions.filter(({ field, version }) => planningVersions.current.get(field) === version).map(({ key, field }) => [key, confirmedPlanning.current.get(field)]));
+      setSubs(previous => previous.map(row => row.id === sub.id ? { ...row, ...rollback } : row));
       toast.error(T("برنامه‌ریزی ذخیره نشد", "Could not save planning"));
     }
     window.dispatchEvent(new Event("tasks-changed"));
@@ -306,37 +384,35 @@ export function TaskSubtasksInline({
     setSubs((prev) => prev.map((x) => (x.id === id ? { ...x, title } : x)));
 
     if (writeTimers.current[id]) clearTimeout(writeTimers.current[id]);
-    writeTimers.current[id] = setTimeout(async () => {
-      delete writeTimers.current[id];
-      const status = await persistTask(user.id, { id, title });
-      if (activeScope.current !== scopeKey) return;
-      if (status === "failed") {
-        toast.error(T("خطا در ذخیره عنوان زیرتسک", "Failed to save subtask title"));
-        return;
-      }
-      if (pendingTitles.current[id] === title) {
-        delete pendingTitles.current[id];
-        editingRef.current.delete(id);
-      }
-      window.dispatchEvent(new Event("tasks-changed"));
-    }, 500);
+    writeTimers.current[id] = setTimeout(() => { void flushPendingTitle(id); }, 500);
   };
 
   const remove = async (id: string) => {
-    if (readOnly || !user) return false;
+    if (readOnly || !user || removingIds.current.has(id)) return false;
+    removingIds.current.add(id);
     const prevSubs = subs;
     recentAddsRef.current.delete(id);
     const nextSubs = subs.filter((x) => x.id !== id);
     setSubs(nextSubs);
     onSubtasksChange?.(nextSubs);
 
-    const res = await deleteTaskCascade(user.id, id);
+    if (writeTimers.current[id]) clearTimeout(writeTimers.current[id]);
+    delete writeTimers.current[id];
+    await writes.current.get(id)?.catch(() => {});
+    if (activeScope.current !== scopeKey) return false;
+    const res = await deleteTaskCascade(user.id, id).catch(() => ({ success: false }));
+    if (activeScope.current !== scopeKey) return false;
     if (!res.success) {
-      setSubs(prevSubs);
-      onSubtasksChange?.(prevSubs);
+      removingIds.current.delete(id);
+      const removed = prevSubs.find(row => row.id === id);
+      const restored = removed && !currentRows.current.some(row => row.id === id) ? [...currentRows.current, removed].sort((a, b) => a.position - b.position) : currentRows.current;
+      setSubs(restored);
+      onSubtasksChange?.(restored);
+      if (pendingTitles.current[id] !== undefined) void flushPendingTitle(id);
       toast.error(T("خطا در حذف زیرتسک", "Failed to delete subtask"));
       return false;
     }
+    delete pendingTitles.current[id];
     window.dispatchEvent(new Event("tasks-changed"));
     return true;
   };
@@ -348,8 +424,10 @@ export function TaskSubtasksInline({
       let candidateTasks: Task[];
       if (isOffline) {
         candidateTasks = extractTasksFromCache(await cacheGet<unknown>(`tasks:all:${user.id}`));
+        if (activeScope.current !== scopeKey) return;
       } else {
         const serverTasks = await getServerConfirmedCascadeTasks(user.id);
+        if (activeScope.current !== scopeKey) return;
         if (!serverTasks) {
           // A failed/cache-only preflight cannot prove this is a leaf.
           setDeleteWarning("unverified");
@@ -371,6 +449,7 @@ export function TaskSubtasksInline({
         return;
       }
     } catch {
+      if (activeScope.current !== scopeKey) return;
       // If descendants cannot be checked, show the broader warning before a cascade.
       setDeleteWarning("unverified");
       setDeleteCandidate(sub);
@@ -383,6 +462,7 @@ export function TaskSubtasksInline({
     if (!deleteCandidate || deleting) return;
     setDeleting(true);
     const removed = await remove(deleteCandidate.id);
+    if (activeScope.current !== scopeKey) return;
     setDeleting(false);
     if (removed) {
       setDeleteCandidate(null);
@@ -393,19 +473,23 @@ export function TaskSubtasksInline({
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const reorder = async (fromId: string, toId: string) => {
-    if (readOnly || !user) return;
+    if (readOnly || !user || reorderInFlight.current) return;
     const fromIdx = subs.findIndex((s) => s.id === fromId);
     const toIdx = subs.findIndex((s) => s.id === toId);
     if (fromIdx < 0 || toIdx < 0 || fromIdx === toIdx) return;
+    reorderInFlight.current = true;
     const prevSubs = subs;
     const reordered = arrayMove(subs, fromIdx, toIdx).map((s, i) => ({ ...s, position: i }));
     setSubs(reordered);
 
     const results = await Promise.all(
-      reordered.map((s, i) => persistTask(user.id, { id: s.id, position: i }))
+      reordered.map((s, i) => write(s.id, { position: i }).catch(() => "failed" as const))
     );
+    if (activeScope.current !== scopeKey) return;
+    reorderInFlight.current = false;
     if (results.some((r) => r === "failed")) {
-      setSubs(prevSubs);
+      const positions = new Map(prevSubs.map(row => [row.id, row.position]));
+      setSubs(previous => previous.map(row => ({ ...row, position: positions.get(row.id) ?? row.position })).sort((a, b) => a.position - b.position));
       toast.error(T("خطا در تغییر ترتیب زیرتسک‌ها", "Failed to reorder subtasks"));
       return;
     }

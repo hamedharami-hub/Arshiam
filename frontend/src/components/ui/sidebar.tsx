@@ -41,6 +41,9 @@ type SidebarContext = {
   isResizing: boolean;
   setIsResizing: (resizing: boolean) => void;
   side: "left" | "right";
+  mobileSide: "left" | "right" | null;
+  openMobileFromSide: (side: "left" | "right") => void;
+  restoreMobileFocus: () => void;
 };
 
 const SidebarContext = React.createContext<SidebarContext | null>(null);
@@ -64,7 +67,21 @@ const SidebarProvider = React.forwardRef<
   }
 >(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, side: sideProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
-  const [openMobile, setOpenMobile] = React.useState(false);
+  const [openMobile, setOpenMobileState] = React.useState(false);
+  const mobileTrigger = React.useRef<HTMLElement | null>(null);
+  const setOpenMobile = React.useCallback((open: boolean) => {
+    if (open) mobileTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setOpenMobileState(open);
+  }, []);
+  const restoreMobileFocus = React.useCallback(() => {
+    if (mobileTrigger.current?.isConnected) mobileTrigger.current.focus();
+  }, []);
+  const [mobileSide, setMobileSide] = React.useState<"left" | "right" | null>(null);
+  const openMobileFromSide = React.useCallback((side: "left" | "right") => {
+    setMobileSide(side);
+    setOpenMobile(true);
+  }, [setOpenMobile]);
+  React.useEffect(() => { if (!openMobile) setMobileSide(null); }, [openMobile]);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -108,8 +125,8 @@ const SidebarProvider = React.forwardRef<
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
-  }, [isMobile, setOpen, setOpenMobile]);
+    return isMobile ? setOpenMobile(!openMobile) : setOpen((open) => !open);
+  }, [isMobile, openMobile, setOpen, setOpenMobile]);
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -142,8 +159,11 @@ const SidebarProvider = React.forwardRef<
       isResizing,
       setIsResizing,
       side,
+      mobileSide,
+      openMobileFromSide,
+      restoreMobileFocus,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth, isResizing, setIsResizing, side],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth, isResizing, setIsResizing, side, mobileSide, openMobileFromSide, restoreMobileFocus],
   );
 
   return (
@@ -181,8 +201,8 @@ const Sidebar = React.forwardRef<
     collapsible?: "offcanvas" | "icon" | "none";
   }
 >(({ side: sideProp, variant = "sidebar", collapsible = "offcanvas", className, style, children, ...props }, ref) => {
-  const { isMobile, state, openMobile, setOpenMobile, isResizing, side: contextSide } = useSidebar();
-  const side = sideProp ?? contextSide ?? "right";
+  const { isMobile, state, openMobile, setOpenMobile, isResizing, side: contextSide, mobileSide, restoreMobileFocus } = useSidebar();
+  const side = mobileSide ?? sideProp ?? contextSide ?? "right";
   const contentRef = React.useRef<HTMLDivElement>(null);
   const swipe = React.useRef<{ x: number; y: number; active: boolean; side: "left" | "right" } | null>(null);
 
@@ -235,7 +255,7 @@ const Sidebar = React.forwardRef<
     );
   }
 
-  if (isMobile) {
+  if (isMobile || mobileSide !== null) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
@@ -251,6 +271,7 @@ const Sidebar = React.forwardRef<
               : "[&>button]:top-3 [&>button]:right-3 [&>button]:left-auto"
           )}
           side={side}
+          onCloseAutoFocus={event => { event.preventDefault(); restoreMobileFocus(); }}
           onTouchStart={(e) => onTouchStart(e, side)}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}

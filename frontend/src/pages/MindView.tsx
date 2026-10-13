@@ -35,10 +35,14 @@ function Slider({ label, value, onChange, testId, num }: { label: string; value:
 
 export default function MindView() {
   const { user } = useAuth();
+  // Sensitive input and in-flight state must never survive an owner change.
+  return <MindHome key={user?.id || "guest"} userId={user?.id} />;
+}
+
+function MindHome({ userId }: { userId?: string }) {
   const { T, isEn } = useBilingual();
   const navigate = useNavigate();
   const num = (n: number) => (isEn ? String(n) : toPersianDigits(n));
-  const userId = user?.id;
   const today = getLocalDateString(new Date());
 
   const [record, setRecord] = useState<TodayRecord | null>(null);
@@ -48,15 +52,21 @@ export default function MindView() {
   const [touched, setTouched] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const requestRef = useRef(0);
+  const editRevision = useRef(0);
+  const savingRef = useRef(false);
+  const [draftSaveFailed, setDraftSaveFailed] = useState(false);
 
   useEffect(() => {
     setLoaded(false); setRecord(null); setTouched(false); setSaveState("idle");
     requestRef.current += 1;
+    let active = true;
     if (!userId) return;
-    return subscribeDailyCheckins(userId, (items: TodayRecord[]) => {
+    const unsubscribe = subscribeDailyCheckins(userId, (items: TodayRecord[]) => {
+      if (!active) return;
       setRecord(items.find((c) => c.checkin_date === today) ?? null);
       setLoaded(true);
     });
+    return () => { active = false; requestRef.current += 1; unsubscribe(); };
   }, [userId, today]);
 
   useEffect(() => {
@@ -64,26 +74,34 @@ export default function MindView() {
   }, [record, touched]);
 
   async function saveMood() {
-    if (!userId || saveState === "saving") return;
+    if (!userId || savingRef.current) return;
+    savingRef.current = true;
+    const revision = editRevision.current;
     const ticket = ++requestRef.current;
     setSaveState("saving");
-    const write = upsertDailyCheckin(userId, { checkin_date: today, mood, energy }).then((ok) => (ok ? "saved" : "failed") as SaveState);
-    const first = await Promise.race([write, new Promise<SaveState>((r) => setTimeout(() => r("queued"), SAVE_ACK_TIMEOUT_MS))]);
-    if (ticket !== requestRef.current) return;
-    setSaveState(first);
-    if (first === "queued") {
-      void write.then((final) => { if (ticket === requestRef.current) setSaveState(final); });
-    } else if (first === "saved") {
-      setTouched(false);
+    const timer = window.setTimeout(() => {
+      if (ticket === requestRef.current) setSaveState("queued");
+    }, SAVE_ACK_TIMEOUT_MS);
+    try {
+      const ok = await upsertDailyCheckin(userId, { checkin_date: today, mood, energy });
+      if (ticket !== requestRef.current) return;
+      setSaveState(ok ? (revision === editRevision.current ? "saved" : "idle") : "failed");
+      if (ok && revision === editRevision.current) setTouched(false);
+    } catch {
+      if (ticket === requestRef.current) setSaveState("failed");
+    } finally {
+      window.clearTimeout(timer);
+      savingRef.current = false;
     }
   }
 
   const { draft, save: saveDraft } = useMindDraft(userId);
   const [text, setText] = useState(draft?.text ?? "");
-  useEffect(() => { if (draft && !text) setText(draft.text); }, [draft, text]);
+  useEffect(() => { setText(draft?.text ?? ""); }, [draft]);
 
   function startPath(path: MindDraftPath) {
-    saveDraft({ text, path });
+    if (!saveDraft({ text, path })) { setDraftSaveFailed(true); return; }
+    setDraftSaveFailed(false);
     navigate(path === "think" ? "/app/thoughts" : "/app/worry");
   }
 
@@ -94,7 +112,7 @@ export default function MindView() {
     idle: "",
     saving: T("در حال ذخیره…", "Saving…"),
     saved: T("ذخیره و همگام شد", "Saved and synced"),
-    queued: T("روی دستگاه ذخیره شد؛ منتظر همگام‌سازی", "Saved on this device; waiting to sync"),
+    queued: T("هنوز تأیید ذخیره نرسیده؛ این صفحه را باز نگه دارید.", "Save is not confirmed yet. Keep this page open."),
     failed: T("ذخیره نشد. دوباره تلاش کنید.", "Could not save. Try again."),
   };
 
@@ -134,10 +152,10 @@ export default function MindView() {
               </p>
             </div>
           </header>
-          <Slider label={T("خلق", "Mood")} value={mood} onChange={(n) => { setMood(n); setTouched(true); }} testId="mind-mood-slider" num={num} />
-          <Slider label={T("انرژی", "Energy")} value={energy} onChange={(n) => { setEnergy(n); setTouched(true); }} testId="mind-energy-slider" num={num} />
+          <Slider label={T("خلق", "Mood")} value={mood} onChange={(n) => { editRevision.current += 1; setMood(n); setTouched(true); if (!savingRef.current) setSaveState("idle"); }} testId="mind-mood-slider" num={num} />
+          <Slider label={T("انرژی", "Energy")} value={energy} onChange={(n) => { editRevision.current += 1; setEnergy(n); setTouched(true); if (!savingRef.current) setSaveState("idle"); }} testId="mind-energy-slider" num={num} />
           <div className="flex items-center gap-3">
-            <Button onClick={saveMood} disabled={!loaded || saveState === "saving"} className="h-10 min-w-24" data-testid="mind-mood-save">
+            <Button onClick={saveMood} disabled={!loaded || saveState === "saving" || saveState === "queued"} className="h-11 min-w-24" data-testid="mind-mood-save">
               {saveState === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : record ? T("به‌روزرسانی", "Update") : T("ثبت", "Save")}
             </Button>
             <span className="flex items-center gap-1 text-xs text-muted-foreground" role="status" aria-live="polite" data-testid="mind-mood-status">
@@ -178,12 +196,13 @@ export default function MindView() {
           </header>
           <textarea
             value={text} rows={3} dir="auto"
-            onChange={(e) => { setText(e.target.value); saveDraft({ text: e.target.value }); }}
+            onChange={(e) => { setText(e.target.value); setDraftSaveFailed(!saveDraft({ text: e.target.value })); }}
             placeholder={T("چند کلمه بنویس…", "Write a few words…")}
             className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm leading-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={T("چه چیزی ذهنت را درگیر کرده؟", "What is on your mind?")}
             data-testid="mind-busy-input"
           />
+          {draftSaveFailed && <p role="alert" className="text-xs text-destructive" data-testid="mind-draft-error">{T("پیش‌نویس ذخیره نشد؛ قبل از خروج متن را کپی کنید یا دوباره تلاش کنید.", "Draft could not be saved. Copy your text before leaving or try again.")}</p>}
           <div className="flex flex-col gap-2">
             <Button variant="outline" className="h-auto min-h-10 justify-start whitespace-normal py-2 text-start" onClick={() => startPath("think")} data-testid="mind-path-think">
               {T("می‌خواهم فکرم را بررسی کنم", "I want to examine my thought")}

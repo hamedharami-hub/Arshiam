@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   getCrisisResources,
   resolveSupportRegion,
@@ -9,6 +9,7 @@ import {
   SUPPORT_REGIONS,
   CRISIS_REGION_STORAGE_KEY,
 } from "./crisisResources";
+afterEach(() => vi.restoreAllMocks());
 
 describe("crisisResources centralized configuration", () => {
   beforeEach(() => {
@@ -16,6 +17,16 @@ describe("crisisResources centralized configuration", () => {
   });
 
   describe("1. Support region resolution and persistence", () => {
+    it("reports storage failure instead of claiming the region was saved", () => {
+      localStorage.setItem(CRISIS_REGION_STORAGE_KEY, "au");
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("unavailable"); });
+      expect(setStoredSupportRegion("ir")).toBe(false);
+      expect(resolveSupportRegion("en")).toBe("au");
+    });
+    it("detects silently rejected writes", () => {
+      vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
+      expect(setStoredSupportRegion("ir")).toBe(false);
+    });
     it("defaults to Australia (au) for English language to prevent US-only numbers", () => {
       const region = resolveSupportRegion("en");
       expect(region).toBe("au");

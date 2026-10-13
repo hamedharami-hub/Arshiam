@@ -44,13 +44,14 @@ const dayKey = (offset: number) => {
 const scheduled = (iso: string) => ({ ...base, work_date: iso }) as Task;
 
 describe("TaskScheduleBody — icon-led When panel", () => {
-  it("one picker: quick days and periods, the calendar, then time and repeat rows", () => {
+  it("shows quick periods and labeled options without mounting the calendar initially", () => {
     render(<TaskScheduleBody t={base} canEdit save={vi.fn()} T={T} isEn={false} />);
     for (const key of ["today", "tomorrow", "week", "next-week", "month", "next-month"]) {
       expect(screen.getByTestId(`planning-quick-${key}`)).toBeInTheDocument();
     }
     expect(screen.getByTestId("planning-custom-toggle")).toBeInTheDocument();
-    expect(screen.getByTestId("inline-calendar-pick")).toBeInTheDocument();
+    expect(screen.queryByTestId("inline-calendar-pick")).toBeNull();
+    expect(screen.getByTestId("schedule-calendar-toggle")).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("schedule-time")).toBeDisabled();
     expect(screen.getByTestId("schedule-repeat")).toBeInTheDocument();
     expect(screen.getByTestId("schedule-reminder")).toBeInTheDocument();
@@ -61,6 +62,20 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     for (const id of ["schedule-deadline", "schedule-bucket", "schedule-block", "schedule-estimate", "schedule-pick-date", "task-meta-plan"]) {
       expect(screen.queryByTestId(id)).toBeNull();
     }
+  });
+
+  it("opens the calendar only on request, collapses it, and resets for another task", () => {
+    const save = vi.fn();
+    const { rerender } = render(<TaskScheduleBody t={scheduled("2026-05-01")} canEdit save={save} T={T} isEn={false} />);
+    expect(screen.queryByTestId("schedule-calendar-body")).toBeNull();
+    fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
+    expect(screen.getByTestId("schedule-calendar-body")).toBeInTheDocument();
+    expect(save).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
+    expect(screen.queryByTestId("schedule-calendar-body")).toBeNull();
+    fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
+    rerender(<TaskScheduleBody t={{ ...base, id: "t2" }} canEdit save={save} T={T} isEn={false} />);
+    expect(screen.queryByTestId("schedule-calendar-body")).toBeNull();
   });
 
   it("keeps an optional deadline separate from the operational schedule", () => {
@@ -148,6 +163,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
   it("a day picked on the calendar saves it", () => {
     const save = vi.fn();
     render(<TaskScheduleBody t={base} canEdit save={save} T={T} isEn={false} />);
+    fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
     fireEvent.click(screen.getByTestId("inline-calendar-pick"));
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: "2026-05-01" }));
   });
@@ -218,6 +234,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     try {
       const save = vi.fn();
       render(<TaskScheduleBody t={scheduled("2026-03-07T07:30:00.000Z")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
       fireEvent.click(screen.getByTestId("inline-calendar-dst-gap"));
 
       expect(save).toHaveBeenCalledWith(expect.objectContaining({ work_date: "2026-03-08", schedule_v: 2 }));
@@ -235,6 +252,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     try {
       const save = vi.fn().mockResolvedValue("failed");
       render(<TaskScheduleBody t={scheduled("2026-03-07T07:30:00.000Z")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
       fireEvent.click(screen.getByTestId("inline-calendar-dst-gap"));
 
       await waitFor(() => expect(screen.getByTestId("schedule-save-error")).toBeInTheDocument());
@@ -252,6 +270,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     try {
       const save = vi.fn().mockRejectedValue(new Error("offline"));
       render(<TaskScheduleBody t={scheduled("2026-03-07T07:30:00.000Z")} canEdit save={save} T={T} isEn={false} />);
+      fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
       fireEvent.click(screen.getByTestId("inline-calendar-dst-gap"));
 
       await waitFor(() => expect(screen.getByTestId("schedule-save-error")).toBeInTheDocument());
@@ -421,6 +440,7 @@ describe("TaskScheduleBody — icon-led When panel", () => {
     render(<TaskScheduleBody t={base} canEdit={false} save={save} T={T} isEn={false} />);
     expect(screen.queryByTestId("planning-quick-today")).toBeNull();
     expect(screen.getByTestId("schedule-repeat")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("schedule-calendar-toggle"));
     fireEvent.click(screen.getByTestId("inline-calendar-pick"));
     expect(save).not.toHaveBeenCalled();
   });

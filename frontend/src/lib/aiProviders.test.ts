@@ -37,6 +37,16 @@ describe("error classification", () => {
 });
 
 describe("testProviderKey", () => {
+  it("tests xAI without sending its key to OpenAI", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ id: "available-grok" }] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await testProviderKey("xai", "xai-secret", "available-grok")).toMatchObject({ ok: true, modelAvailable: true });
+    expect(fetchMock).toHaveBeenCalledWith("https://api.x.ai/v1/models", expect.objectContaining({ headers: { Authorization: "Bearer xai-secret" } }));
+  });
+  it("does not call a malformed success response a valid key", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error("html"); } }));
+    expect(await testProviderKey("openai", "key")).toMatchObject({ ok: false });
+  });
   it("reports an invalid key", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "bad" }));
     expect(await testProviderKey("openai", "sk-x")).toEqual({ ok: false, kind: "invalid_key" });

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Ban, Bell, BellOff, Check, Clock, Repeat, SlidersHorizontal, X,
+  Ban, Bell, BellOff, CalendarDays, Check, ChevronDown, Clock, Repeat, SlidersHorizontal, X,
 } from "lucide-react";
 import { DueDatePicker } from "@/components/DueDatePicker";
 import { RecurrenceEditor } from "@/components/RecurrenceEditor";
 import { InlineDatePicker } from "@/components/InlineDatePicker";
 import { TimeWheel } from "@/components/TimeWheel";
 import { IconTip } from "./IconTip";
-import { TaskPlanningBody } from "@/components/TaskPlanningPicker";
+import { TaskPlanningBody, useTaskPlanningLabel } from "@/components/TaskPlanningPicker";
 import { toPersianDigits } from "@/lib/persianDigits";
 import type { Task } from "@/lib/taskTypes";
 import { taskWorkDate, workDatePatch } from "@/lib/taskDate";
@@ -67,8 +67,11 @@ function ValueRow({ icon: Icon, value, placeholder, open, disabled, onClick, onC
   );
 }
 
-/** Icon-led "When" panel: quick days, a month calendar, then time / repeat / reminder rows. */
+/** Compact "When" panel with an explicitly opened calendar. */
 export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskScheduleBodyProps) {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const planningLabel = useTaskPlanningLabel(t);
+  useEffect(() => { setCalendarOpen(false); setSub(null); }, [t.id]);
   const [sub, setSub] = useState<SubPanel>(null);
   const [invalidLocalTime, setInvalidLocalTime] = useState(false);
   const [scheduleSaveError, setScheduleSaveError] = useState(false);
@@ -222,16 +225,22 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
       {/* One schedule: quick days and periods, a custom range, and clearing */}
       {canEdit && <TaskPlanningBody task={t} onPatch={(patch) => { cancelPendingTime(); save(patch); setSub(null); }} onPickDay={(ymd) => pickDay(ymd)} />}
 
-      {/* Month calendar, always visible */}
-      <div className="rounded-xl border border-border/60 p-1.5">
+      <button type="button" data-testid="schedule-calendar-toggle" aria-expanded={calendarOpen}
+        onClick={() => setCalendarOpen(open => !open)}
+        className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-border/60 px-3 text-start text-sm hover:bg-muted/60">
+        <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="min-w-0 flex-1 truncate">{planningLabel || T("انتخاب تاریخ", "Choose date")}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${calendarOpen ? "rotate-180" : ""}`} aria-hidden />
+      </button>
+      {calendarOpen && <div className="rounded-xl border border-border/60 p-1.5" data-testid="schedule-calendar-body">
         {canEdit
           ? <InlineDatePicker bare value={workDay} isEn={isEn} onSelect={(ymd) => pickDay(ymd)} />
           : <div className="pointer-events-none opacity-60"><InlineDatePicker bare value={workDay} isEn={isEn} onSelect={() => {}} /></div>}
-      </div>
+      </div>}
 
       <div className="space-y-0.5">
         {/* Time */}
-        <ValueRow icon={Clock} value={timePart ? num(timePart) : null} open={sub === "time"} active={!!timePart}
+        <ValueRow icon={Clock} value={timePart ? num(timePart) : null} placeholder={workDay ? T("افزودن ساعت", "Add time") : T("ساعت · ابتدا یک روز انتخاب کن", "Time · choose a day first")} open={sub === "time"} active={!!timePart}
           disabled={!canEdit || !workDay} onClick={openTime} onClear={clearTime} clearLabel={T("حذف ساعت", "Clear time")}
           testid="schedule-time" clearTestid="schedule-time-clear" />
         {sub === "time" && workDay && (
@@ -247,7 +256,7 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
         )}
 
         {/* Repeat */}
-        <ValueRow icon={Repeat} value={repeatValue} open={sub === "repeat" || sub === "custom-repeat"} active={!!rule}
+        <ValueRow icon={Repeat} value={repeatValue} placeholder={T("بدون تکرار", "Does not repeat")} open={sub === "repeat" || sub === "custom-repeat"} active={!!rule}
           disabled={!canEdit} onClick={() => setSub((cur) => (cur === "repeat" || cur === "custom-repeat" ? null : "repeat"))}
           testid="schedule-repeat" />
         {(sub === "repeat" || sub === "custom-repeat") && canEdit && (
@@ -281,7 +290,7 @@ export function TaskScheduleBody({ t, canEdit, save, T, isEn, onDone }: TaskSche
         {showReminder && (
           <>
             <ValueRow icon={reminderOn ? Bell : BellOff} value={reminderOn ? (reminderTime ? num(reminderTime) : T("روشن", "On")) : null}
-              open={sub === "reminder"} active={reminderOn} disabled={!canEdit} onClick={() => toggleSub("reminder")}
+               placeholder={T("افزودن یادآوری", "Add reminder")} open={sub === "reminder"} active={reminderOn} disabled={!canEdit} onClick={() => toggleSub("reminder")}
               testid="schedule-reminder" />
             {sub === "reminder" && canEdit && (
               <div className="rounded-xl bg-muted/40 p-1.5" data-testid="schedule-reminder-body">

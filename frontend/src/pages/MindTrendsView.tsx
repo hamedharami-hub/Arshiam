@@ -58,6 +58,11 @@ type Checkin = {
 
 export default function MindTrendsView() {
   const { user } = useAuth();
+  return <MindTrendsHome key={user?.id || "guest"} />;
+}
+
+function MindTrendsHome() {
+  const { user } = useAuth();
   const { T, isEn } = useBilingual();
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [thoughtCount, setThoughtCount] = useState(0);
@@ -108,12 +113,15 @@ export default function MindTrendsView() {
 
   useEffect(() => {
     if (!user) return;
+    let active = true;
     loadSettings(user.id).then((s) => {
+      if (!active) return;
       setSettings(s);
       if (s?.streak_enabled !== undefined) {
         setShowStreak(s.streak_enabled);
       }
-    });
+    }).catch(() => { if (active) setSettings(null); });
+    return () => { active = false; };
   }, [user?.id]);
 
   useEffect(() => {

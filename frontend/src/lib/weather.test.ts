@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { addDaysIso, dayForDate, forecastToday, hoursForDate, weatherGroup, type WeatherData } from "./weather";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { addDaysIso, dayForDate, fetchWeather, forecastToday, hoursForDate, setWeatherLocation, weatherGroup, type WeatherData } from "./weather";
+
+beforeEach(() => localStorage.clear());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 const data: WeatherData = {
   timezone: "Australia/Sydney",
@@ -23,6 +26,32 @@ const data: WeatherData = {
 };
 
 describe("weather helpers", () => {
+  it("does not report a location saved when storage silently drops it", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
+    expect(setWeatherLocation({ mode: "city", name: "Sydney", lat: -33.87, lon: 151.21 })).toBe(false);
+  });
+  it("rejects incomplete forecasts instead of caching data that will crash the view", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ timezone: "UTC", hourly: { time: ["2026-10-13T00:00"] }, daily: { time: ["2026-10-13"] } }) }));
+    await expect(fetchWeather({ mode: "city", name: "Sydney", lat: -33.87, lon: 151.21 })).rejects.toThrow("Invalid weather response");
+  });
+  it("uses only recent validated cache, rejecting expired or future-dated entries", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    const key = "arsh_weather_cache_v1:-33.87,151.21";
+    const loc = { mode: "city" as const, name: "Sydney", lat: -33.87, lon: 151.21 };
+    localStorage.setItem(key, JSON.stringify({ ...data, fetched_at: new Date(Date.now() - 60000).toISOString() }));
+    expect(await fetchWeather(loc)).toMatchObject({ offline: true, stale: true });
+    for (const offset of [-25 * 3600000, 3600000]) {
+      localStorage.setItem(key, JSON.stringify({ ...data, fetched_at: new Date(Date.now() + offset).toISOString() }));
+      await expect(fetchWeather(loc)).rejects.toThrow("offline");
+    }
+  });
+  it("does not fall back to another location's cache after cancellation", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("aborted")));
+    localStorage.setItem("arsh_weather_cache_v1:-33.87,151.21", JSON.stringify({ ...data, fetched_at: new Date().toISOString() }));
+    await expect(fetchWeather({ mode: "city", name: "Sydney", lat: -33.87, lon: 151.21 }, controller.signal)).rejects.toThrow("aborted");
+  });
   it("maps WMO codes", () => {
     expect(weatherGroup(0)).toBe("clear");
     expect(weatherGroup(2)).toBe("partly");

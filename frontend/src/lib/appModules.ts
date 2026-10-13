@@ -1,9 +1,31 @@
 import { useSyncExternalStore } from "react";
+import { auth } from "@/lib/firebase";
 import { clearRetiredModuleStorage } from "./retiredModuleStorage";
 
 export type ModuleId = "study" | "mind";
 
-const arshFetch = async <T,>(path: string, init?: RequestInit): Promise<T> => (await import("@/lib/arshApi")).arshFetch<T>(path, init);
+// Never let a lazy import or token refresh select a different account for a request.
+const arshFetch = async <T,>(path: string, init?: RequestInit): Promise<T> => {
+  const session = accountSession;
+  const uid = accountUid;
+  const user = auth.currentUser;
+  const assertCurrent = () => {
+    if (session !== accountSession || !uid || uid !== accountUid) throw new StaleModulesSessionError();
+  };
+  assertCurrent();
+  if (user?.uid !== uid) throw new StaleModulesSessionError();
+  const api = await import("@/lib/arshApi");
+  assertCurrent();
+  if (auth.currentUser?.uid !== uid) throw new StaleModulesSessionError();
+  const token = await user.getIdToken();
+  assertCurrent();
+  if (auth.currentUser?.uid !== uid) throw new StaleModulesSessionError();
+  if (!token) throw new api.ArshApiError(401, "برای این کار باید وارد حساب شوید");
+  const result = await api.arshFetch<T>(path, { ...init, headers: { ...init?.headers, Authorization: `Bearer ${token}` } }, false);
+  assertCurrent();
+  if (auth.currentUser?.uid !== uid) throw new StaleModulesSessionError();
+  return result;
+};
 
 type ModuleDef = { titleFa: string; titleEn: string; descFa: string; descEn: string; paths: string[]; prefetch: () => Promise<unknown> };
 
@@ -29,6 +51,8 @@ export type ModulesState = { ready: boolean; unlocked: ModuleId[]; installed: Mo
 const EMPTY: ModulesState = { ready: false, unlocked: [], installed: [], isAdmin: false, isOwner: false };
 let state: ModulesState = EMPTY;
 let cacheKey: string | null = null;
+let accountUid: string | null = null;
+let accountSession = 0;
 const listeners = new Set<() => void>();
 let retiredCleanupRetry: { uid: string; handler: () => void } | null = null;
 
@@ -46,6 +70,16 @@ export function setModulesState(next: Partial<ModulesState>) {
 
 export function getModulesState() {
   return state;
+}
+
+export class StaleModulesSessionError extends Error {
+  constructor() { super("The module account session has changed."); }
+}
+
+export function getModulesSession(): number { return accountSession; }
+
+export function useModulesSession(): number {
+  return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, getModulesSession, getModulesSession);
 }
 
 export function useModules(): ModulesState {
@@ -128,6 +162,8 @@ function fromServer(r: ServerState): Partial<ModulesState> {
 
 /** Called on sign-in / sign-out. Uses the per-account cache first so hidden sections never flash. */
 export async function syncModulesForUser(uid: string | null): Promise<void> {
+  const session = ++accountSession;
+  accountUid = uid;
   if (!uid) {
     cacheKey = null;
     if (typeof window !== "undefined" && retiredCleanupRetry) window.removeEventListener("online", retiredCleanupRetry.handler);
@@ -145,37 +181,46 @@ export async function syncModulesForUser(uid: string | null): Promise<void> {
   clearRetiredModuleStorage(uid);
   try {
     const { retireOwnedModuleData } = await import("@/lib/offlineQueue");
+    if (session !== accountSession) return;
     const queued = await retireOwnedModuleData(uid);
     if (queued.incomplete) console.warn("[appModules] Retired-module queue cleanup is incomplete; ambiguous items were preserved.");
-    if (cacheKey === userCacheKey) startRetiredModuleCloudPurge(uid, queued.incomplete);
+    if (session === accountSession) startRetiredModuleCloudPurge(uid, queued.incomplete);
   } catch (error) {
     // Keep ambiguous queue entries and retry cleanup when connectivity returns.
     console.warn("[appModules] Retired-module cleanup could not be verified.", error);
-    scheduleRetiredModuleCleanupRetry(uid);
+    if (session === accountSession) scheduleRetiredModuleCleanupRetry(uid);
   }
-  if (cacheKey !== userCacheKey) return;
+  if (session !== accountSession) return;
   let cached: ModulesState | null = null;
   try { cached = JSON.parse(localStorage.getItem(userCacheKey) || "null"); } catch { cached = null; }
   emit(cached?.ready ? { ...cached, ...fromServer({ unlocked: cached.unlocked || [], installed: cached.installed || [], is_admin: cached.isAdmin, is_owner: cached.isOwner }) } : EMPTY);
   try {
     const r = await arshFetch<ServerState>("/api/arsh/modules/me");
-    if (cacheKey === userCacheKey) setModulesState(fromServer(r));
+    if (session === accountSession) setModulesState(fromServer(r));
   } catch {
-    if (!state.ready) setModulesState({});
+    if (session === accountSession && !state.ready) setModulesState({});
   }
 }
 
 export async function redeemModuleCode(code: string): Promise<ModuleId[]> {
+  const session = accountSession;
   const r = await arshFetch<ServerState & { newly_unlocked: ModuleId[] }>("/api/arsh/modules/redeem", { method: "POST", body: JSON.stringify({ code }) });
+  if (session !== accountSession) throw new StaleModulesSessionError();
   setModulesState(fromServer(r));
+  if (session !== accountSession) throw new StaleModulesSessionError();
   await Promise.all(r.newly_unlocked.map((id) => APP_MODULES[id]?.prefetch().catch(() => undefined)));
+  if (session !== accountSession) throw new StaleModulesSessionError();
   return r.newly_unlocked;
 }
 
 export async function setModuleInstalled(id: ModuleId, installed: boolean): Promise<void> {
+  const session = accountSession;
   const r = await arshFetch<ServerState>(`/api/arsh/modules/${id}/${installed ? "install" : "uninstall"}`, { method: "POST" });
+  if (session !== accountSession) throw new StaleModulesSessionError();
   setModulesState(fromServer(r));
+  if (session !== accountSession) throw new StaleModulesSessionError();
   if (installed) await APP_MODULES[id].prefetch().catch(() => undefined);
+  if (session !== accountSession) throw new StaleModulesSessionError();
 }
 
 export type ModuleCode = { id: string; label: string; modules: string[]; max_uses: number | null; uses: number; expires_at: string | null; revoked: boolean; created_at: string; code?: string };

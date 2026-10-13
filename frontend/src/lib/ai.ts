@@ -85,11 +85,11 @@ export async function callAI(
     }
     const { callDirectOpenAICompat } = await import("./openAICompatDirect");
     return callDirectOpenAICompat({
-      provider: settings.provider as "openai" | "groq" | "openrouter" | "custom" | "anthropic",
+      provider: settings.provider as "openai" | "xai" | "groq" | "openrouter" | "custom" | "anthropic",
       prompt: promptText, systemPrompt, model, apiKey: settings.apiKey, baseUrl: settings.baseUrl, signal: opts?.signal,
     });
   };
-  const supported = ["gemini", "openai", "groq", "openrouter", "custom", "anthropic"];
+  const supported = ["gemini", "openai", "xai", "groq", "openrouter", "custom", "anthropic"];
   if (supported.includes(settings.provider)) {
     const primary = settings.model || (settings.provider === "gemini" ? "gemini-3-flash-preview" : "");
     const errLang = lang === "en" ? "en" : "fa";

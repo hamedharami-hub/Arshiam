@@ -60,7 +60,7 @@
     --sidebar-border: 35 12% 86%;
     --sidebar-ring: var(--primary);
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), color-mix(in srgb, hsl(var(--primary)) 78%, #000));
-    --bottom-bar-height: 4.25rem;
+    --bottom-bar-height: 3.25rem;
     --bottom-bar-gap: 0.9rem;
     --gradient-mesh: none;
     --shadow-soft: none;

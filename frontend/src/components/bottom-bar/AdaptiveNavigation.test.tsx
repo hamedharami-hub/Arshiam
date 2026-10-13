@@ -133,7 +133,9 @@ describe("MobileBottomBar", () => {
     expect(screen.getByRole("link", { name: "ذهن" })).toHaveAttribute("href", "/app/mind");
     expect(screen.getByRole("link", { name: "یادداشت‌ها" })).toHaveAttribute("href", "/app/notes");
     expect(screen.getByRole("link", { name: "امروز" })).toHaveAttribute("href", "/app/today");
-    expect(screen.getByRole("button", { name: "منو" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "منو" })).toBeNull();
+    expect(document.querySelector('[data-bottom-menu-edge="left"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-bottom-menu-edge="right"]')).toBeInTheDocument();
 
     // Now switch to left position
     act(() => setSidebarPosition("left"));
@@ -151,7 +153,7 @@ describe("MobileBottomBar", () => {
     );
 
     const nav = screen.getByRole("navigation", { name: "ناوبری پایین صفحه" });
-    await waitFor(() => expect(nav.getAttribute("data-sidebar-side")).toBe("left"));
+    expect(nav).toHaveClass("left-[calc(env(safe-area-inset-left,0px)+2.75rem)]", "right-[calc(env(safe-area-inset-right,0px)+2.75rem)]");
 
     // Clean up
     act(() => setSidebarPosition("right"));

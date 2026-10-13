@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,14 +64,29 @@ const META: Record<Type, {
 
 export default function AssessmentRunner() {
   const { type } = useParams<{ type: Type }>();
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const { T, isEn } = useBilingual();
+  if (!type || !Object.prototype.hasOwnProperty.call(META, type)) {
+    return <div dir={isEn ? "ltr" : "rtl"} className="p-8">{T("تست نامعتبر", "Invalid assessment")}</div>;
+  }
+  if (!user) {
+    return <div dir={isEn ? "ltr" : "rtl"} className="p-8">{T("برای ادامه وارد حساب شوید.", "Sign in to continue.")}</div>;
+  }
+  // Answers, pending operations and retry identities belong to this owner/type only.
+  return <AssessmentSession key={JSON.stringify([user.id, type])} owner={user.id} type={type} />;
+}
+
+function AssessmentSession({ owner, type }: { owner: string; type: Type }) {
+  const navigate = useNavigate();
   const { T, isEn } = useBilingual();
   const [responses, setResponses] = useState<Record<number, number>>({});
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   /** True when the last progress/finish write failed and has not been retried. */
   const [saveError, setSaveError] = useState(false);
   /** Distinguishes a failed final result write from a failed incremental progress write. */
@@ -79,89 +94,139 @@ export default function AssessmentRunner() {
   // One result identity per mounted assessment attempt: retries must not mint
   // another result when only the final progress acknowledgement failed.
   const finishAttempt = useRef<{ owner: string; type: Type; id: string; completedAt: string } | null>(null);
-  const finishing = useRef(false);
+  const operation = useRef(false);
+  const active = useRef(false);
 
-  const meta = type ? META[type as Type] : null;
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+
+  const meta = META[type];
 
   useEffect(() => {
-    if (!user || !type) return;
-    const itemCount = META[type as Type]?.items.length ?? 0;
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
+    const itemCount = meta.items.length;
     const maxIndex = Math.max(0, itemCount - 1);
     (async () => {
-      // Check Firestore progress (service normalizes current_index -> currentIndex + clamps)
-      const progress = await getAssessmentProgress(user.id, type, maxIndex);
-      if (progress && !progress.completed) {
-        setResponses(progress.responses || {});
-        setIndex(clampIndex(progress.currentIndex, itemCount));
-      } else {
-        // Fallback check firebaseStore
-        const { data } = await firebaseStore
-          .from("assessment_responses")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("assessment_type", type)
-          .maybeSingle();
-        if (data && !data.completed) {
-          setResponses((data.responses as Record<number, number>) || {});
-          const raw = (data as any).currentIndex ?? (data as any).current_index ?? 0;
-          setIndex(clampIndex(raw, itemCount));
+      try {
+        // Check Firestore progress (service normalizes current_index -> currentIndex + clamps)
+        const progress = await getAssessmentProgress(owner, type, maxIndex);
+        if (cancelled) return;
+        if (progress && !progress.completed) {
+          setResponses(progress.responses || {});
+          setIndex(clampIndex(progress.currentIndex, itemCount));
+        } else if (!progress) {
+          // Only missing primary progress may fall back. A completed primary doc
+          // must not resurrect an older incomplete mirror as a new attempt.
+          const { data, error } = await firebaseStore
+            .from("assessment_responses")
+            .select("*")
+            .eq("user_id", owner)
+            .eq("assessment_type", type)
+            .maybeSingle();
+          if (cancelled) return;
+          if (error) throw error;
+          if (data && !data.completed) {
+            setResponses((data.responses as Record<number, number>) || {});
+            const raw = (data as any).currentIndex ?? (data as any).current_index ?? 0;
+            setIndex(clampIndex(raw, itemCount));
+          }
         }
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     })();
-  }, [user, type]);
+    return () => { cancelled = true; };
+  }, [owner, type, meta, loadAttempt]);
 
   const total = meta?.items.length ?? 0;
   const item = meta?.items[index];
   const progress = total ? ((index + 1) / total) * 100 : 0;
 
   async function persist(newResp: Record<number, number>, newIdx: number, completed = false): Promise<boolean> {
-    if (!user || !type) return false;
-    const ok = await saveAssessmentProgress(user.id, type, newResp, newIdx, completed);
+    if (!active.current) return false;
+    let ok = false;
+    try {
+      ok = await saveAssessmentProgress(owner, type, newResp, newIdx, completed);
+    } catch {
+      return false;
+    }
+    if (!ok || !active.current) return false;
     // Best-effort mirror; the progress doc is the source of truth for resume.
-    firebaseStore.from("assessment_responses").upsert({
-      user_id: user.id,
-      assessment_type: type,
-      responses: newResp,
-      current_index: newIdx,
-      completed,
-    }, { onConflict: "user_id,assessment_type" }).catch(() => {});
+    // Await it too: an older mirror must not overtake a later progress write.
+    try {
+      await firebaseStore.from("assessment_responses").upsert({
+        user_id: owner,
+        assessment_type: type,
+        responses: newResp,
+        current_index: newIdx,
+        completed,
+      }, { onConflict: "user_id,assessment_type" });
+    } catch { /* best-effort mirror */ }
     return ok;
   }
 
+  function beginOperation() {
+    if (!active.current || operation.current || loading || loadError) return false;
+    operation.current = true;
+    setBusy(true);
+    return true;
+  }
+
+  function endOperation() {
+    operation.current = false;
+    if (active.current) setBusy(false);
+  }
+
   async function answer(val: number) {
-    if (!item) return;
-    const next = { ...responses, [item.id]: val };
-    setResponses(next);
-    if (index < total - 1) {
-      const nextIdx = index + 1;
-      setIndex(nextIdx);
-      setSaveError(false);
-      setFailedFinish(false);
-      const ok = await persist(next, nextIdx);
-      if (!ok) setSaveError(true);
-    } else {
-      await finish(next);
+    if (!item || failedFinish || !beginOperation()) return;
+    try {
+      const next = { ...responses, [item.id]: val };
+      setResponses(next);
+      if (index < total - 1) {
+        const nextIdx = index + 1;
+        setIndex(nextIdx);
+        setSaveError(false);
+        setFailedFinish(false);
+        const ok = await persist(next, nextIdx);
+        if (active.current) setSaveError(!ok);
+      } else {
+        await finish(next);
+      }
+    } finally {
+      endOperation();
     }
   }
 
   /** Re-attempt whichever write failed without discarding the user's answers. */
   async function retrySave() {
-    if (failedFinish) {
-      await finish(responses);
-      return;
+    if (!beginOperation()) return;
+    try {
+      if (failedFinish) {
+        await finish(responses);
+        return;
+      }
+      setSaveError(false);
+      const ok = await persist(responses, index);
+      if (active.current) setSaveError(!ok);
+    } finally {
+      endOperation();
     }
-    setSaveError(false);
-    const ok = await persist(responses, index);
-    if (!ok) setSaveError(true);
   }
 
   /** Persist the current cursor before leaving; never claim success on failure. */
   async function handleSaveAndExit() {
-    if (exiting) return;
+    // A partially saved final result must be retried, not downgraded to a draft.
+    if (failedFinish || !beginOperation()) return;
     setExiting(true);
     try {
       const ok = await persist(responses, index);
+      if (!active.current) return;
       if (!ok) {
         setFailedFinish(false);
         setSaveError(true);
@@ -172,15 +237,15 @@ export default function AssessmentRunner() {
       toast.success(T("ذخیره شد. هر زمان ادامه بده.", "Saved. Continue anytime."));
       navigate("/app/self");
     } finally {
-      setExiting(false);
+      if (active.current) setExiting(false);
+      endOperation();
     }
   }
 
   async function finish(final: Record<number, number>) {
-    if (!user || !type || finishing.current) return;
-    finishing.current = true;
-    if (finishAttempt.current?.owner !== user.id || finishAttempt.current?.type !== type) {
-      finishAttempt.current = { owner: user.id, type, id: `result_${crypto.randomUUID()}`, completedAt: new Date().toISOString() };
+    if (!active.current) return;
+    if (!finishAttempt.current) {
+      finishAttempt.current = { owner, type, id: `result_${crypto.randomUUID()}`, completedAt: new Date().toISOString() };
     }
     const attempt = finishAttempt.current;
     setSaving(true);
@@ -197,27 +262,35 @@ export default function AssessmentRunner() {
         analysis = { quadrant: attachmentQuadrant(scores) };
       }
 
-      const savedResult = await upsertAssessmentResult(user.id, {
+      const savedResult = await upsertAssessmentResult(owner, {
         id: attempt.id,
         completed_at: attempt.completedAt,
         assessment_type: type,
         scores,
         analysis,
       });
+      if (!active.current) return;
+      if (!savedResult) {
+        setFailedFinish(true);
+        setSaveError(true);
+        return;
+      }
 
       // Mirror to firebaseStore if accessible
-      firebaseStore.from("assessment_results").upsert({
+      await firebaseStore.from("assessment_results").upsert({
         id: attempt.id,
-        user_id: user.id,
+        user_id: owner,
         assessment_type: type,
         scores,
         analysis,
         completed_at: attempt.completedAt,
       }, { onConflict: "id" }).catch(() => {});
+      if (!active.current) return;
 
       const progressSaved = await persist(final, total - 1, true);
+      if (!active.current) return;
 
-      if (!savedResult || !progressSaved) {
+      if (!progressSaved) {
         // Keep the user's answers in place and let them retry; do not navigate or
         // announce success when the result/progress could not be persisted.
         setFailedFinish(true);
@@ -226,7 +299,7 @@ export default function AssessmentRunner() {
       }
 
       // Update mh_profile with rich fields and human summary
-      const profileUpdate: any = { user_id: user.id };
+      const profileUpdate: any = { user_id: owner };
       if (type === "hexaco") {
         profileUpdate.ai_tone = analysis.ai_tone;
         profileUpdate.hexaco_pattern = (analysis.archetype?.titleFa || analysis.patterns?.[0]) ?? null;
@@ -242,22 +315,29 @@ export default function AssessmentRunner() {
         profileUpdate.summary = `سبک دلبستگی روابط: ${QUADRANT_LABELS[analysis.quadrant as AttachmentQuadrant] || analysis.quadrant}`;
       }
       await firebaseStore.from("mh_profile").upsert(profileUpdate, { onConflict: "user_id" }).catch(() => {});
+      if (!active.current) return;
 
       setSaveError(false);
       setFailedFinish(false);
       toast.success(T("تست تکمیل شد ✨", "Assessment Completed ✨"));
       navigate(`/app/self/result/${type}`);
     } catch (e: any) {
+      if (!active.current) return;
       setFailedFinish(true);
       setSaveError(true);
-      toast.error(e.message || T("خطا در ذخیره", "Failed to save"));
+      toast.error(e?.message || T("خطا در ذخیره", "Failed to save"));
     } finally {
-      finishing.current = false;
-      setSaving(false);
+      if (active.current) setSaving(false);
     }
   }
 
   if (loading) return <div dir={isEn ? "ltr" : "rtl"} className="p-8 text-center text-muted-foreground">{T("در حال بارگذاری…", "Loading…")}</div>;
+  if (loadError) return (
+    <div dir={isEn ? "ltr" : "rtl"} className="p-8 space-y-4" role="alert">
+      <p>{T("پیشرفت بارگذاری نشد. برای حفظ پاسخ‌های قبلی دوباره تلاش کنید.", "Progress could not be loaded. Retry to protect your previous answers.")}</p>
+      <Button onClick={() => setLoadAttempt(n => n + 1)}>{T("تلاش دوباره", "Retry")}</Button>
+    </div>
+  );
   if (!meta || !item) return <div dir={isEn ? "ltr" : "rtl"} className="p-8">{T("تست نامعتبر", "Invalid assessment")}</div>;
 
   const current = responses[item.id];
@@ -268,7 +348,7 @@ export default function AssessmentRunner() {
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="max-w-2xl mx-auto p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/app/self")}>
+        <Button variant="ghost" size="sm" disabled={busy || failedFinish} onClick={handleSaveAndExit}>
           <BackIcon className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("بازگشت", "Back")}
         </Button>
         <span className="text-sm text-muted-foreground">
@@ -291,7 +371,7 @@ export default function AssessmentRunner() {
                 type="button"
                 aria-label={`${isEn ? n : toPersianDigits(n)} — ${labels[n - 1]}`}
                 aria-pressed={current === n}
-                disabled={saving || exiting}
+                disabled={busy || failedFinish}
                 onClick={() => answer(n)}
                 className={`h-14 rounded-lg border-2 transition text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   current === n
@@ -311,7 +391,7 @@ export default function AssessmentRunner() {
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" disabled={index === 0} onClick={() => setIndex(i => Math.max(0, i - 1))}>
+        <Button variant="outline" disabled={busy || failedFinish || index === 0} onClick={() => { if (!operation.current) setIndex(i => Math.max(0, i - 1)); }}>
           {isEn ? (
             <><ArrowLeft className="w-4 h-4 me-1" /> Previous</>
           ) : (
@@ -320,13 +400,13 @@ export default function AssessmentRunner() {
         </Button>
         <Button
           variant="outline"
-          disabled={exiting || saving}
+          disabled={busy || failedFinish}
           onClick={handleSaveAndExit}
         >
           <Save className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} />{" "}
           {exiting ? T("در حال ذخیره…", "Saving…") : T("ذخیره و ادامه بعداً", "Save & Continue Later")}
         </Button>
-        <Button disabled={!current || index === total - 1} onClick={() => setIndex(i => Math.min(total - 1, i + 1))}>
+        <Button disabled={busy || failedFinish || !current || index === total - 1} onClick={() => { if (!operation.current) setIndex(i => Math.min(total - 1, i + 1)); }}>
           {isEn ? (
             <>Next <ArrowRight className="w-4 h-4 ms-1" /></>
           ) : (
@@ -345,7 +425,7 @@ export default function AssessmentRunner() {
               ? T("نتیجه ذخیره نشد؛ پاسخ‌های شما حفظ شده است. دوباره تلاش کنید.", "Results were not saved; your answers are kept. Please retry.")
               : T("پیشرفت ذخیره نشد؛ پاسخ‌های شما حفظ شده است. دوباره تلاش کنید.", "Progress was not saved; your answers are kept. Please retry.")}
           </span>
-          <Button size="sm" variant="outline" onClick={() => void retrySave()} disabled={saving || exiting}>
+          <Button size="sm" variant="outline" onClick={() => void retrySave()} disabled={busy}>
             <RotateCw className={`w-4 h-4 ${isEn ? "me-1" : "ms-1"}`} /> {T("تلاش دوباره", "Retry")}
           </Button>
         </div>

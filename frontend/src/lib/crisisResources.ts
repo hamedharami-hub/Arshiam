@@ -256,12 +256,15 @@ export function getStoredSupportRegion(): SupportRegion | null {
 /**
  * Persist user's manually chosen support region.
  */
-export function setStoredSupportRegion(region: SupportRegion): void {
+export function setStoredSupportRegion(region: SupportRegion): boolean {
   try {
+    if (!["au", "ir", "us", "international"].includes(region)) return false;
     if (typeof window !== "undefined" && window.localStorage) {
       localStorage.setItem(CRISIS_REGION_STORAGE_KEY, region);
+      return localStorage.getItem(CRISIS_REGION_STORAGE_KEY) === region;
     }
-  } catch {}
+  } catch { /* The caller must not claim a region was saved. */ }
+  return false;
 }
 
 /**

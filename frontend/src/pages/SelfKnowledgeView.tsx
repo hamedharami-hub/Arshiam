@@ -92,19 +92,29 @@ const TESTS = [
 
 export default function SelfKnowledgeView() {
   const { user } = useAuth();
+  return <SelfKnowledgeHome key={user?.id || "guest"} />;
+}
+
+function SelfKnowledgeHome() {
+  const { user } = useAuth();
   const { T, isEn } = useBilingual();
   const [progress, setProgress] = useState<Record<string, { idx: number; completed: boolean }>>({});
   const [results, setResults] = useState<Record<string, boolean>>({});
   const [mhProfile, setMhProfile] = useState<any>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+    let active = true;
+    setLoadError(false);
     (async () => {
       const [{ data: pr }, { data: rs }, { data: mh }] = await Promise.all([
         firebaseStore.from("assessment_responses").select("assessment_type, current_index, completed").eq("user_id", user.id),
         firebaseStore.from("assessment_results").select("assessment_type").eq("user_id", user.id),
         firebaseStore.from("mh_profile").select("*").eq("user_id", user.id).maybeSingle(),
       ]);
+      if (!active) return;
       const p: typeof progress = {};
       pr?.forEach((r: any) => {
         p[r.assessment_type] = { idx: r.current_index, completed: r.completed };
@@ -116,10 +126,11 @@ export default function SelfKnowledgeView() {
       setProgress(p);
       setResults(rmap);
       setMhProfile(mh);
-    })();
-  }, [user]);
+    })().catch(() => { if (active) setLoadError(true); });
+    return () => { active = false; };
+  }, [user?.id, retry]);
 
-  const completedCount = Object.keys(results).length;
+  const completedCount = TESTS.filter(test => results[test.type]).length;
 
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--lg space-y-8">
@@ -128,7 +139,7 @@ export default function SelfKnowledgeView() {
         <div className="flex items-center gap-2 mb-2">
           <Badge variant="outline" className="text-primary border-primary/30 px-3 py-1 gap-1 text-xs">
             <Brain className="w-3.5 h-3.5" />
-            {T("پایگاه روان‌سنجی و خودشناسی استاندارد", "Psychometric Self-Knowledge Hub")}
+            {T("ابزارهای خودشناسی", "Self-Knowledge Tools")}
           </Badge>
           {completedCount > 0 && (
             <Badge variant="secondary" className="text-xs">
@@ -145,6 +156,8 @@ export default function SelfKnowledgeView() {
         </p>
       </div>
 
+      <p role="note" className="rounded-xl border p-3 text-xs leading-6 text-muted-foreground">{T("این نتایج برای خودبازنگری‌اند، نه تشخیص یا برچسب ثابت شخصیت. اعتبار نسخهٔ اصلی لزوماً به ترجمه یا فرم تغییر‌یافتهٔ برنامه منتقل نمی‌شود؛ نتیجه را با تجربهٔ واقعی خود مقایسه کن.", "These results support reflection, not diagnosis or fixed personality labels. Evidence for an original instrument does not automatically validate a translated or modified app form. Compare results with your lived experience.")}</p>
+      {loadError && <div role="alert" className="flex items-center justify-between gap-2 text-sm"><span>{T("نتایج بارگذاری نشد؛ دوباره تلاش کن.", "Results could not load. Try again.")}</span><Button variant="outline" onClick={() => setRetry(value => value + 1)}>{T("تلاش مجدد", "Retry")}</Button></div>}
       {/* UNIFIED SELF-PROFILE HERO (If at least 1 completed) */}
       {completedCount > 0 && mhProfile && (
         <Card className="rounded-3xl border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-5 sm:p-6 shadow-md space-y-4">
@@ -211,13 +224,13 @@ export default function SelfKnowledgeView() {
           </div>
           <ul className={`space-y-1 text-xs sm:text-sm list-disc ${isEn ? "ps-5" : "pe-5"} text-muted-foreground leading-relaxed`}>
             <li>
-              <strong className="text-foreground">Deep Dive:</strong> {T("تکمیل همه ۱۶۸ سؤال در یک نشست متمرکز (~۵۰ دقیقه برای نقشه ۳۶۰ درجه)", "All 168 questions in one focused session (~50 min)")}
+              <strong className="text-foreground">{T("یک ابزار:", "One tool:")}</strong> {T("با ارزیابی مرتبط با پرسش فعلی خود شروع کن؛ تکمیل همهٔ ابزارها ضروری نیست.", "Start with the assessment relevant to your current question. Completing every tool is not necessary.")}
             </li>
             <li>
-              <strong className="text-foreground">Split Sessions:</strong> {T("تکمیل گام‌به‌گام در چند جلسه ۱۰ تا ۲۰ دقیقه‌ای (پاسخ‌ها خودکار ذخیره می‌شوند)", "In multiple 10–20 minute sessions (auto-saved)")}
+              <strong className="text-foreground">{T("جلسه‌های کوتاه:", "Short sessions:")}</strong> {T("در زمان مناسب و بدون عجله پاسخ بده؛ قبل از خروج وضعیت ذخیره را بررسی کن.", "Answer when you have time, without rushing. Check the save status before leaving.")}
             </li>
             <li>
-              <strong className="text-foreground">Mini Path:</strong> {T("شروع با HEXACO برای کالیبراسیون لحن و سبک کاری هوش مصنوعی", "Start with HEXACO to calibrate your AI companion's tone")}
+              <strong className="text-foreground">{T("گام عملی:", "Practical step:")}</strong> {T("یک نتیجه را با نمونه‌ای واقعی از زندگی مقایسه کن و یک اقدام کوچک انتخاب کن؛ اشتراک با AI اختیاری است.", "Compare one result with a real-life example and choose a small action. Sharing with AI is optional.")}
             </li>
           </ul>
         </CardContent>
@@ -229,14 +242,15 @@ export default function SelfKnowledgeView() {
           const Icon = t.icon;
           const p = progress[t.type];
           const done = !!results[t.type];
-          const pct = p ? ((p.idx + 1) / t.count) * 100 : 0;
+          const answered = p ? Math.min(t.count, Math.max(0, Number.isFinite(p.idx) ? p.idx + 1 : 0)) : 0;
+          const pct = (answered / t.count) * 100;
           const title = isEn && "title_en" in t ? (t as any).title_en : t.title;
           const subtitle = isEn ? t.subtitle_en : t.subtitle;
           const time = isEn ? t.time_en : t.time;
           const countStr = isEn ? `${t.count} questions` : `${toPersianDigits(t.count)} سؤال`;
 
           return (
-            <Card key={t.type} className="flex flex-col rounded-3xl border-border/70 hover:border-primary/50 transition-all shadow-xs">
+            <Card key={t.type} className="flex flex-col rounded-2xl border-border/70 hover:border-primary/50 transition-colors shadow-xs">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className={`w-12 h-12 rounded-2xl bg-muted/60 flex items-center justify-center ${t.color}`}>
@@ -265,7 +279,7 @@ export default function SelfKnowledgeView() {
                   <div className="space-y-1.5">
                     <Progress value={pct} className="h-1.5" />
                     <div className="text-[11px] text-muted-foreground">
-                      {isEn ? `${p.idx + 1} of ${t.count}` : `${toPersianDigits(p.idx + 1)} از ${toPersianDigits(t.count)}`}
+                      {isEn ? `${answered} of ${t.count}` : `${toPersianDigits(answered)} از ${toPersianDigits(t.count)}`}
                     </div>
                   </div>
                 )}
@@ -316,7 +330,7 @@ export default function SelfKnowledgeView() {
           </Button>
 
           <Button asChild variant="outline" className="h-auto p-3.5 text-start justify-start rounded-2xl bg-card border-border/70 hover:border-primary/50">
-            <Link to="/app/mind">
+            <Link to="/app/values">
               <Heart className="w-5 h-5 text-rose-500 shrink-0 me-2.5" />
               <div>
                 <div className="text-xs font-bold text-foreground">{T("ارزش‌ها و اهداف", "Values & Goals")}</div>

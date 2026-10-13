@@ -1,4 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { DailyExtras } from "@/components/DailyExtras";
 import { taskWorkDate } from "@/lib/taskDate";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -450,6 +451,7 @@ export default function CalendarView() {
         </TabsContent>
       </Tabs>
 
+      <DailyExtras isEn={isEn} calendarDate={getLocalDateString(date)} />
       <HolidayList holidays={rangeHolidays} system={system} isEn={isEn} title={listTitle} />
 
       <DayDetailSheet

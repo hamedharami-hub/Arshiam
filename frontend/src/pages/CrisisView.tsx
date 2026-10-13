@@ -50,7 +50,10 @@ export default function CrisisView() {
 
   const handleRegionChange = (region: SupportRegion) => {
     setSelectedRegion(region);
-    setStoredSupportRegion(region);
+    if (!setStoredSupportRegion(region)) {
+      toast.error(T("منطقه فقط برای این صفحه تغییر کرد؛ برای مراجعهٔ بعدی ذخیره نشد.", "Region changed for this page only; it could not be saved for your next visit."));
+      return;
+    }
     toast.success(
       isEn
         ? `Support region set to ${SUPPORT_REGIONS.find((r) => r.code === region)?.label_en}`

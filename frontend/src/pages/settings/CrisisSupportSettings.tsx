@@ -22,8 +22,11 @@ export function CrisisSupportSettings() {
   );
 
   const changeRegion = (v: SupportRegion) => {
+    if (!setStoredSupportRegion(v)) {
+      toast.error(isEn ? "Support region could not be saved. Your previous setting is unchanged." : "منطقهٔ پشتیبانی ذخیره نشد؛ تنظیم قبلی تغییر نکرده است.");
+      return;
+    }
     setRegion(v);
-    setStoredSupportRegion(v);
     toast.success(
       isEn
         ? `Crisis support region set to ${SUPPORT_REGIONS.find((r) => r.code === v)?.label_en}`

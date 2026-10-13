@@ -1,6 +1,14 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Sidebar, SidebarProvider } from "./sidebar";
+import { Sidebar, SidebarProvider, useSidebar } from "./sidebar";
+
+vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => window.innerWidth < 768 }));
+vi.mock("react-i18next", async importOriginal => ({ ...(await importOriginal<typeof import("react-i18next")>()), useTranslation: () => ({ i18n: { language: document.documentElement.dir === "rtl" ? "fa" : "en" } }) }));
+
+function EdgeTriggers() {
+  const { openMobileFromSide } = useSidebar();
+  return <>{(["left", "right"] as const).map(side => <button key={side} onClick={event => { event.currentTarget.focus(); openMobileFromSide(side); }}>Open {side}</button>)}</>;
+}
 
 describe("Sidebar component desktop layout and spacer reservation", () => {
   beforeEach(() => {
@@ -55,5 +63,26 @@ describe("Sidebar component desktop layout and spacer reservation", () => {
     expect(fixedPanel).toBeInTheDocument();
     expect(fixedPanel?.className).toContain("left-0");
     expect(fixedPanel?.className).not.toContain("right-0");
+  });
+
+  it.each([320, 1024])("opens from the physical edge and restores focus at %ipx in RTL and LTR", async width => {
+    window.innerWidth = width;
+    const { unmount } = render(<SidebarProvider side="right"><EdgeTriggers /><Sidebar><a href="#destination">Destination</a></Sidebar></SidebarProvider>);
+    for (const dir of ["rtl", "ltr"]) {
+      document.documentElement.dir = dir;
+      for (const side of ["left", "right"]) {
+        const trigger = screen.getByRole("button", { name: `Open ${side}` });
+        fireEvent.click(trigger);
+        const panel = await screen.findByRole("dialog");
+        expect(panel).toHaveAttribute("data-side", side);
+        expect(panel).toHaveClass(`${side}-0`);
+        expect(panel.style.getPropertyValue("--sidebar-width-mobile")).toBe("min(24rem, calc(100vw - 20px))");
+        fireEvent.keyDown(panel, { key: "Escape" });
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect(trigger).toHaveFocus());
+      }
+    }
+    unmount();
+    document.documentElement.dir = "";
   });
 });

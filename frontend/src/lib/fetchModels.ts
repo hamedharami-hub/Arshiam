@@ -42,6 +42,9 @@ export async function fetchProviderModels(provider: Provider, apiKey: string, ba
     case "openai":
       models = await fetchOpenAICompat("https://api.openai.com/v1/models", { Authorization: `Bearer ${apiKey}` });
       break;
+    case "xai":
+      models = await fetchOpenAICompat("https://api.x.ai/v1/models", { Authorization: `Bearer ${apiKey}` });
+      break;
     case "groq":
       models = await fetchOpenAICompat("https://api.groq.com/openai/v1/models", { Authorization: `Bearer ${apiKey}` });
       break;
@@ -49,7 +52,7 @@ export async function fetchProviderModels(provider: Provider, apiKey: string, ba
       models = await fetchOpenAICompat("https://openrouter.ai/api/v1/models", { Authorization: `Bearer ${apiKey}` });
       break;
     case "gemini": {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+      const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models", { headers: { "x-goog-api-key": apiKey } });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       models = (j.models || [])
@@ -62,6 +65,7 @@ export async function fetchProviderModels(provider: Provider, apiKey: string, ba
       // Anthropic /models endpoint requires CORS allowance; may fail in browser.
       models = await fetchOpenAICompat("https://api.anthropic.com/v1/models", {
         "x-api-key": apiKey, "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
       });
       break;
     case "custom":

@@ -3,7 +3,7 @@
 import type { Provider } from "./aiSettings";
 
 export type KeyedProvider = Exclude<Provider, "offline" | "custom">;
-export const KEYED_PROVIDERS: readonly KeyedProvider[] = ["gemini", "openai", "anthropic", "groq", "openrouter"];
+export const KEYED_PROVIDERS: readonly KeyedProvider[] = ["gemini", "openai", "xai", "anthropic", "groq", "openrouter"];
 
 // IDs verified against provider docs (Gemini 3 / 3.1 preview, GPT-5.4 family, Claude 4.x) on 2026-10-01.
 export const CURRENT_MODELS: Record<"gemini" | "openai" | "anthropic", { id: string; fa: string; en: string }[]> = {
@@ -86,7 +86,8 @@ function readStore(): KeyStore {
 }
 
 export function getProviderKey(provider: Provider): string {
-  return (KEYED_PROVIDERS as readonly string[]).includes(provider) ? readStore()[provider as KeyedProvider]?.trim() ?? "" : "";
+  const key = readStore()[provider as KeyedProvider];
+  return (KEYED_PROVIDERS as readonly string[]).includes(provider) && typeof key === "string" ? key.trim() : "";
 }
 export function saveProviderKey(provider: KeyedProvider, key: string): void {
   const store = readStore();
@@ -114,7 +115,8 @@ export interface KeyTestResult {
 
 function testRequest(provider: KeyedProvider, key: string): { url: string; headers: Record<string, string> } {
   switch (provider) {
-    case "gemini": return { url: `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`, headers: {} };
+    case "gemini": return { url: "https://generativelanguage.googleapis.com/v1beta/models", headers: { "x-goog-api-key": key } };
+    case "xai": return { url: "https://api.x.ai/v1/models", headers: { Authorization: `Bearer ${key}` } };
     case "openai": return { url: "https://api.openai.com/v1/models", headers: { Authorization: `Bearer ${key}` } };
     case "groq": return { url: "https://api.groq.com/openai/v1/models", headers: { Authorization: `Bearer ${key}` } };
     case "openrouter": return { url: "https://openrouter.ai/api/v1/auth/key", headers: { Authorization: `Bearer ${key}` } };
@@ -138,7 +140,7 @@ export async function testProviderKey(provider: KeyedProvider, key: string, mode
     const json: { data?: { id?: string }[]; models?: { name?: string }[] } = await resp.json();
     const raw = (json.data ?? []).map(m => m.id ?? "").concat((json.models ?? []).map(m => (m.name ?? "").replace(/^models\//, "")));
     models = raw.filter(Boolean);
-  } catch { models = undefined; }
+  } catch { return { ok: false, kind: "unknown" }; }
   const modelAvailable = model && models?.length && provider !== "openrouter" ? models.includes(model) : undefined;
   return { ok: true, models, modelAvailable, fallback: modelAvailable === false && model ? fallbackModelFor(model) : null };
 }

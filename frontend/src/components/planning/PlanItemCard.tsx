@@ -230,7 +230,7 @@ export function PlanItemCard({ task, kids, byId, settings, fa, childLevelName, v
 
   return (
     <article
-      className={cn("group rounded-xl border border-border/70 border-s-4 bg-card p-1.5 shadow-sm transition-colors duration-150 hover:bg-accent/40", LEVEL_THEME[level].edge)}
+      className="group rounded-lg border border-border/50 bg-card px-3 py-2 transition-colors duration-150 hover:bg-accent/40"
       data-testid={`plan-item-${task.id}`}
       data-no-swipe-nav
       {...longPress.handlers}

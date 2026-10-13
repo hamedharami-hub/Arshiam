@@ -1,4 +1,4 @@
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import {
   ListTodo,
   CalendarDays,
@@ -133,7 +133,7 @@ const MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = {
   },
 };
 
-export const DEFAULT_MOBILE_BOTTOM_TABS = ["today", "calendar", "notes"];
+export const DEFAULT_MOBILE_BOTTOM_TABS = ["today", "calendar", "notes", "inbox"];
 
 /** Chooser and live tabs share canonical labels/icons without losing personalization. */
 export const ALL_MOBILE_TAB_OPTIONS: Record<string, MobileTabOption> = Object.fromEntries(
@@ -156,15 +156,37 @@ export function getAccessibleMobileTabs(
   for (const key of candidates) {
     if (seen.has(key)) continue;
     seen.add(key);
-    const tab = ALL_MOBILE_TAB_OPTIONS[key];
+    const tab = Object.prototype.hasOwnProperty.call(ALL_MOBILE_TAB_OPTIONS, key) ? ALL_MOBILE_TAB_OPTIONS[key] : undefined;
     if (tab && isPathAllowed(tab.to, modules)) result.push(tab);
-    if (result.length === 3) break;
+    if (result.length === 4) break;
   }
 
   return result;
 }
 
 const STORAGE_KEY = "arshnaz_mobile_bottom_tabs";
+const HOLD_KEY = "arshnaz_mobile_tab_hold";
+
+export function getMobileTabHoldEnabled(): boolean {
+  try { return localStorage.getItem(HOLD_KEY) === "true"; } catch { return false; }
+}
+
+export function setMobileTabHoldEnabled(enabled: boolean): boolean {
+  try {
+    localStorage.setItem(HOLD_KEY, String(enabled));
+    if (localStorage.getItem(HOLD_KEY) !== String(enabled)) return false;
+    window.dispatchEvent(new Event("arshnaz:tab-hold-changed"));
+    return true;
+  } catch { return false; }
+}
+
+export function useMobileTabHoldEnabled(): boolean {
+  return useSyncExternalStore(callback => {
+    window.addEventListener("arshnaz:tab-hold-changed", callback);
+    window.addEventListener("storage", callback);
+    return () => { window.removeEventListener("arshnaz:tab-hold-changed", callback); window.removeEventListener("storage", callback); };
+  }, getMobileTabHoldEnabled, () => false);
+}
 
 let listeners = new Set<() => void>();
 
@@ -174,9 +196,9 @@ function getStoredTabs(): string[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_MOBILE_BOTTOM_TABS;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length === 3) {
-      const valid = parsed.every((k) => typeof k === "string" && ALL_MOBILE_TAB_OPTIONS[k]);
-      if (valid) return parsed;
+    if (Array.isArray(parsed) && (parsed.length === 3 || parsed.length === 4)) {
+      const valid = parsed.every((k) => typeof k === "string" && Object.prototype.hasOwnProperty.call(ALL_MOBILE_TAB_OPTIONS, k));
+      if (valid) return [...new Set([...parsed, ...DEFAULT_MOBILE_BOTTOM_TABS])].slice(0, 4);
     }
   } catch {}
   return DEFAULT_MOBILE_BOTTOM_TABS;
@@ -185,25 +207,45 @@ function getStoredTabs(): string[] {
 let currentTabs: string[] = getStoredTabs();
 
 export function setMobileBottomTabs(tabs: string[]) {
-  if (tabs.length !== 3) return;
-  currentTabs = [...tabs];
+  if (tabs.length !== 4 || new Set(tabs).size !== 4 || tabs.some(key => !Object.prototype.hasOwnProperty.call(ALL_MOBILE_TAB_OPTIONS, key))) return false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tabs));
-  } catch {}
+    if (localStorage.getItem(STORAGE_KEY) !== JSON.stringify(tabs)) return false;
+  } catch { return false; }
+  currentTabs = [...tabs];
   listeners.forEach((l) => l());
   window.dispatchEvent(new CustomEvent("arshnaz:bottom-tabs-changed", { detail: tabs }));
+  return true;
 }
 
 export function resetMobileBottomTabs() {
-  setMobileBottomTabs(DEFAULT_MOBILE_BOTTOM_TABS);
+  return setMobileBottomTabs(DEFAULT_MOBILE_BOTTOM_TABS);
+}
+
+function subscribeToTabs(callback: () => void) {
+  const refresh = () => {
+    const stored = getStoredTabs();
+    if (stored.join(",") !== currentTabs.join(",")) {
+      currentTabs = stored;
+      listeners.forEach(listener => listener());
+    }
+  };
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY || event.key === null) refresh();
+  };
+  listeners.add(callback);
+  window.addEventListener("storage", onStorage);
+  // Also pick up changes made while no navigation/settings view was mounted.
+  refresh();
+  return () => {
+    listeners.delete(callback);
+    window.removeEventListener("storage", onStorage);
+  };
 }
 
 export function useMobileBottomTabs(): string[] {
   return useSyncExternalStore(
-    (callback) => {
-      listeners.add(callback);
-      return () => listeners.delete(callback);
-    },
+    subscribeToTabs,
     () => currentTabs,
     () => DEFAULT_MOBILE_BOTTOM_TABS
   );

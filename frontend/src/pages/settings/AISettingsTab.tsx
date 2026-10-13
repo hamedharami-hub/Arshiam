@@ -28,6 +28,7 @@ import {
   type Provider, type ProviderConfig, type AIPerOpSettings, type OperationMeta, type OpStrategy, type AIOperation,
 } from "@/lib/aiSettings";
 import { fetchProviderModels, getMergedModels, getAllKnownModels } from "@/lib/fetchModels";
+import { getProviderKey } from "@/lib/aiProviders";
 
 function ProviderEditor({
   value, onChange, isEn, hiddenModels, onUpdateHidden,
@@ -48,7 +49,8 @@ function ProviderEditor({
 
   const onProvider = (p: Provider) => {
     const i = PROVIDER_INFO[p];
-    onChange({ provider: p, apiKey: value.apiKey, model: i.defaultModel, baseUrl: i.baseUrl });
+    // Never send one provider's credential to another provider.
+    onChange({ provider: p, apiKey: getProviderKey(p), model: i.defaultModel, baseUrl: i.baseUrl });
   };
 
   const refresh = async () => {
@@ -91,7 +93,7 @@ function ProviderEditor({
               {refreshing ? t("settings.refreshing") : t("settings.refreshModels")}
             </Button>
             <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-[11px]"
-              onClick={() => setManageOpen(true)} title={t("ai.configureModels")}>
+              onClick={() => setManageOpen(true)} title={t("ai.configureModels")} aria-label={t("ai.configureModels")}>
               <Eye className="w-3.5 h-3.5" />
             </Button>
           </div>

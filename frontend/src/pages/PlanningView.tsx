@@ -32,6 +32,11 @@ export function useTimeSettings(): [TimeSettings, () => void] {
 
 export default function PlanningView() {
   const { user } = useAuth();
+  return <PlanningViewContent key={user?.id ?? "signed-out"} />;
+}
+
+function PlanningViewContent() {
+  const { user } = useAuth();
   const { isEn } = useBilingual();
   const fa = !isEn;
   const [settings, refresh] = useTimeSettings();
@@ -46,8 +51,8 @@ export default function PlanningView() {
   }, [tasks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = useCallback(async (t: Task) => {
-    if (!t.completed) playCompletionFeedback();
     const result = await toggleDone(t);
+    if (!t.completed && (result.kind === "saved" || result.kind === "queued" || result.kind === "advanced")) playCompletionFeedback();
     if (result.kind === "study") navigate(result.navUrl);
     else if (result.kind === "advanced") toast.success(fa ? `نوبت بعدی: ${result.nextLabel} 🔁` : `Next occurrence: ${result.nextLabel} 🔁`);
     else if (result.kind === "queued") reportSave("queued", fa);
