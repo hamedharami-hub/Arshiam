@@ -56,7 +56,27 @@ vi.mock("./offlineQueue", async (importOriginal) => ({
   enqueueOp: mocks.enqueueOp,
 }));
 
-import { deleteTask, deleteNote, persistTask, subscribeTasks, subscribeNotes, upsertNote, persistNote, subscribeFolders, subscribeTags, subscribeMindValues, subscribeHabits, subscribeDailyCheckins, subscribeThoughtRecords, subscribeAbcRecords, subscribeAssessmentResults } from "./firestoreDataService";
+import { deleteTask, deleteNote, persistTask, subscribeTasks, subscribeNotes, upsertNote, persistNote, subscribeFolders, subscribeTags, subscribeMindValues, subscribeHabits, subscribeDailyCheckins, subscribeThoughtRecords, subscribeAbcRecords, subscribeAssessmentResults, upsertDailyCheckin } from "./firestoreDataService";
+
+describe("daily checkin revision guard", () => {
+  beforeEach(() => { mocks.remote.clear(); mocks.setDoc.mockClear(); });
+  it("refuses a stale version rather than overwriting a newer device's ratings", async () => {
+    mocks.remote.set("users/a/daily_checkins/2026-10-15", { mood: 8, updated_at: "new", created_at: "original" });
+    expect(await upsertDailyCheckin("a", { checkin_date: "2026-10-15", mood: 3 }, { expected: { updatedAt: "old" } })).toBe(false);
+    expect(mocks.setDoc).not.toHaveBeenCalled();
+  });
+  it("refuses an unverified create after another device created the day", async () => {
+    mocks.remote.set("users/a/daily_checkins/2026-10-15", { mood: 8, updated_at: "new" });
+    expect(await upsertDailyCheckin("a", { checkin_date: "2026-10-15", mood: 3 }, { expected: null })).toBe(false);
+    expect(mocks.setDoc).not.toHaveBeenCalled();
+  });
+  it("merges quick ratings without removing advanced fields or historical creation date", async () => {
+    const path = "users/a/daily_checkins/2026-10-15";
+    mocks.remote.set(path, { mood: 8, focus: 7, notes: "private", updated_at: "base", created_at: "original" });
+    expect(await upsertDailyCheckin("a", { checkin_date: "2026-10-15", mood: 3, energy: null }, { expected: { updatedAt: "base" } })).toBe(true);
+    expect(mocks.remote.get(path)).toMatchObject({ mood: 3, energy: null, focus: 7, notes: "private", created_at: "original", user_id: "a" });
+  });
+});
 
 const cacheKey = "tasks:all:user-1";
 const baseTask = {
@@ -510,7 +530,8 @@ describe("account collection subscription lifetimes", () => {
     resolveCache([{ id: "stale" }]);
     await Promise.resolve();
     expect(update).toHaveBeenCalledTimes(1);
-    expect(update).toHaveBeenCalledWith([expect.objectContaining({ id: "fresh" })]);
+    expect(update.mock.calls[0][0]).toEqual([expect.objectContaining({ id: "fresh" })]);
+    if (_name === "daily checkins" || _name === "thought records") expect(update.mock.calls[0][1]).toEqual({ fromCache: false });
     cleanup();
     receive({ forEach: () => {} });
     expect(update).toHaveBeenCalledTimes(1);

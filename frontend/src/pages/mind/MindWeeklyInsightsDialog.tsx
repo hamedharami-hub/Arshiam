@@ -49,9 +49,8 @@ export function MindWeeklyInsightsDialog({
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
-            disabled={loading}
           >
-            {T("انصراف", "Cancel")}
+            {loading ? T("لغو انتظار", "Cancel waiting") : T("انصراف", "Cancel")}
           </Button>
           <Button
             size="sm"
@@ -66,6 +65,7 @@ export function MindWeeklyInsightsDialog({
             {T("تایید و دریافت تحلیل", "Confirm & Analyze")}
           </Button>
         </div>
+        {loading && <p role="status" className="text-xs text-muted-foreground">{T("با لغو، نتیجهٔ دیرهنگام نمایش داده نمی‌شود؛ پردازش سرویس ممکن است ادامه داشته باشد.", "Canceling ignores any late result; the provider may still continue processing.")}</p>}
       </DialogContent>
     </Dialog>
   );

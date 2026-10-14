@@ -1,0 +1,190 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Published summation examples and unchanged historical contracts > preserves every existing standard item, answer option, timeframe and scoring identifier 1`] = `
+[
+  {
+    "instrumentVersion": "1.0",
+    "items": [
+      {
+        "id": 1,
+        "text": "کم‌علاقگی یا بی‌میلی به انجام کارها",
+        "text_en": "Little interest or pleasure in doing things",
+      },
+      {
+        "id": 2,
+        "text": "احساس غمگینی، افسردگی یا ناامیدی",
+        "text_en": "Feeling down, depressed, or hopeless",
+      },
+      {
+        "id": 3,
+        "text": "مشکل در به خواب رفتن یا ادامه خواب، یا خوابیدن بیش از حد",
+        "text_en": "Trouble falling or staying asleep, or sleeping too much",
+      },
+      {
+        "id": 4,
+        "text": "احساس خستگی یا کمبود انرژی",
+        "text_en": "Feeling tired or having little energy",
+      },
+      {
+        "id": 5,
+        "text": "بی‌اشتهایی یا پرخوری",
+        "text_en": "Poor appetite or overeating",
+      },
+      {
+        "id": 6,
+        "text": "احساس بد درباره خود — اینکه فکر کنی شکست‌خورده‌ای یا خودت یا خانواده‌ات را ناامید کرده‌ای",
+        "text_en": "Feeling bad about yourself — or that you are a failure or have let yourself or your family down",
+      },
+      {
+        "id": 7,
+        "text": "مشکل در تمرکز بر امور روزمره، مثل مطالعه یا تماشای تلویزیون",
+        "text_en": "Trouble concentrating on things, such as reading or watching television",
+      },
+      {
+        "id": 8,
+        "text": "آهسته حرکت کردن یا آرام صحبت کردن به‌نحوی که دیگران متوجه شوند؛ یا برعکس بی‌قراری به‌گونه‌ای که مدام در حال جنب‌وجوش باشی",
+        "text_en": "Moving or speaking so slowly that other people could have noticed. Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
+      },
+      {
+        "id": 9,
+        "text": "افکاری درباره اینکه بهتر بود مرده بودی، یا افکار آسیب رساندن به خود",
+        "text_en": "Thoughts that you would be better off dead, or of hurting yourself in some way",
+      },
+    ],
+    "labels": [
+      "اصلاً",
+      "چند روز",
+      "بیشتر از نصف روزها",
+      "تقریباً هر روز",
+    ],
+    "labels_en": [
+      "Not at all",
+      "Several days",
+      "More than half the days",
+      "Nearly every day",
+    ],
+    "scale": 4,
+    "scaleStart": 0,
+    "scoringVersion": "kroenke-2001",
+    "subtitle": "در ۲ هفته گذشته، چقدر هر یک از این مشکلات تو را آزار داده است؟",
+    "subtitle_en": "Over the last 2 weeks, how often have you been bothered by any of the following problems?",
+    "timeframe": "۲ هفته گذشته",
+    "timeframe_en": "Last 2 weeks",
+    "type": "phq9",
+  },
+  {
+    "instrumentVersion": "1.0",
+    "items": [
+      {
+        "id": 1,
+        "text": "احساس عصبی بودن، اضطراب یا بی‌قراری شدید",
+        "text_en": "Feeling nervous, anxious, or on edge",
+      },
+      {
+        "id": 2,
+        "text": "ناتوانی در متوقف کردن یا کنترل نگرانی",
+        "text_en": "Not being able to stop or control worrying",
+      },
+      {
+        "id": 3,
+        "text": "نگرانی بیش از حد درباره مسائل مختلف",
+        "text_en": "Worrying too much about different things",
+      },
+      {
+        "id": 4,
+        "text": "مشکل در آرام شدن و ریلکس کردن",
+        "text_en": "Trouble relaxing",
+      },
+      {
+        "id": 5,
+        "text": "آن‌قدر بی‌قرار بودن که آرام نشستن برایت دشوار باشد",
+        "text_en": "Being so restless that it is hard to sit still",
+      },
+      {
+        "id": 6,
+        "text": "زودرنجی، کلافگی یا تحریک‌پذیری آسان",
+        "text_en": "Becoming easily annoyed or irritable",
+      },
+      {
+        "id": 7,
+        "text": "احساس ترس شدید، گویی اتفاق ناگواری در شرف وقوع است",
+        "text_en": "Feeling afraid, as if something awful might happen",
+      },
+    ],
+    "labels": [
+      "اصلاً",
+      "چند روز",
+      "بیشتر از نصف روزها",
+      "تقریباً هر روز",
+    ],
+    "labels_en": [
+      "Not at all",
+      "Several days",
+      "More than half the days",
+      "Nearly every day",
+    ],
+    "scale": 4,
+    "scaleStart": 0,
+    "scoringVersion": "spitzer-2006",
+    "subtitle": "در ۲ هفته گذشته، چقدر هر یک از این مشکلات تو را آزار داده است؟",
+    "subtitle_en": "Over the last 2 weeks, how often have you been bothered by the following problems?",
+    "timeframe": "۲ هفته گذشته",
+    "timeframe_en": "Last 2 weeks",
+    "type": "gad7",
+  },
+  {
+    "instrumentVersion": "1998",
+    "items": [
+      {
+        "id": 1,
+        "text": "احساس شادی و روحیه خوب داشتم",
+        "text_en": "I have felt cheerful and in good spirits",
+      },
+      {
+        "id": 2,
+        "text": "احساس آرامش و راحتی داشتم",
+        "text_en": "I have felt calm and relaxed",
+      },
+      {
+        "id": 3,
+        "text": "احساس فعال بودن و پرانرژی بودن داشتم",
+        "text_en": "I have felt active and vigorous",
+      },
+      {
+        "id": 4,
+        "text": "با احساس تازگی و استراحت‌کافی از خواب بیدار شدم",
+        "text_en": "I woke up feeling fresh and rested",
+      },
+      {
+        "id": 5,
+        "text": "زندگی روزمره‌ام سرشار از چیزهای جالب برای من بود",
+        "text_en": "My daily life has been filled with things that interest me",
+      },
+    ],
+    "labels": [
+      "اصلاً و هیچ‌وقت",
+      "بعضی اوقات",
+      "کمتر از نیمی از اوقات",
+      "بیشتر از نیمی از اوقات",
+      "بیشتر اوقات",
+      "تمام اوقات",
+    ],
+    "labels_en": [
+      "At no time",
+      "Some of the time",
+      "Less than half the time",
+      "More than half the time",
+      "Most of the time",
+      "All of the time",
+    ],
+    "scale": 6,
+    "scaleStart": 0,
+    "scoringVersion": "who-1998",
+    "subtitle": "لطفاً مشخص کن در ۲ هفته گذشته، هر یک از این حالت‌ها را چقدر تجربه کرده‌ای:",
+    "subtitle_en": "Please indicate for each of the 5 statements which is closest to how you have been feeling over the last 2 weeks:",
+    "timeframe": "۲ هفته گذشته",
+    "timeframe_en": "Last 2 weeks",
+    "type": "who5",
+  },
+]
+`;

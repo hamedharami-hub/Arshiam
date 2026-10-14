@@ -1,6 +1,8 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { useEffect, useMemo, useState } from "react";
-import { firebaseStore } from "@/lib/firebaseStore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useWorkspaceDraft } from "@/lib/mind/workspaceDraft";
+import { useRecoverableExit } from "@/hooks/useRecoverableExit";
+import { useLocalDay } from "@/lib/mind/useLocalDay";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -156,7 +158,8 @@ function Slider10({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+               className="h-10 w-10 text-muted-foreground hover:text-foreground"
+               aria-label={T(`پاک کردن ${label}`, `Clear ${label}`)}
               title={T("پاک کردن و ثبت نکردن", "Clear selection")}
               onClick={() => onChange(null)}
             >
@@ -175,9 +178,11 @@ function Slider10({
           return (
             <button
               key={n}
-              type="button"
+               type="button"
+               aria-label={`${label}: ${n} / 10`}
+               aria-pressed={isSelected}
               onClick={() => onChange(n)}
-              className={`h-10 rounded-xl text-xs font-semibold tabular-nums transition-all duration-200 active:scale-90 flex flex-col items-center justify-center ${
+                className={`h-10 rounded-xl text-xs font-semibold tabular-nums transition-[color,background-color,transform] duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-90 flex flex-col items-center justify-center ${
                 isSelected
                   ? `bg-gradient-to-tr ${cfg.color} text-white shadow-md scale-105 ring-2 ring-primary/30 z-10 font-bold`
                   : isUnder
@@ -202,29 +207,68 @@ function Slider10({
 
 export default function CheckinView() {
   const { user } = useAuth();
+  return <CheckinAccount key={user?.id || "guest"} ownerId={user?.id} />;
+}
+
+function CheckinAccount({ ownerId }: { ownerId?: string }) {
+  const today = useLocalDay();
+  const { T } = useBilingual();
+  const [editorDay, setEditorDay] = useState(today);
+  const atRisk = useRef(false);
+  useEffect(() => { if (today !== editorDay && !atRisk.current) setEditorDay(today); }, [today, editorDay]);
+  return <>
+    {today !== editorDay && <aside role="alert" className="page-shell space-y-2 text-sm">
+      <p>{T("روز عوض شده، اما ویرایش حفظ‌نشدهٔ دیروز باز مانده است. پیش از تعویض فرم متن را کپی کن.", "The day changed, but yesterday's unretained edits are still open. Copy your text before switching forms.")}</p>
+      <Button variant="outline" onClick={() => { if (!atRisk.current || window.confirm(T("ویرایش حفظ‌نشده را کنار بگذاریم و فرم امروز را باز کنیم؟", "Discard unretained edits and open today's form?"))) { atRisk.current = false; setEditorDay(today); } }}>{T("بازکردن فرم امروز", "Open today's form")}</Button>
+    </aside>}
+    <CheckinEditor key={editorDay} ownerId={ownerId} today={editorDay} reportRisk={value => { atRisk.current = value; }} />
+  </>;
+}
+
+const EMPTY_FORM = { mood: null as number | null, energy: null as number | null,
+  focus: null as number | null, sleep_quality: null as number | null, stress: null as number | null,
+  sleep_hours: "", notes: "" };
+type CheckinForm = typeof EMPTY_FORM;
+function recordForm(record: DailyCheckinItem): CheckinForm {
+  return { mood: record.mood ?? null, energy: record.energy ?? null, focus: record.focus ?? null,
+    sleep_quality: record.sleep_quality ?? null, stress: record.stress ?? null,
+    sleep_hours: record.sleep_hours != null ? String(record.sleep_hours) : "", notes: record.notes ?? "" };
+}
+
+function CheckinEditor({ ownerId, today, reportRisk }: { ownerId: string | undefined; today: string; reportRisk: (value: boolean) => void }) {
   const { T, isEn } = useBilingual();
-  const today = getLocalDateString();
-
-  // Mode: "quick" vs "full"
-  const [mode, setMode] = useState<"quick" | "full">("quick");
-
-  const [form, setForm] = useState<{
-    mood: number | null;
-    energy: number | null;
-    focus: number | null;
-    sleep_quality: number | null;
-    stress: number | null;
-    sleep_hours: string;
-    notes: string;
-  }>({
-    mood: null,
-    energy: null,
-    focus: null,
-    sleep_quality: null,
-    stress: null,
-    sleep_hours: "",
-    notes: "",
+  const draft = useWorkspaceDraft(ownerId, `checkin:${today}`, {
+    form: EMPTY_FORM, mode: "quick" as "quick" | "full", dirty: false, base: JSON.stringify(EMPTY_FORM),
   });
+  const { form, mode } = draft.value;
+  useEffect(() => { reportRisk(draft.value.dirty && !draft.durable); }, [draft.value.dirty, draft.durable, reportRisk]);
+  const current = useRef(draft.value);
+  current.current = draft.value;
+  const localConflict = useRef(draft.conflict);
+  localConflict.current = draft.conflict;
+  const revision = useRef(0);
+  const alive = useRef(true);
+  const saveLock = useRef(false);
+  const pending = useRef<string | null>(null);
+  const [remoteConflict, setRemoteConflict] = useState(false);
+  const remoteConflictRef = useRef(remoteConflict);
+  remoteConflictRef.current = remoteConflict;
+  const [loadUnavailable, setLoadUnavailable] = useState(false);
+  const [fromCache, setFromCache] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const setForm = (next: CheckinForm) => {
+    revision.current += 1;
+    current.current = { ...current.current, form: next, dirty: true };
+    draft.setValue(current.current);
+    setPostCheckinInsight(null);
+  };
+  const setMode = (next: "quick" | "full") => {
+    current.current = { ...current.current, mode: next };
+    draft.setValue(current.current);
+  };
+  useRecoverableExit(() => current.current.dirty && !draft.durable,
+    T("پیش‌نویس روی دستگاه حفظ نشده؛ پیش از خروج متن را کپی کن. خارج می‌شوی؟", "Your draft is not retained on this device. Copy it before leaving. Leave anyway?"));
 
   const [history, setHistory] = useState<DailyCheckinItem[]>([]);
   const [savedTick, setSavedTick] = useState<number | null>(null);
@@ -243,40 +287,40 @@ export default function CheckinView() {
   const isEvening = new Date().getHours() >= 17;
 
   useEffect(() => {
-    if (!user) return;
+    if (!ownerId) { setLoading(false); return; }
+    let active = true;
+    let snapshotRevision = 0;
     let unsubCheckins: (() => void) | undefined;
-    const safetyTimer = setTimeout(() => setLoading(false), 2000);
+    setLoadUnavailable(false);
+    const safetyTimer = setTimeout(() => { if (active) { setLoading(false); setLoadUnavailable(true); } }, 2000);
 
     async function init() {
-      unsubCheckins = subscribeDailyCheckins(user!.id, async (items) => {
+      unsubCheckins = subscribeDailyCheckins(ownerId!, async (items, source) => {
+        if (!active) return;
+        const snapshot = ++snapshotRevision;
         clearTimeout(safetyTimer);
+        setLoadUnavailable(false);
+        setFromCache(source?.fromCache ?? false);
         setHistory(items);
         const todayDoc = items.find((i) => i.checkin_date === today || i.id === today);
-        if (todayDoc) {
-          setExistingCheckin(todayDoc);
-          setForm({
-            mood: todayDoc.mood,
-            energy: todayDoc.energy,
-            focus: todayDoc.focus,
-            sleep_quality: todayDoc.sleep_quality,
-            stress: todayDoc.stress,
-            sleep_hours: todayDoc.sleep_hours != null ? String(todayDoc.sleep_hours) : "",
-            notes: todayDoc.notes ?? "",
-          });
-          // If already filled out advanced fields, switch to full mode view
-          if (
-            todayDoc.focus != null ||
-            todayDoc.stress != null ||
-            todayDoc.sleep_quality != null ||
-            todayDoc.sleep_hours != null
-          ) {
-            setMode("full");
+        setExistingCheckin(todayDoc ?? null);
+        const nextForm = todayDoc ? recordForm(todayDoc) : EMPTY_FORM;
+        const signature = JSON.stringify(nextForm);
+        if (current.current.dirty || saveLock.current || localConflict.current) {
+          if (signature !== current.current.base && signature !== pending.current) {
+            remoteConflictRef.current = true;
+            setRemoteConflict(true);
           }
+        } else {
+          const next = { form: nextForm, mode: todayDoc && (todayDoc.focus != null || todayDoc.stress != null || todayDoc.sleep_quality != null || todayDoc.sleep_hours != null) ? "full" as const : current.current.mode,
+            dirty: false, base: signature };
+          current.current = next;
+          draft.setValue(next);
         }
 
         // Calculate cognitive load
         try {
-          const cachedRaw = await cacheGet<unknown>(`tasks:all:${user!.id}`);
+          const cachedRaw = await cacheGet<unknown>(`tasks:all:${ownerId}`);
           const cachedTasks = extractTasksFromCache(cachedRaw);
           const { computeCognitiveLoad } = await import("@/lib/cognitiveLoad");
           const { isTodayCommitment } = await import("@/lib/taskSchedule");
@@ -287,46 +331,64 @@ export default function CheckinView() {
             sleepQuality: todayDoc?.sleep_quality ?? null,
             stress: todayDoc?.stress ?? null,
           });
-          setTodayLoad(r.load);
+          if (active && snapshot === snapshotRevision) setTodayLoad(r.load);
         } catch {
           /* ignore */
         }
-        setLoading(false);
-      });
+        if (active) setLoading(false);
+      }, () => { if (active) { clearTimeout(safetyTimer); setLoading(false); setLoadUnavailable(true); } });
     }
 
     init();
     return () => {
+      active = false;
       clearTimeout(safetyTimer);
       if (unsubCheckins) unsubCheckins();
     };
-  }, [user, today]);
+  }, [ownerId, today, retry]);
 
   async function save() {
-    if (!user || saving) return;
+    if (!ownerId || saveLock.current || remoteConflict || draft.conflict || loadUnavailable) return;
+    if (getLocalDateString() !== today) { toast.error(T("روز عوض شده؛ فرم امروز را دوباره باز کن.", "The day changed; reopen today's form.")); return; }
+    if (form.sleep_hours !== "" && (!Number.isFinite(Number(form.sleep_hours)) || Number(form.sleep_hours) < 0 || Number(form.sleep_hours) > 16)) {
+      toast.error(T("ساعات خواب باید بین صفر و ۱۶ باشد.", "Sleep duration must be between 0 and 16 hours.")); return;
+    }
+    saveLock.current = true;
+    const savedRevision = revision.current;
     setSaving(true);
     try {
       const payload: DailyCheckinItem = {
         id: today,
-        user_id: user.id,
+        user_id: ownerId,
         checkin_date: today,
         mood: form.mood,
         energy: form.energy,
-        focus: mode === "full" ? form.focus : (existingCheckin?.focus ?? form.focus),
-        sleep_quality: mode === "full" ? form.sleep_quality : (existingCheckin?.sleep_quality ?? form.sleep_quality),
-        stress: mode === "full" ? form.stress : (existingCheckin?.stress ?? form.stress),
-        sleep_hours:
-          mode === "full" && form.sleep_hours
-            ? Number(form.sleep_hours)
-            : (existingCheckin?.sleep_hours ?? null),
+        focus: form.focus,
+        sleep_quality: form.sleep_quality,
+        stress: form.stress,
+        sleep_hours: form.sleep_hours !== "" ? Number(form.sleep_hours) : null,
         notes: form.notes || null,
         updated_at: new Date().toISOString(),
         created_at: existingCheckin?.created_at || new Date().toISOString(),
       };
 
-      const ok = await upsertDailyCheckin(user.id, payload);
+      pending.current = JSON.stringify(recordForm(payload));
+      const ok = await upsertDailyCheckin(ownerId, payload, { expected: existingCheckin ? { updatedAt: existingCheckin.updated_at } : null });
+      if (!alive.current) return;
 
       if (ok) {
+        const next = { ...current.current, base: pending.current!, dirty: revision.current !== savedRevision || remoteConflictRef.current };
+        current.current = next;
+        draft.setValue(next);
+        if (!remoteConflictRef.current) setExistingCheckin(payload);
+        if (remoteConflictRef.current) {
+          toast.success(T("نوشتن این نسخه تأیید شد، اما ثبت دیگری تغییر کرده؛ تعارض را بررسی کن.", "This write was confirmed, but another account entry changed. Review the conflict."));
+          return;
+        }
+        if (revision.current !== savedRevision) {
+          toast.success(T("نسخهٔ قبلی ذخیره شد؛ ویرایش جدید هنوز ذخیره نشده است.", "The earlier version was saved; your newer edits are still pending."));
+          return;
+        }
         awardDailyCheckinDrops(today, 20, T("ثبت چک‌این روزانه", "Daily check-in logged"));
         toast.success(T("چک‌این با موفقیت ثبت شد ✨", "Check-in successfully saved ✨"));
         setSavedTick(Date.now());
@@ -351,8 +413,8 @@ export default function CheckinView() {
           setPostCheckinInsight({
             title: T("خلق پایین یا احساس سنگینی — مهربانی با خود", "Low Mood — Self-Compassion & Reframe"),
             desc: T(
-              "وقتی خلق زیر ۵ است، افکار خودکار منفی تمایل به بزرگ‌نمایی دارند. واکاوی ملایم افکار یا یک گفت‌وگوی کوتاه به پاکسازی ذهن کمک می‌کند.",
-              "When mood dips below 5, negative automatic thoughts dominate. A CBT check or gentle dialogue clears mental fog."
+              "اگر دوست داری، یک فکر را بدون قضاوت بررسی کن. نمرهٔ خلق به‌تنهایی نشان نمی‌دهد فکرت نادرست یا بزرگ‌نمایی‌شده است.",
+              "If you like, explore one thought without judgment. A mood score alone does not show that your thought is wrong or exaggerated."
             ),
             actionLabel: T("ثبت و بازسازی فکر (CBT)", "Log & Reframe Thought"),
             actionLink: "/app/thoughts",
@@ -363,8 +425,8 @@ export default function CheckinView() {
           setPostCheckinInsight({
             title: T("انرژی رو به اتمام — ورود به ریتم بازیابی (Recovery)", "Depleted Energy — Switch to Recovery Mode"),
             desc: T(
-              "سطح انرژی زیر ۴ نشان‌دهنده لزوم استراحت است. از بار تعهدات سنگین امروز بکاهید و اولویت را به احیای توان بدنی بدهید.",
-              "Energy is low. Trim demanding tasks today and allocate quiet recovery time."
+              "انرژی کمی گزارش کردی. اگر با شرایطت سازگار است، استراحت یا سبک‌تر کردن برنامه را بررسی کن؛ این نمره علت خستگی را تعیین نمی‌کند.",
+              "You reported low energy. Consider rest or a lighter plan if it fits your circumstances; this score does not establish the cause of fatigue."
             ),
             actionLabel: T("مشاهده برنامه امروز (Today)", "View Today's Tasks"),
             actionLink: "/app/today",
@@ -375,8 +437,8 @@ export default function CheckinView() {
           setPostCheckinInsight({
             title: T("انرژی و نشاط عالی — پنجره طلایی تمرکز عمیق (Deep Work)", "Peak Vitality — Golden Deep Work Window"),
             desc: T(
-              "سطح انرژی و روحیه هر دو بالای ۸ است. اکنون بهترین زمان برای حل سخت‌ترین چالش یا پیشبرد اهداف ۶ ماهه در برنامه است.",
-              "Both mood and energy are 8+. Capitalize on this peak window for high-impact milestones."
+              "خلق و انرژی بالایی گزارش کردی. اگر دوست داری و شرایط مناسب است، یک کار مهم انتخاب کن؛ نمره‌ها زمان مناسب کار را به‌تنهایی تعیین نمی‌کنند.",
+              "You reported high mood and energy. If you want and circumstances allow, choose one important task; scores alone do not determine the right time to work."
             ),
             actionLabel: T("پیشبرد اهداف اصلی در Today", "Tackle Key Goals in Today"),
             actionLink: "/app/today",
@@ -399,28 +461,34 @@ export default function CheckinView() {
       } else {
         toast.error(T("خطا در ذخیره چک‌این", "Error saving check-in"));
       }
+    } catch {
+      if (alive.current) toast.error(T("خطا در ذخیره چک‌این؛ پیش‌نویس حفظ شد.", "Check-in could not be saved; your draft was kept."));
     } finally {
-      setSaving(false);
+      saveLock.current = false;
+      pending.current = null;
+      if (alive.current) setSaving(false);
     }
   }
 
   const recent30DaysTrend = useMemo(() => {
-    const thirtyDaysAgo = getLocalDateString(new Date(Date.now() - 30 * 86400000));
+    const start = new Date();
+    start.setDate(start.getDate() - 29);
+    const thirtyDaysAgo = getLocalDateString(start);
     return history
-      .filter((h) => h.checkin_date >= thirtyDaysAgo)
+      .filter((h) => h.checkin_date >= thirtyDaysAgo && h.checkin_date <= today)
       .sort((a, b) => a.checkin_date.localeCompare(b.checkin_date))
       .map((h) => {
-        const d = new Date(h.checkin_date);
+        const d = new Date(`${h.checkin_date}T12:00:00`);
         return {
           rawDate: h.checkin_date,
-          date: formatDate(d, "d MMM", "jalali"),
+          date: formatDate(d, "d MMM", isEn ? "gregorian" : "jalali"),
           mood: h.mood,
           energy: h.energy,
           focus: h.focus,
           stress: h.stress,
         };
       });
-  }, [history]);
+  }, [history, today, isEn]);
 
   if (loading) {
     return <div className="p-8 text-center text-muted-foreground">…</div>;
@@ -436,6 +504,7 @@ export default function CheckinView() {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <HeaderTitlePortal title={T("Check-in روزانه", "Daily Check-in")} />
+          {fromCache && <p role="status" className="text-xs text-muted-foreground">{T("نسخهٔ دستگاه؛ آخرین ثبت سرور تأیید نشده است. ذخیره فقط در صورت تغییرنکردن همان نسخه پذیرفته می‌شود.", "Device-cached version; the latest server entry is unconfirmed. Saving is accepted only if that version has not changed.")}</p>}
           <p className="text-muted-foreground text-sm">
             {T(
               "پایش آگاهانهٔ وضعیت درون بدون قضاوت؛ انتخاب مقادیر اختیاری است.",
@@ -472,6 +541,13 @@ export default function CheckinView() {
       </div>
 
       <Card>
+        <div className="p-4 space-y-2 text-sm" role="status">
+          <p>{T("آخرین ثبت امروز جای ثبت قبلی همان روز را می‌گیرد؛ نمره‌ها مربوط به همین حالا هستند، نه میانگین روز.", "Today's latest entry replaces the earlier entry for the same day. Scores describe right now, not a daily average.")}</p>
+          {current.current.dirty && <p>{draft.durable ? T("پیش‌نویس روی این دستگاه حفظ شد؛ هنوز در حساب ذخیره نشده.", "Draft retained on this device; not yet saved to your account.") : T("پیش‌نویس روی دستگاه حفظ نشده؛ متن را پیش از خروج کپی کن.", "Draft not retained on this device; copy your text before leaving.")}</p>}
+          {loadUnavailable && <><p>{T("دریافت ثبت‌های قبلی تأیید نشد؛ برای جلوگیری از بازنویسی، دوباره تلاش کن.", "Previous entries could not be confirmed. Retry before saving to avoid overwriting them.")}</p><Button variant="outline" onClick={() => setRetry(v => v + 1)}>{T("تلاش دوباره", "Retry")}</Button></>}
+          {draft.conflict && <><p>{T("نسخهٔ دیگری از پیش‌نویس وجود دارد؛ هر دو را پیش از انتخاب بررسی کن.", "Another draft version exists. Review/copy your current version before choosing.")}</p><Button variant="outline" onClick={() => { revision.current += 1; draft.acceptRemote(); }}>{T("پذیرش پیش‌نویس دیگر", "Use other draft")}</Button><Button variant="outline" onClick={draft.keepLocal}>{T("حفظ پیش‌نویس من", "Keep my draft")}</Button></>}
+          {remoteConflict && <><p>{T("ثبت حساب تغییر کرده؛ ویرایش تو حفظ شد. برای جایگزینی آگاهانه انتخاب کن.", "The account entry changed; your edits were kept. Choose explicitly before replacing it.")}</p><Button variant="outline" disabled={saving} onClick={() => { revision.current += 1; const nextForm = existingCheckin ? recordForm(existingCheckin) : EMPTY_FORM; const next = { ...current.current, form: nextForm, dirty: false, base: JSON.stringify(nextForm) }; current.current = next; draft.setValue(next); setRemoteConflict(false); }}>{T("پذیرش ثبت حساب", "Use account entry")}</Button><Button variant="outline" disabled={saving} onClick={() => { const next = { ...current.current, base: JSON.stringify(existingCheckin ? recordForm(existingCheckin) : EMPTY_FORM) }; current.current = next; draft.setValue(next); setRemoteConflict(false); }}>{T("حفظ ویرایش من برای ذخیره", "Keep my edits to save")}</Button></>}
+        </div>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
@@ -567,6 +643,7 @@ export default function CheckinView() {
                 </div>
                 <div className="flex items-center gap-2">
                   <input
+                    aria-label={T("ساعات خواب (خواب اصلی اخیر)", "Sleep Duration (Recent Main Sleep)")}
                     type="number"
                     step="0.5"
                     min="0"
@@ -589,8 +666,9 @@ export default function CheckinView() {
                 🌙 {isEn ? `Evening Reflection — estimated load of today's tasks: ${todayLoad} (rough guide)` : `تأمل شبانه — برآورد تقریبی بار کارهای امروز: ${todayLoad}`}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">{T("سخت‌ترین بخش امروز چه بود؟", "What was the hardest part of today?")}</Label>
+                <Label htmlFor="checkin-notes" className="text-xs">{T("سخت‌ترین بخش امروز چه بود؟", "What was the hardest part of today?")}</Label>
                 <Textarea
+                  id="checkin-notes"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                   placeholder={T("یک نکته کوتاه بنویس...", "Write a brief note...")}
@@ -600,10 +678,11 @@ export default function CheckinView() {
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
+              <Label htmlFor="checkin-notes" className="text-xs text-muted-foreground">
                 {T("یادداشت روزانه (اختیاری)", "Daily Note (Optional)")}
               </Label>
               <Textarea
+                id="checkin-notes"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder={T("نکته‌ای که امروز به چشمت آمد یا می‌خواهی ثبت کنی...", "Anything that stood out today...")}
@@ -612,7 +691,7 @@ export default function CheckinView() {
             </div>
           )}
 
-          <Button onClick={save} disabled={saving} className="w-full" size="lg">
+          <Button onClick={save} disabled={saving || !ownerId || remoteConflict || draft.conflict || loadUnavailable} className="w-full" size="lg">
             {saving ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -670,7 +749,7 @@ export default function CheckinView() {
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={recent30DaysTrend}>
                 <XAxis dataKey="date" fontSize={10} stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} />
-                <YAxis domain={[0, 10]} fontSize={10} stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} width={24} />
+                <YAxis domain={[1, 10]} fontSize={10} stroke="hsl(var(--muted-foreground))" tickLine={false} axisLine={false} width={24} />
                 <Tooltip
                   contentStyle={{
                     borderRadius: "1rem",
@@ -709,6 +788,16 @@ export default function CheckinView() {
                 <Line type="monotone" dataKey="stress" stroke="#ef4444" strokeWidth={2} strokeDasharray="3 3" dot={false} />
               </LineChart>
             </ResponsiveContainer>
+            <details className="mt-4">
+              <summary className="min-h-11 cursor-pointer text-sm font-medium">{T("جدول نمره‌ها (۱ تا ۱۰)", "Score table (1–10)")}</summary>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-start">
+                  <caption className="text-start py-2 text-muted-foreground">{T("آخرین ثبت هر روز؛ خط تیره یعنی بدون پاسخ، نه صفر.", "Latest entry for each day; a dash means unanswered, not zero.")}</caption>
+                  <thead><tr>{[T("تاریخ", "Date"), T("خلق", "Mood"), T("انرژی", "Energy"), T("تمرکز", "Focus"), T("استرس", "Stress")].map(label => <th key={label} scope="col" className="p-2 text-start">{label}</th>)}</tr></thead>
+                  <tbody>{recent30DaysTrend.map(row => <tr key={row.rawDate} className="border-t"><th scope="row" className="p-2 text-start font-normal">{row.rawDate}</th>{[row.mood, row.energy, row.focus, row.stress].map((score, index) => <td key={index} className="p-2">{score == null ? "—" : isEn ? score : toPersianDigits(score)}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+            </details>
           </CardContent>
         </Card>
       )}

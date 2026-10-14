@@ -1,6 +1,6 @@
-// Validated mental-health screeners & personal self-report forms.
+// Published mental-health screeners & personal self-report forms.
 // Personal forms are for self-monitoring only — NOT diagnostic.
-// Standard instruments (PHQ-9, GAD-7, WHO-5) use validated published scales.
+// Standardization describes the original instrument, not validation of this app's wording/translation.
 
 export type ScreenerType = "phq9" | "gad7" | "who5" | "burnout";
 
@@ -161,6 +161,48 @@ export const SCREENERS: Record<ScreenerType, ScreenerMeta> = {
   gad7: GAD7,
   who5: WHO5,
   burnout: BURNOUT,
+};
+
+// Presentation-only review metadata. Original items, labels, version identifiers,
+// scoring and historical interpretation strings above/below remain unchanged.
+export const SCREENER_CONTENT_REVIEW_VERSION = "provenance-review-v1";
+export const SCREENER_INTERPRETATION_VERSION = "reported-responses-v2";
+export const SCREENER_PROVENANCE: Record<ScreenerType, {
+  originalVersion: string;
+  originalVersion_en: string;
+  translationValidation: "unknown";
+  permissionStatus: "unknown";
+  scoringNote: string;
+  scoringNote_en: string;
+}> = {
+  phq9: {
+    originalVersion: "PHQ-9، ۹ سؤال؛ مقالهٔ ۲۰۰۱. شناسهٔ 1.0 داخلی برنامه است، نه نسخهٔ رسمی تأییدشده.",
+    originalVersion_en: "PHQ-9, 9 items; 2001 publication. 1.0 is an app identifier, not a verified official revision.",
+    translationValidation: "unknown", permissionStatus: "unknown",
+    scoringNote: "جمع ۹ پاسخ ۰–۳: ۰–۲۷؛ مرزهای ۵، ۱۰، ۱۵ و ۲۰ برای دستهٔ نمرهٔ گزارش‌شده، نه تشخیص. پاسخ سؤال ۹ مستقل از جمع بررسی می‌شود.",
+    scoringNote_en: "Sum of 9 responses scored 0–3: 0–27; boundaries 5, 10, 15 and 20 describe reported score bands, not diagnosis. Item 9 is checked independently of the total.",
+  },
+  gad7: {
+    originalVersion: "GAD-7، ۷ سؤال؛ مقالهٔ ۲۰۰۶. شناسهٔ 1.0 داخلی برنامه است، نه نسخهٔ رسمی تأییدشده.",
+    originalVersion_en: "GAD-7, 7 items; 2006 publication. 1.0 is an app identifier, not a verified official revision.",
+    translationValidation: "unknown", permissionStatus: "unknown",
+    scoringNote: "جمع ۷ پاسخ ۰–۳: ۰–۲۱؛ مرزهای ۵، ۱۰ و ۱۵ دستهٔ نمره‌اند، نه تشخیص اختلال اضطرابی.",
+    scoringNote_en: "Sum of 7 responses scored 0–3: 0–21; boundaries 5, 10 and 15 are score bands, not an anxiety-disorder diagnosis.",
+  },
+  who5: {
+    originalVersion: "WHO-5، ۵ سؤال؛ ارجاع ۱۹۹۸ در مخزن. تطبیق دقیق نسخهٔ متن فعلی با منبع تأیید نشده است.",
+    originalVersion_en: "WHO-5, 5 items; repository cites 1998. The exact revision of the current wording has not been verified against the source.",
+    translationValidation: "unknown", permissionStatus: "unknown",
+    scoringNote: "جمع ۵ پاسخ ۰–۵: ۰–۲۵؛ ضرب در ۴: ۰–۱۰۰، بالاتر یعنی رفاه گزارش‌شدهٔ بیشتر. دسته‌های ۲۸/۵۰/۷۰ کد قدیمی، طبقه‌بندی رسمی تأییدشده نیستند و در مرور جدید مبنای تفسیر نیستند.",
+    scoringNote_en: "Sum of 5 responses scored 0–5: 0–25; multiply by 4: 0–100, higher means greater reported wellbeing. Legacy app bands at 28/50/70 are not verified official categories and are not used for the new summary.",
+  },
+  burnout: {
+    originalVersion: "فرم شخصی داخلی self-report-v1؛ نسخهٔ MBI یا CBI نیست.",
+    originalVersion_en: "Internal personal form self-report-v1; not a version of MBI or CBI.",
+    translationValidation: "unknown", permissionStatus: "unknown",
+    scoringNote: "۶ پاسخ ۰–۴؛ جمع تاریخی ۰–۲۴ حفظ می‌شود. درصد و مرزهای قدیمی معنای پزشکی یا آستانهٔ تأییدشده ندارند؛ مرور جدید پاسخ‌محور است. «روزهای اخیر» بازهٔ دقیق استاندارد نیست.",
+    scoringNote_en: "6 responses scored 0–4; the historical sum 0–24 is preserved. Legacy percentages and bands have no established medical meaning; the new summary is response-based. ‘Recent days’ is not a precise standardized timeframe.",
+  },
 };
 
 // ---------- Answer Validation ----------

@@ -46,10 +46,10 @@ describe("Clinical safety and recoverability", () => {
     expect(screen.getByTestId("self-harm-support-card")).toBeVisible();
     expect(screen.getByTestId("sos-button")).toHaveAttribute("href", "/app/crisis");
     fireEvent.click(screen.getByRole("button", { name: "Review Answers" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save Incomplete Draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Incomplete Form to Account" }));
     await waitFor(() => expect(mocks.error).toHaveBeenCalled());
     expect(screen.getByTestId("self-harm-support-card")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Save Incomplete Draft" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save Incomplete Form to Account" })).toBeEnabled();
     expect(mocks.success).not.toHaveBeenCalled();
   });
 
@@ -57,7 +57,7 @@ describe("Clinical safety and recoverability", () => {
     render(<MemoryRouter><CheckinView /></MemoryRouter>);
     fireEvent.click(await screen.findByRole("button", { name: "Save Check-in" }));
     await screen.findByText("Check-in Saved — Without Judgment");
-    expect(mocks.saveCheckin).toHaveBeenCalledWith("owner-1", expect.objectContaining({ mood: null, energy: null, stress: null }));
+    expect(mocks.saveCheckin).toHaveBeenCalledWith("owner-1", expect.objectContaining({ mood: null, energy: null, stress: null }), { expected: null });
     expect(screen.queryByText("Balanced & Steady State")).not.toBeInTheDocument();
     expect(screen.getByText(/Unanswered values remain unknown/)).toBeVisible();
   });
@@ -113,11 +113,10 @@ describe("Clinical safety and recoverability", () => {
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
     vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
     try {
-      render(<BreathingView />);
+      render(<MemoryRouter><BreathingView /></MemoryRouter>);
       fireEvent.click(screen.getByRole("button", { name: "Start" }));
-      mocks.now = 128001;
-      await act(async () => mocks.frames.shift()!(mocks.now));
-      expect(screen.getByText(/Effects vary/)).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Enough for now" }));
+      expect(screen.getByText(/Effects vary; completing the exercise/)).toBeVisible();
       fireEvent.click(screen.getByRole("button", { name: /Worse or uncomfortable/ }));
       expect(screen.getByText(/Do not continue the exercise/)).toBeVisible();
       fireEvent.click(screen.getByRole("button", { name: /Not sure/ }));

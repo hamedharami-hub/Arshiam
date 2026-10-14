@@ -1,10 +1,16 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
+import { DraftConflictNotice } from "@/components/mind/DraftConflictNotice";
+import { ConcernNav } from "@/components/mind/ConcernNav";
+import { DraftPrivacy } from "@/components/mind/DraftPrivacy";
+import { readMindSession } from "@/lib/mind/sessionService";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import ABCView from "@/pages/ABCView";
-import { useMindDraft } from "@/lib/mindDraft";
+import { getMindDraft, useMindDraft, type MindDraft } from "@/lib/mindDraft";
+import { useWorkspaceDraft } from "@/lib/mind/workspaceDraft";
+import { useRecoverableExit } from "@/hooks/useRecoverableExit";
+import { getOpConfig } from "@/lib/aiSettings";
 import { useNavigate } from "react-router-dom";
-import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,19 +73,84 @@ const EMOTIONS_EN = [
 ];
 
 export default function ThoughtRecordsView() {
+  const { user } = useAuth();
+  const [params] = useSearchParams();
+  const concernId = params.get("session");
+  return <ThoughtRecordsWorkspace key={`${user?.id || "guest"}:${concernId || "standalone"}`} concernId={concernId} />;
+}
+
+function emptyForm() {
+  return {
+    situation: "", automatic_thought: "", emotions: [] as string[],
+    emotion_intensity_before: null as number | null, emotion_intensity_after: null as number | null,
+    evidence_for: [""], evidence_against: [""], alternative_thought: "", takeaway: "", next_step: "",
+    distortions: [] as Distortion[],
+  };
+}
+
+function newThoughtId() { return `thought_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`; }
+const pendingThoughtSaves = new Set<string>();
+type ThoughtTaskPreview = { sourceId: string; title: string; privateText: string; includePrivate: boolean; due: number | null };
+function aiConfigSignature() {
+  const { provider, model, baseUrl } = getOpConfig("distortion_detect");
+  return JSON.stringify({ provider, model, baseUrl });
+}
+
+function ThoughtRecordsWorkspace({ concernId }: { concernId: string | null }) {
   const { isEn, T } = useBilingual();
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [records, setRecords] = useState<ThoughtRecordItem[]>([]);
-  const [editing, setEditing] = useState(false);
-  const [activeStep, setActiveStep] = useState<number>(1);
-  const [form, setForm] = useState(emptyForm());
+  const [recordsStatus, setRecordsStatus] = useState<"loading" | "received" | "cached" | "unavailable">("loading");
+  const [historyRetry, setHistoryRetry] = useState(0);
+  const deleting = useRef<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
-  const [mode, setMode] = useState<"full" | "short">(searchParams.get("mode") === "short" ? "short" : "full");
-  const { draft, save: saveDraft, clear: clearDraft } = useMindDraft(user?.id);
-  const recordIdRef = useRef(`thought_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
-  const [pendingTaskRetry, setPendingTaskRetry] = useState(false);
+  const [initial] = useState(() => {
+    const read = user?.id && concernId ? readMindSession(user.id, concernId) : null;
+    return { form: { ...emptyForm(), automatic_thought: read?.ok ? read.value?.text || "" : "" }, editing: false, mode: (searchParams.get("mode") === "short" ? "short" : "full") as "full" | "short", recordId: newThoughtId(), revision: 0, legacySeed: null as MindDraft | null, taskPreview: null as ThoughtTaskPreview | null };
+  });
+  const slot = concernId ? `thoughts:${concernId}` : "thoughts";
+  const workspace = useWorkspaceDraft(user?.id, slot, initial);
+  const workspaceStatus = useRef(workspace);
+  workspaceStatus.current = workspace;
+  const current = useRef(workspace.value);
+  current.current = workspace.value;
+  const revision = useRef(workspace.value.revision || 0);
+  const mountId = useRef(newThoughtId());
+  const requestSequence = useRef(0);
+  const mounted = useRef(true);
+  const saveLock = useRef(false);
+  const request = useRef<AbortController | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [aiPreview, setAiPreview] = useState<string | null>(null);
+  const taskLock = useRef(false);
+  const { form, editing, mode: storedMode, taskPreview } = workspace.value;
+  const [sourceMode, setSourceMode] = useState<"short" | "full" | null>(null);
+  const mode = sourceMode ?? storedMode;
+  useEffect(() => {
+    setSourceMode(searchParams.get("record") && searchParams.get("mode") === "short" ? "short" : null);
+  }, [searchParams.get("record"), searchParams.get("mode")]);
+  function updateWorkspace(patch: Partial<typeof initial>) {
+    revision.current++;
+    request.current?.abort();
+    setAiBusy(false);
+    const next = { ...current.current, ...patch, revision: (current.current.revision || 0) + 1 };
+    current.current = next;
+    return workspace.setValue(next);
+  }
+  function setForm(next: ReturnType<typeof emptyForm> | ((prev: ReturnType<typeof emptyForm>) => ReturnType<typeof emptyForm>)) {
+    updateWorkspace({ form: typeof next === "function" ? next(current.current.form) : next });
+    setAiAlternative("");
+    setAiExplanations({});
+    setAiObservations([]);
+    setAiMissingInfo([]);
+  }
+  const setEditing = (editing: boolean) => updateWorkspace({ editing });
+  const setMode = (mode: "full" | "short") => { setSourceMode(mode); updateWorkspace({ mode }); };
+  const setTaskPreview = (taskPreview: ThoughtTaskPreview | null) => updateWorkspace({ taskPreview });
+  const { draft, clear: clearDraft } = useMindDraft(user?.id);
   const seededRef = useRef(false);
   const focusRecordId = searchParams.get("record");
   const [aiBusy, setAiBusy] = useState(false);
@@ -91,26 +162,23 @@ export default function ThoughtRecordsView() {
 
   const emotionsList = isEn ? EMOTIONS_EN : EMOTIONS_FA;
 
-  function emptyForm() {
-    return {
-      situation: "",
-      automatic_thought: "",
-      emotions: [] as string[],
-      emotion_intensity_before: null as number | null,
-      emotion_intensity_after: null as number | null,
-      evidence_for: [""],
-      evidence_against: [""],
-      alternative_thought: "",
-      takeaway: "",
-      next_step: "",
-      distortions: [] as Distortion[],
-    };
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; request.current?.abort(); };
+  }, []);
+  useEffect(() => {
+    if (workspace.conflict) { revision.current++; request.current?.abort(); setAiBusy(false); }
+  }, [workspace.conflict]);
+  useRecoverableExit(() => (!!taskPreview || JSON.stringify(form) !== JSON.stringify(emptyForm())) && (!workspace.durable || workspace.conflict), T("پیش‌نویس کامل محفوظ نیست. پیش از خروج متن را کپی کنید. خارج می‌شوید؟", "The full draft is not safely preserved. Copy your text before leaving. Leave?"), { watchSearch: true });
+  function clearSeed() {
+    const seed = current.current.legacySeed;
+    const latest = getMindDraft(user?.id);
+    if (seed && latest && seed.text === latest.text && seed.path === latest.path && seed.updatedAt === latest.updatedAt) clearDraft();
   }
 
   // Stale AI suggestion invalidator when inputs change
   function updateFormField<K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    if (key === "situation") saveDraft({ text: String(value), path: "think" });
     if (key === "automatic_thought" || key === "situation") {
       if (aiAlternative || Object.keys(aiExplanations).length > 0) {
         setAiAlternative("");
@@ -123,17 +191,42 @@ export default function ThoughtRecordsView() {
 
   useEffect(() => {
     if (!user) return;
-    const unsub = subscribeThoughtRecords(user.id, (data) => {
-      setRecords(data);
-    });
-    return () => unsub();
-  }, [user]);
+    setRecordsStatus("loading");
+    let active = true;
+    let received = false;
+    const timer = setTimeout(() => {
+      if (active && mounted.current && !received) setRecordsStatus("unavailable");
+    }, 10000);
+    let unsub = () => {};
+    try {
+      unsub = subscribeThoughtRecords(user.id, (data, source) => {
+        if (!active || !mounted.current) return;
+        received = true;
+        clearTimeout(timer);
+        setRecords(data);
+        setRecordsStatus(source?.fromCache ? "cached" : "received");
+      }, () => { if (active && mounted.current) { clearTimeout(timer); setRecordsStatus("unavailable"); } });
+    } catch { setRecordsStatus("unavailable"); }
+    return () => { active = false; clearTimeout(timer); unsub(); };
+  }, [user?.id, historyRetry]);
 
   async function detect() {
+    if (aiBusy || !user) return;
+    if (aiPreview !== aiConfigSignature()) {
+      setAiPreview(aiConfigSignature());
+      toast.error(T("سرویس تغییر کرده؛ پیش‌نمایش تازه را دوباره تأیید کنید", "Provider changed; confirm the refreshed preview"));
+      return;
+    }
     if (!form.automatic_thought.trim()) {
       toast.error(T("اول فکر خودکار را بنویس", "Write the automatic thought first"));
       return;
     }
+    setAiPreview(null);
+    const controller = new AbortController();
+    request.current = controller;
+    const inputRevision = revision.current;
+    const input = current.current;
+    const isCurrent = () => mounted.current && !workspaceStatus.current.conflict && current.current === input && !controller.signal.aborted && request.current === controller && revision.current === inputRevision;
     setAiBusy(true);
     try {
       const ctx = createMindAIContext({
@@ -155,7 +248,8 @@ export default function ThoughtRecordsView() {
         },
       });
 
-      const res = await executeMindAI<CbtAnalysisOutput>(ctx);
+      const res = await executeMindAI<CbtAnalysisOutput>(ctx, { signal: controller.signal, cacheScope: `${user.id}:${input.recordId}:${inputRevision}:${isEn ? "en" : "fa"}:${mountId.current}:${++requestSequence.current}`, timeoutMs: 15000 });
+      if (!isCurrent()) return;
       const d = res.data;
 
       const explMap: Record<string, string> = {};
@@ -173,20 +267,19 @@ export default function ThoughtRecordsView() {
           ? isEn
             ? `${d.possible_patterns.length} pattern(s) suggested`
             : `${d.possible_patterns.length} الگوی پیشنهادی شناسایی شد`
-          : T("الگوی مشخصی پیدا نشد (افکار واقع‌بینانه)", "No clear pattern found (realistic thought)")
+          : T("الگوی مشخصی پیشنهاد نشد؛ این واقع‌بینانه بودن فکر را ثابت نمی‌کند", "No clear pattern suggested; this does not establish that the thought is realistic")
       );
     } catch (e: any) {
-      toast.error(e.message || T("خطا در تشخیص", "Detection error"));
+      if (isCurrent()) toast.error(e.message || T("خطا در تشخیص", "Detection error"));
     } finally {
-      setAiBusy(false);
+      if (mounted.current && request.current === controller) setAiBusy(false);
     }
   }
 
   useEffect(() => {
-    if (seededRef.current || !draft?.text) return;
+    if (seededRef.current || !draft?.text || (draft.path && draft.path !== "think")) return;
     seededRef.current = true;
-    setForm((prev) => (prev.situation ? prev : { ...prev, situation: draft.text }));
-    setEditing(true);
+    if (!current.current.form.situation) updateWorkspace({ form: { ...current.current.form, situation: draft.text }, editing: true, legacySeed: draft });
   }, [draft]);
 
   useEffect(() => {
@@ -197,10 +290,19 @@ export default function ThoughtRecordsView() {
   }, [focusRecordId, records.length]);
 
   async function save() {
+    if (saveLock.current || deleting.current === current.current.recordId || workspace.conflict) return;
     if (!user || !form.situation.trim() || !form.automatic_thought.trim()) {
       toast.error(T("موقعیت و فکر خودکار را پر کن", "Please fill in situation and automatic thought"));
       return;
     }
+    const saveKey = `${user.id}:${current.current.recordId}`;
+    if (pendingThoughtSaves.has(saveKey)) { toast.error(T("ذخیره قبلی هنوز در جریان است؛ کمی بعد دوباره تلاش کنید", "The previous save is still running; retry shortly")); return; }
+    pendingThoughtSaves.add(saveKey);
+    saveLock.current = true;
+    setSaving(true);
+    const savedRevision = revision.current;
+    const snapshot = current.current;
+    const isCurrent = () => mounted.current && !workspaceStatus.current.conflict && current.current === snapshot && savedRevision === revision.current;
     const payload = {
       user_id: user.id,
       situation: form.situation.trim(),
@@ -216,46 +318,50 @@ export default function ThoughtRecordsView() {
       distortions: form.distortions,
     };
 
-    const savedId = await upsertThoughtRecord(user.id, { ...payload, id: recordIdRef.current });
+    try {
+    const savedId = await upsertThoughtRecord(user.id, { ...payload, id: current.current.recordId });
+    if (!mounted.current) return;
     if (savedId) {
-      firebaseStore
-        .from("thought_records")
-        .upsert({ ...payload, id: savedId }, { onConflict: "id" })
-        .catch(() => {});
-
-      // If user provided a next step and wants it as a task
-      let taskOk = true;
-      if (form.next_step?.trim()) {
-        const taskRes = await createTaskFromMind({
-          id: `task_${savedId}`,
-          user_id: user.id,
-          title: form.next_step.trim().slice(0, 140),
-          description: isEn
-            ? `Source: CBT Thought Record\nSituation: ${form.situation}\nBalanced Thought: ${form.alternative_thought || "—"}`
-            : `منبع: ثبت فکر CBT\nموقعیت: ${form.situation}\nفکر متعادل: ${form.alternative_thought || "—"}`,
-          due_in_days: 1,
-          source_type: "cbt_thought",
-          source_id: savedId,
-        });
-        taskOk = taskRes.ok;
-      }
-
-      if (!taskOk) {
-        setPendingTaskRetry(true);
-        toast.error(T("فکر ذخیره شد، اما ساخت تسک ناموفق بود. دوباره «ثبت» را بزنید؛ رکورد تکراری ساخته نمی‌شود.", "Record saved, but the task could not be created. Press Save again; no duplicate will be made."));
-        return;
-      }
-      setPendingTaskRetry(false);
-      recordIdRef.current = `thought_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      clearDraft();
+      if (!isCurrent()) { toast.success(T("نسخه قبلی ذخیره شد؛ ویرایش تازه حفظ شد", "Earlier version saved; newer edits preserved")); return; }
+      if (!workspace.clear()) { toast.error(T("رکورد ذخیره شد، اما پاک‌کردن پیش‌نویس ناموفق بود", "Record saved, but draft cleanup failed")); return; }
+      clearSeed();
       toast.success(T("ثبت شد", "Saved"));
-      setEditing(false);
-      setForm(emptyForm());
+      updateWorkspace({ form: emptyForm(), editing: false, recordId: newThoughtId(), legacySeed: null });
       setAiAlternative("");
       setAiExplanations({});
     } else {
       toast.error(T("خطا در ذخیره رکورد", "Error saving record"));
     }
+    } catch {
+      if (mounted.current) toast.error(T("خطا در ذخیره رکورد", "Error saving record"));
+    } finally {
+      pendingThoughtSaves.delete(saveKey);
+      saveLock.current = false;
+      if (mounted.current) setSaving(false);
+    }
+  }
+
+  async function confirmTask() {
+    if (!user || !taskPreview || taskLock.current || workspace.conflict || !taskPreview.title.trim()) return;
+    taskLock.current = true;
+    const preview = taskPreview;
+    const inputRevision = revision.current;
+    try {
+      const result = await createTaskFromMind({
+        id: `task_${preview.sourceId}`, user_id: user.id, title: preview.title.trim(),
+        description: preview.includePrivate ? preview.privateText : undefined,
+        due_in_days: preview.due, source_type: "cbt_thought", source_id: preview.sourceId,
+      });
+      if (!mounted.current) return;
+      if (result.ok) {
+        if (revision.current !== inputRevision || current.current.taskPreview !== preview || workspaceStatus.current.conflict) {
+          toast.success(T("قدم قبلی در کارها موجود است؛ ویرایش تازه حفظ شد", "Earlier step is in Tasks; newer edits preserved"));
+          return;
+        }
+        setTaskPreview(null);
+        toast.success(T("قدم در کارها موجود است", "Step is in Tasks"), { action: { label: T("بازکردن", "Open"), onClick: () => navigate(`/app/tasks/${encodeURIComponent(result.task!.id)}`) } });
+      } else toast.error(result.error || T("ساخت تسک ناموفق بود؛ دوباره تلاش کنید", "Task creation failed; please retry"));
+    } finally { taskLock.current = false; }
   }
 
   // Monthly stats
@@ -295,6 +401,20 @@ export default function ThoughtRecordsView() {
         ))}
       </div>
       {mode === "short" && <ABCView embedded />}
+      {(editing || taskPreview) && <div role="status" className="text-sm text-muted-foreground">
+        {workspace.conflict ? T("نسخه دیگری موجود است؛ ویرایش شما حفظ شده", "Another draft exists; your edits are preserved") : workspace.durable ? T("پیش‌نویس روی این دستگاه محفوظ است؛ هنوز در حساب ثبت نشده", "Draft preserved on this device; not yet saved to your account") : T("پیش‌نویس فقط در حافظه است؛ متن را پیش از خروج کپی کنید", "Draft is only in memory; copy your text before leaving")}
+        <ConcernNav ownerId={user?.id} concernId={concernId} toolId="thoughts" slot={slot} />
+        <DraftPrivacy {...workspace} />
+        <DraftConflictNotice conflict={workspace.conflict} acceptRemote={() => { revision.current++; request.current?.abort(); workspace.acceptRemote(); setAiAlternative(""); setAiExplanations({}); setAiObservations([]); setAiMissingInfo([]); }} keepLocal={workspace.keepLocal} />
+      </div>}
+      {taskPreview && <Card role="dialog" aria-label={T("پیش‌نمایش قدم", "Step preview")}><CardContent className="p-4 space-y-3">
+        <p>{T("مقصد: کارها؛ ساخت فقط پس از تأیید شما", "Destination: Tasks; created only after your confirmation")}</p>
+        <Label htmlFor="thought-task-title">{T("عنوان تسک", "Task title")}</Label><Input id="thought-task-title" value={taskPreview.title} onChange={(e) => setTaskPreview({ ...taskPreview, title: e.target.value })} />
+        <Label htmlFor="thought-task-due">{T("موعد اختیاری", "Optional due date")}</Label><select id="thought-task-due" value={taskPreview.due ?? ""} onChange={(e) => setTaskPreview({ ...taskPreview, due: e.target.value === "" ? null : Number(e.target.value) })}><option value="">{T("بدون موعد", "No due date")}</option><option value="0">{T("امروز", "Today")}</option><option value="1">{T("فردا", "Tomorrow")}</option></select>
+        <label className="flex gap-2"><input type="checkbox" checked={taskPreview.includePrivate} onChange={(e) => setTaskPreview({ ...taskPreview, includePrivate: e.target.checked })} />{T("متن خصوصی را هم کپی کن", "Also copy private text")}</label>
+        {taskPreview.includePrivate && <Textarea aria-label={T("جزئیات خصوصی", "Private details")} value={taskPreview.privateText} onChange={(e) => setTaskPreview({ ...taskPreview, privateText: e.target.value })} />}
+        <Button onClick={confirmTask}>{T("تأیید ساخت قدم", "Confirm step creation")}</Button><Button variant="ghost" onClick={() => setTaskPreview(null)}>{T("انصراف", "Cancel")}</Button>
+      </CardContent></Card>}
       {mode === "full" && (<>
       {/* Guide Accordion */}
       <Card className="border-primary/20">
@@ -459,10 +579,20 @@ export default function ThoughtRecordsView() {
 
             {/* AI Suggestion Box */}
             <div className="space-y-3 pt-2">
-              <Button variant="outline" size="sm" onClick={detect} disabled={aiBusy}>
+              <Button variant="outline" size="sm" onClick={() => setAiPreview(aiConfigSignature())} disabled={aiBusy}>
                 {aiBusy ? <Loader2 className="w-4 h-4 ms-1 animate-spin" /> : <Sparkles className="w-4 h-4 ms-1 text-primary" />}
                 {T("پیشنهاد الگو و فکر جایگزین با AI (اختیاری)", "Suggest Distortions & Alternative with AI (Optional)")}
               </Button>
+              {aiBusy && <Button variant="ghost" onClick={() => { request.current?.abort(); request.current = null; setAiBusy(false); }}>{T("لغو انتظار؛ پردازش سرویس ممکن است ادامه یابد", "Cancel waiting; provider processing may continue")}</Button>}
+              {aiPreview && <div role="dialog" aria-label={T("پیش‌نمایش ارسال AI", "AI sending preview")} className="space-y-2 rounded-lg border p-3">
+                <p>{T("فقط موقعیت، فکر خودکار و شواهد زیر ارسال می‌شود؛ زمینه عمومی اضافه نمی‌شود.", "Only the situation, automatic thought and evidence below are sent; no general personalization is added.")}</p>
+                <p>{getOpConfig("distortion_detect").provider} / {getOpConfig("distortion_detect").model}</p>
+                <pre className="whitespace-pre-wrap text-sm">{JSON.stringify({ situation: form.situation, automatic_thought: form.automatic_thought, evidence_for: form.evidence_for.filter(x => x.trim()), evidence_against: form.evidence_against.filter(x => x.trim()) }, null, 2)}</pre>
+                <Button onClick={detect}>{T("با ارسال این متن موافقم", "I agree to send this text")}</Button><Button variant="ghost" onClick={() => setAiPreview(null)}>{T("بدون ارسال ادامه می‌دهم", "Continue without sending")}</Button>
+              </div>}
+              {aiObservations.length > 0 && <div><h3>{T("آنچه گفتی / برداشت احتمالی", "What you said / possible interpretation")}</h3>{aiObservations.map((observation, i) => <p key={i}>«{observation.quoteOrReference}» — {observation.observation}</p>)}</div>}
+              {Object.entries(aiExplanations).map(([pattern, explanation]) => <p key={pattern} className="text-sm"><strong>{getDistortionLabel(pattern as Distortion, isEn)}</strong> — {explanation}</p>)}
+              {aiMissingInfo.length > 0 && <div><h3>{T("آنچه هنوز معلوم نیست", "What remains unknown")}</h3>{aiMissingInfo.map((info, i) => <p key={i}>{info}</p>)}</div>}
 
               {aiAlternative && (
                 <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-2.5">
@@ -568,7 +698,7 @@ export default function ThoughtRecordsView() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">
-                  {T("قدم بعدی، اگر لازم است (تبدیل خودکار به Task)", "Next Step, if needed (Auto-added to Tasks)")}
+                  {T("قدم بعدی، اگر لازم است (بدون ساخت خودکار تسک)", "Next Step, if needed (No automatic task)")}
                 </Label>
                 <Input
                   value={form.next_step}
@@ -579,7 +709,7 @@ export default function ThoughtRecordsView() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button onClick={save} size="lg">
+              <Button onClick={save} size="lg" disabled={saving || workspace.conflict}>
                 {T("ذخیره رکورد", "Save Record")}
               </Button>
               <Button
@@ -587,7 +717,6 @@ export default function ThoughtRecordsView() {
                 size="lg"
                 onClick={() => {
                   setEditing(false);
-                  setForm(emptyForm());
                   setAiAlternative("");
                 }}
               >
@@ -600,6 +729,10 @@ export default function ThoughtRecordsView() {
 
       {/* Records List */}
       <div className="space-y-3">
+        {recordsStatus !== "received" && <div role="status" className="text-sm text-muted-foreground">
+          {recordsStatus === "loading" ? T("در انتظار دریافت ثبت‌ها…", "Waiting for records…") : recordsStatus === "cached" ? T("نسخهٔ ذخیره‌شدهٔ دستگاه؛ آخرین وضعیت سرور تأیید نشده است.", "Device-cached records; the latest server state is not confirmed.") : T("دریافت ثبت‌ها تأیید نشده؛ این به معنی نبود ثبت نیست", "Loading records is not confirmed; this does not mean your history is empty")}
+          <Button variant="ghost" onClick={() => setHistoryRetry(value => value + 1)}>{T("تلاش دوباره برای دریافت", "Retry loading")}</Button>
+        </div>}
         {records.map((r) => (
           <Card key={r.id} id={`record-${r.id}`} className={focusRecordId === r.id ? "ring-2 ring-primary" : ""}>
             <CardContent className="p-4 space-y-2.5 text-sm">
@@ -612,10 +745,18 @@ export default function ThoughtRecordsView() {
                     className="grid h-7 w-7 place-items-center rounded-md hover:bg-destructive/10 hover:text-destructive"
                     aria-label={T("حذف این ثبت", "Delete this record")}
                     data-testid={`record-delete-${r.id}`}
+                    disabled={saving || !!deletingId}
                     onClick={async () => {
-                      if (!user || !window.confirm(T("این ثبت حذف شود؟", "Delete this record?"))) return;
-                      const ok = await deleteThoughtRecord(user.id, r.id);
-                      if (!ok) toast.error(T("حذف نشد", "Could not delete"));
+                      if (!user || saveLock.current || deleting.current || !window.confirm(T("این ثبت حذف شود؟", "Delete this record?"))) return;
+                      deleting.current = r.id;
+                      setDeletingId(r.id);
+                      try {
+                        const ok = await deleteThoughtRecord(user.id, r.id);
+                        if (!mounted.current) return;
+                        if (!ok) toast.error(T("حذف نشد", "Could not delete"));
+                        else if (current.current.recordId === r.id) updateWorkspace({ recordId: newThoughtId() });
+                      } catch { if (mounted.current) toast.error(T("حذف نشد", "Could not delete")); }
+                      finally { deleting.current = null; if (mounted.current) setDeletingId(null); }
                     }}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -653,35 +794,16 @@ export default function ThoughtRecordsView() {
                 )}
               </div>
 
-              {r.alternative_thought && (
+              {(r.next_step || r.alternative_thought) && (
                 <div className="pt-1">
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-8 text-xs"
-                    onClick={async () => {
-                      const res = await createTaskFromMind({
-                        user_id: user!.id,
-                        title: (isEn
-                          ? `Practice balanced thought: ${r.alternative_thought}`
-                          : `تمرین فکر متعادل: ${r.alternative_thought}`
-                        ).slice(0, 120),
-                        description: isEn
-                          ? `Situation: ${r.situation}\nAutomatic: ${r.automatic_thought}\nBalanced: ${r.alternative_thought}`
-                          : `موقعیت: ${r.situation}\nفکر خودکار: ${r.automatic_thought}\nبرداشت متعادل: ${r.alternative_thought}`,
-                        due_in_days: 1,
-                        source_type: "cbt_thought",
-                        source_id: r.id,
-                      });
-                      if (res.ok) {
-                        toast.success(T("به تسک‌های فردا اضافه شد", "Added to tomorrow's tasks"));
-                      } else {
-                        toast.error(res.error || T("خطا", "Error"));
-                      }
-                    }}
+                    onClick={() => setTaskPreview({ sourceId: r.id, title: r.next_step || T("مرور برداشت متعادل", "Review a balanced perspective"), privateText: `${r.situation}\n${r.automatic_thought}\n${r.alternative_thought || ""}`, includePrivate: false, due: null })}
                   >
                     <ListPlus className="w-3.5 h-3.5 ms-1" />
-                    {T("افزودن به عنوان تسک فردا", "Add as Tomorrow's Task")}
+                    {T("پیش‌نمایش قدم در کارها", "Preview step in Tasks")}
                   </Button>
                 </div>
               )}
@@ -689,7 +811,7 @@ export default function ThoughtRecordsView() {
           </Card>
         ))}
 
-        {records.length === 0 && !editing && (
+        {recordsStatus === "received" && records.length === 0 && !editing && (
           <div className="text-center py-12 text-muted-foreground text-sm">
             {T("هنوز ثبتی وجود ندارد. اولین Thought Record را ثبت کن.", "No records yet. Create your first Thought Record.")}
           </div>

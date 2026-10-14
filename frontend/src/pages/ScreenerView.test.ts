@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deduplicateAssessmentHistory } from "./ScreenerView";
+import { assessmentCompletedLabel, deduplicateAssessmentHistory } from "./ScreenerView";
 import type { AssessmentResultItem } from "@/lib/firestoreDataService";
 
 describe("ScreenerView history deduplication", () => {
-  it("deduplicates results with same assessment_type and raw score within 10 seconds", () => {
+  it("preserves distinct historical records even with equal totals within 10 seconds", () => {
     const now = Date.now();
     const items: AssessmentResultItem[] = [
       {
@@ -13,7 +13,7 @@ describe("ScreenerView history deduplication", () => {
         scores: { raw: 14, normalized: 51, maxPossible: 27 },
         answers: {},
       },
-      // Duplicate write 1 second later
+      // Equal totals are not proof of duplicate answers/writes.
       {
         id: "scr-2",
         assessment_type: "phq9",
@@ -40,7 +40,22 @@ describe("ScreenerView history deduplication", () => {
     ];
 
     const deduplicated = deduplicateAssessmentHistory(items);
-    expect(deduplicated).toHaveLength(3);
-    expect(deduplicated.map((d) => d.id)).toEqual(["scr-1", "scr-3", "scr-4"]);
+    expect(deduplicated).toHaveLength(4);
+    expect(deduplicated).toEqual(items);
+    expect(deduplicated[0]).toBe(items[0]);
+  });
+
+  it("only collapses repeated document identities, not owners/types or unknown IDs", () => {
+    const base = { id: "same", user_id: "A", assessment_type: "phq9", scores: { raw: 0 } };
+    const records = [base, base, { ...base, user_id: "B" }, { ...base, assessment_type: "gad7" }, { ...base, id: "" }, { ...base, id: "" }];
+    expect(deduplicateAssessmentHistory(records)).toHaveLength(5);
+    expect(records).toHaveLength(6);
+  });
+
+  it("does not fabricate completion dates from created_at or today", () => {
+    const record = { id: "old", assessment_type: "who5", scores: { raw: 0 }, created_at: "2026-10-15T12:00:00Z" };
+    expect(assessmentCompletedLabel(record, true)).toBe("Completion date unknown");
+    expect(assessmentCompletedLabel({ ...record, completed_at: "invalid" }, true)).toBe("Completion date unknown");
+    expect(assessmentCompletedLabel({ ...record, completed_at: "2020-01-02T12:00:00Z" }, true)).toContain("2020");
   });
 });

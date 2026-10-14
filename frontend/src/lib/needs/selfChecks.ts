@@ -173,3 +173,31 @@ export function scoreSelfCheck(def: SelfCheckDef, answers: number[]): { pct: num
   const band = def.bands.find((x) => pct <= x.max) ?? def.bands[def.bands.length - 1];
   return { pct, band };
 }
+
+/** Future presentation only. Keep the legacy definitions/scorer above unchanged
+ * so old percentages and stored answers are not silently reinterpreted. */
+export const SELF_CHECK_INTERPRETATION_VERSION = "responses-v2";
+export const SELF_CHECK_CONTENT_VERSION = "personal-copy-v2";
+export function selfCheckPresentation(def: SelfCheckDef): SelfCheckDef {
+  const corrections: Record<string, Record<number, B>> = {
+    stress: { 4: b("با وجود کارها و فکرها خوب می‌خوابم.", "I sleep well despite my tasks and thoughts.") },
+    "relationship-satisfaction": { 1: b("می‌توانم نیازهایم را بیان کنم.", "I can say what I need.") },
+  };
+  return {
+    ...def,
+    title: def.id === "self-esteem" ? b("ارزش‌گذاری به خود", "Self-worth") : def.title,
+    items: def.items.map((item, i) => ({ ...item, text: corrections[def.id]?.[i] ?? item.text })),
+  };
+}
+
+/** A descriptive review, not a new psychometric score or a 33/66 severity band. */
+export function reviewSelfCheck(def: SelfCheckDef, answers: readonly (number | null)[]) {
+  const labels = def.scale === "frequency" ? FREQ_LABELS : AGREE_LABELS;
+  const complete = def.items.every((_, i) => Number.isInteger(answers[i]) && answers[i]! >= 0 && answers[i]! <= 4);
+  return {
+    version: SELF_CHECK_INTERPRETATION_VERSION,
+    complete,
+    responses: def.items.map((item, i) => ({ text: item.text, answer: complete ? labels[answers[i]!] : null })),
+    methods: [...new Set(def.bands.flatMap((band) => band.methods))],
+  };
+}

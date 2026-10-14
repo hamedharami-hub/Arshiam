@@ -28,6 +28,7 @@ export default function NeedsBrowseView() {
   return (
     <div dir={isEn ? "ltr" : "rtl"} className="page-shell page-shell--lg space-y-5 pb-28 animate-fade-in" data-testid="needs-browse">
       <HeaderTitlePortal title={L(t?.title ?? c.title)} />
+      <Link to="/app/mind/session/new" className="inline-flex min-h-11 items-center text-sm font-medium text-primary">{T("مستقیم بنویس — انتخاب موضوع لازم نیست", "Write directly — a topic is not required")}</Link>
       <nav className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground" aria-label="breadcrumb" data-testid="needs-crumbs">
         <Link to="/app/mind" className="hover:text-foreground">{T("ذهن", "Mind")}</Link><Chev className="h-3 w-3" />
         {t ? <Link to={`/app/mind/needs/${c.id}`} className="hover:text-foreground">{L(c.title)}</Link> : <span className="font-semibold text-foreground">{L(c.title)}</span>}

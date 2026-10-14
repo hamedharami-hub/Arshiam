@@ -3,6 +3,7 @@ import {
   scoreScreener,
   validateScreenerAnswers,
   SCREENERS,
+  SCREENER_PROVENANCE,
   type ScreenerType,
 } from "@/lib/assessments/screeners";
 
@@ -50,6 +51,73 @@ describe("Screener Validation & Missing Data Handling", () => {
     expect(fullRes.raw).toBe(1);
     expect(fullRes.severity).toBe("minimal"); // Total score is minimal
     expect(fullRes.flags).toContain("suicidal_ideation"); // But crisis flag is present!
+  });
+});
+
+// Arithmetic reference fixtures for published summation/cutoffs, not evidence
+// that the app's current wording or translation has been validated.
+function answersWithTotal(type: ScreenerType, total: number) {
+  const max = SCREENERS[type].scale - 1;
+  return Object.fromEntries(SCREENERS[type].items.map((item) => {
+    const value = Math.min(max, total);
+    total -= value;
+    return [item.id, value];
+  }));
+}
+
+describe("Published summation examples and unchanged historical contracts", () => {
+  it.each([
+    [0, "minimal"], [4, "minimal"], [5, "mild"], [9, "mild"],
+    [10, "moderate"], [14, "moderate"], [15, "moderately_severe"],
+    [19, "moderately_severe"], [20, "severe"], [27, "severe"],
+  ])("PHQ-9 (Kroenke 2001): total %i is %s", (total, severity) => {
+    const result = scoreScreener("phq9", answersWithTotal("phq9", Number(total)));
+    expect(result.raw).toBe(total);
+    expect(result.severity).toBe(severity);
+  });
+
+  it.each([[0, "minimal"], [4, "minimal"], [5, "mild"], [9, "mild"], [10, "moderate"], [14, "moderate"], [15, "severe"], [21, "severe"]])(
+    "GAD-7 (Spitzer 2006): total %i is %s", (total, severity) => {
+      const result = scoreScreener("gad7", answersWithTotal("gad7", Number(total)));
+      expect(result.raw).toBe(total);
+      expect(result.severity).toBe(severity);
+    }
+  );
+
+  it.each([0, 6, 7, 12, 13, 17, 18, 25])("WHO-5 summation: raw %i multiplies by four; legacy app bands remain untouched", (raw) => {
+    const result = scoreScreener("who5", answersWithTotal("who5", raw));
+    expect(result.raw).toBe(raw);
+    expect(result.normalized).toBe(raw * 4);
+    expect(result.severity).toBe(raw >= 18 ? "good" : raw >= 13 ? "moderate" : raw >= 7 ? "low" : "severe");
+    expect(result.flags.includes("possible_depression_screening")).toBe(raw <= 12);
+  });
+
+  it("WHO-5 worked response example is 3+2+4+1+5 = 15 raw, 60/100, not a percentage diagnosis", () => {
+    expect(scoreScreener("who5", { 1: 3, 2: 2, 3: 4, 4: 1, 5: 5 })).toMatchObject({ raw: 15, normalized: 60 });
+  });
+
+  it.each([[0, "minimal"], [5, "minimal"], [6, "mild"], [11, "mild"], [12, "moderate"], [17, "moderate"], [18, "severe"], [24, "severe"]])(
+    "personal burnout legacy total %i keeps %s in storage (not a validated cutoff)", (raw, severity) => {
+      expect(scoreScreener("burnout", answersWithTotal("burnout", Number(raw)))).toMatchObject({ raw, severity });
+    }
+  );
+
+  it("preserves every existing standard item, answer option, timeframe and scoring identifier", () => {
+    expect(["phq9", "gad7", "who5"].map((type) => {
+      const meta = SCREENERS[type as ScreenerType];
+      return { type, items: meta.items, labels: meta.labels, labels_en: meta.labels_en, subtitle: meta.subtitle, subtitle_en: meta.subtitle_en, scale: meta.scale, scaleStart: meta.scaleStart, timeframe: meta.timeframe, timeframe_en: meta.timeframe_en, instrumentVersion: meta.instrumentVersion, scoringVersion: meta.scoringVersion };
+    })).toMatchSnapshot();
+  });
+
+  it("does not mutate answer records or silently validate translation/licensing", () => {
+    const answers = Object.freeze({ 1: 0, 2: 1, 3: 2, 4: 3, 5: 0, 6: 1, 7: 2, 8: 3, 9: 0 });
+    scoreScreener("phq9", answers);
+    expect(answers).toEqual({ 1: 0, 2: 1, 3: 2, 4: 3, 5: 0, 6: 1, 7: 2, 8: 3, 9: 0 });
+    Object.values(SCREENER_PROVENANCE).forEach((meta) => {
+      expect(meta.translationValidation).toBe("unknown");
+      expect(meta.permissionStatus).toBe("unknown");
+    });
+    expect(SCREENER_PROVENANCE.burnout.originalVersion_en).toContain("not a version of MBI or CBI");
   });
 });
 

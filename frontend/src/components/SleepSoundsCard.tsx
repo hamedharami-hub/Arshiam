@@ -27,6 +27,7 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
   const playing = endAt !== null;
   const sounds = SLEEP_IDS.map((id) => AMBIENT_SOUNDS.find((s) => s.id === id)).filter(Boolean) as typeof AMBIENT_SOUNDS;
   const hint = sounds.find((s) => s.id === prefs.sound)?.hint;
+  const hintEn = sounds.find((s) => s.id === prefs.sound)?.hintEn;
 
   useEffect(() => { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch { /* ignore */ } }, [prefs]);
 
@@ -100,7 +101,7 @@ export function SleepSoundsCard({ isEn }: { isEn: boolean }) {
           </button>
         ))}
       </div>
-      {hint && <p className="text-[11px] text-amber-600 dark:text-amber-400">{T(hint, "Experimental — use headphones")}</p>}
+      {hint && <p className="text-[11px] text-amber-600 dark:text-amber-400">{T(hint, hintEn || "Experimental; stop if uncomfortable.")}</p>}
 
       <div className="space-y-1.5">
         <div className="text-[11px] text-muted-foreground">{T("خاموشی تدریجی بعد از", "Fade out after")}</div>

@@ -61,6 +61,7 @@ describe("MindView home", () => {
   it("reports saved status after the mood write succeeds", async () => {
     upsertDailyCheckin.mockResolvedValue(true);
     renderHome();
+    fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "6" } });
     fireEvent.click(screen.getByTestId("mind-mood-save"));
     await waitFor(() => expect(screen.getByTestId("mind-mood-status")).toHaveTextContent("ذخیره و همگام شد"));
   });
@@ -68,6 +69,7 @@ describe("MindView home", () => {
   it("reports failure honestly when the write fails", async () => {
     upsertDailyCheckin.mockResolvedValue(false);
     renderHome();
+    fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "6" } });
     fireEvent.click(screen.getByTestId("mind-mood-save"));
     await waitFor(() => expect(screen.getByTestId("mind-mood-status")).toHaveTextContent("ذخیره نشد"));
   });
@@ -101,6 +103,7 @@ describe("MindView home", () => {
     let finish!: (ok: boolean) => void;
     upsertDailyCheckin.mockReturnValue(new Promise<boolean>(resolve => { finish = resolve; }));
     renderHome();
+    fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "6" } });
     fireEvent.click(screen.getByTestId("mind-mood-save"));
     await act(async () => vi.advanceTimersByTimeAsync(4000));
     expect(screen.getByTestId("mind-mood-status")).toHaveTextContent("هنوز تأیید ذخیره نرسیده");
@@ -115,6 +118,7 @@ describe("MindView home", () => {
     let finish!: (ok: boolean) => void;
     upsertDailyCheckin.mockReturnValue(new Promise<boolean>(resolve => { finish = resolve; }));
     renderHome();
+    fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "6" } });
     fireEvent.click(screen.getByTestId("mind-mood-save"));
     fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "9" } });
     await act(async () => finish(true));
@@ -125,6 +129,7 @@ describe("MindView home", () => {
   it("handles a rejected mood write as a retryable failure", async () => {
     upsertDailyCheckin.mockRejectedValue(new Error("offline"));
     renderHome();
+    fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "6" } });
     fireEvent.click(screen.getByTestId("mind-mood-save"));
     await waitFor(() => expect(screen.getByTestId("mind-mood-status")).toHaveTextContent("ذخیره نشد"));
   });
@@ -137,5 +142,18 @@ describe("MindView home", () => {
     expect(screen.getByTestId("mind-draft-error")).toBeInTheDocument();
     expect(screen.getByTestId("mind-busy-input")).toHaveValue("private text");
     expect(screen.queryByTestId("where")).toBeNull();
+  });
+  it("does not fabricate a rating before the user chooses one", () => {
+    renderHome();
+    expect(screen.getByTestId("mind-mood-save")).toBeDisabled();
+    expect(screen.getByTestId("mind-mood-slider")).toHaveAttribute("aria-valuetext", expect.stringContaining("انتخاب نشده"));
+    expect(upsertDailyCheckin).not.toHaveBeenCalled();
+  });
+  it("keeps unselected energy null when only mood was chosen", async () => {
+    upsertDailyCheckin.mockResolvedValue(true);
+    renderHome();
+    fireEvent.change(screen.getByTestId("mind-mood-slider"), { target: { value: "7" } });
+    fireEvent.click(screen.getByTestId("mind-mood-save"));
+    await waitFor(() => expect(upsertDailyCheckin).toHaveBeenCalledWith("test-user-mind", expect.objectContaining({ mood: 7, energy: null }), { expected: null }));
   });
 });

@@ -66,6 +66,10 @@ export interface SelfCheckDef {
 }
 
 export interface NeedsSuggestion {
+  id?: string;
+  reason?: string;
+  methodId?: string;
+  source?: "local" | "ai";
   text: string;
   kind: "task" | "note" | "habit";
 }
@@ -80,7 +84,21 @@ export interface NeedsResult {
   source: "ai" | "local";
 }
 
+export type NeedsGoal = "calm" | "clarify" | "step";
+export type NeedsCapacity = "low" | "usual";
+export type NeedsSuggestionFeedback = "irrelevant" | "no_energy" | "other";
+export interface NeedsDecision {
+  suggestionId: string;
+  feedback: NeedsSuggestionFeedback;
+  suggestion: NeedsSuggestion;
+  alternative: NeedsSuggestion | null;
+  created_at: string;
+}
+
 export interface NeedsSession {
+  preferences?: { goal?: NeedsGoal | null; capacity?: NeedsCapacity | null };
+  /** Original result stays intact; each rejection and local alternative is separate. */
+  decisionHistory?: NeedsDecision[];
   id: string;
   user_id?: string;
   category: string;
@@ -93,4 +111,6 @@ export interface NeedsSession {
   lang: "fa" | "en";
   created_at: string;
   updated_at: string;
+  finished?: boolean;
+  converted?: Record<string, { kind: NeedsSuggestion["kind"]; destinationId: string }>;
 }

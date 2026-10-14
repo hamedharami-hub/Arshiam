@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ axis: vi.fn(), line: vi.fn(), area: vi.fn() }));
 vi.mock("recharts", () => ({
@@ -17,7 +17,9 @@ describe("Honest trend data", () => {
   it("keeps missing and unrated days distinct from actual scores", () => {
     expect(heatmapScore()).toEqual({ status: "missing", score: null });
     expect(heatmapScore({ mood: null, energy: null, focus: null })).toEqual({ status: "unrated", score: null });
-    expect(heatmapScore({ mood: 2, energy: null, focus: 6 })).toEqual({ status: "rated", score: 4 });
+    expect(heatmapScore({ mood: 2, energy: null, focus: 6 })).toEqual({ status: "rated", score: 2 });
+    expect(heatmapScore({ mood: 2, energy: null, focus: 6 }, "focus")).toEqual({ status: "rated", score: 6 });
+    expect(heatmapScore({ mood: 0 })).toEqual({ status: "unrated", score: null });
   });
 
   it("uses elapsed dates and splits lines at unrated and unlogged days", () => {
@@ -32,12 +34,11 @@ describe("Honest trend data", () => {
   it("provides a metric summary and semantic table with explicit no-rating cells", () => {
     render(<MindMetricTable trend={[point("2026-10-01", 3), point("2026-10-03", null)]} metrics={["mood", "stress"]} isEn T={T} />);
     expect(screen.getByTestId("mind-metric-data")).toHaveTextContent("Mood: 1 logged ratings · Stress: 0 logged ratings");
-    expect(screen.getByText("2026-10-02")).toBeInTheDocument();
     const table = screen.getByRole("table", { hidden: true });
     expect(within(table).getAllByText("No rating")).toHaveLength(5);
   });
 
-  it("labels heatmap absence without synthetic zero or four scores and disables chart interpolation", () => {
+  it("provides actual weeks, touch/keyboard controls, detail and a fallback without a duplicate chart", () => {
     render(<MindTrendCharts showStreak={false} streak={0} thoughtCount={0} abcCount={0} topDistortions={[]} isEn T={T}
       trend={[point("2026-10-01", 3), point("2026-10-03", 8)]}
       heatmap={[
@@ -45,11 +46,14 @@ describe("Honest trend data", () => {
         { date: "2026-10-02", jalaliDate: "Unrated day", status: "unrated", score: null },
         { date: "2026-10-03", jalaliDate: "Rated day", status: "rated", score: 6 },
       ]} />);
-    expect(screen.getByRole("img", { name: "Missing day · No entry" })).toHaveAttribute("title", "Missing day · No entry");
-    expect(screen.getByRole("img", { name: "Unrated day · Entry without ratings" })).toHaveAttribute("title", "Unrated day · Entry without ratings");
-    expect(screen.getByRole("img", { name: "Rated day · 6.0/10" })).toBeInTheDocument();
-    expect(mocks.axis).toHaveBeenCalledWith(expect.objectContaining({ dataKey: "timestamp", type: "number", scale: "time" }));
-    expect(mocks.area).toHaveBeenCalledWith(expect.objectContaining({ type: "linear", connectNulls: false }));
-    expect(mocks.line.mock.calls.every(([props]) => props.type === "linear" && props.connectNulls === false)).toBe(true);
+    expect(screen.getByRole("button", { name: "Missing day · No entry" })).toHaveAttribute("title", "Missing day · No entry");
+    expect(screen.getByRole("button", { name: "Unrated day · Entry without ratings" })).toHaveAttribute("title", "Unrated day · Entry without ratings");
+    const rated = screen.getByRole("button", { name: "Rated day · 6.0/10" });
+    expect(rated).toHaveAttribute("type", "button");
+    fireEvent.click(rated);
+    expect(screen.getByText("Mood · Rated day · 6.0/10")).toBeInTheDocument();
+    expect(screen.getAllByTestId("mind-calendar-week").every((week) => week.children.length === 7)).toBe(true);
+    expect(screen.getByRole("table", { hidden: true })).toBeInTheDocument();
+    expect(mocks.axis).not.toHaveBeenCalled();
   });
 });

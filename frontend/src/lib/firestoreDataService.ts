@@ -966,7 +966,8 @@ export async function deleteHabit(userId: string, habitId: string): Promise<bool
 
 export function subscribeDailyCheckins(
   userId: string,
-  onUpdate: (checkins: DailyCheckinItem[]) => void
+  onUpdate: (checkins: DailyCheckinItem[], source?: { fromCache: boolean }) => void,
+  onError?: (error: unknown) => void
 ): () => void {
   if (!userId) {
     onUpdate([]);
@@ -977,8 +978,8 @@ export function subscribeDailyCheckins(
   let snapshotSeen = false;
 
   cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId)).then((cached) => {
-    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
-  });
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached, { fromCache: true });
+  }).catch((error) => { if (active) onError?.(error); });
 
   try {
     const colRef = collection(db, "users", userId, "daily_checkins");
@@ -993,16 +994,21 @@ export function subscribeDailyCheckins(
         });
         items.sort((a, b) => (b.checkin_date || "").localeCompare(a.checkin_date || ""));
         cacheSet(CACHE_KEYS.checkins(userId), items);
-        onUpdate(items);
+        onUpdate(items, { fromCache: snap.metadata?.fromCache ?? false });
       },
-      async () => {
-        if (!active || snapshotSeen) return;
-        const cached = await cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId));
-        if (active && !snapshotSeen && cached) onUpdate(cached);
+      async (error) => {
+        if (!active) return;
+        onError?.(error);
+        if (snapshotSeen) return;
+        try {
+          const cached = await cacheGet<DailyCheckinItem[]>(CACHE_KEYS.checkins(userId));
+          if (active && !snapshotSeen && cached) onUpdate(cached, { fromCache: true });
+        } catch (cacheError) { if (active) onError?.(cacheError); }
       }
     );
     return () => { active = false; unsub(); };
-  } catch {
+  } catch (error) {
+    onError?.(error);
     return () => { active = false; };
   }
 }
@@ -1023,11 +1029,22 @@ export async function getDailyCheckin(userId: string, date: string): Promise<Dai
   return cachedList?.find((c) => c.checkin_date === date || c.id === date) || null;
 }
 
-export async function upsertDailyCheckin(userId: string, checkin: Partial<DailyCheckinItem> & { checkin_date: string }): Promise<boolean> {
+export async function upsertDailyCheckin(userId: string, checkin: Partial<DailyCheckinItem> & { checkin_date: string }, options?: {
+  expected: { updatedAt?: string } | null;
+}): Promise<boolean> {
   if (!userId || !checkin.checkin_date) return false;
   const docId = checkin.checkin_date;
   try {
     const docRef = doc(db, "users", userId, "daily_checkins", docId);
+    if (options) {
+      return await runTransaction(db, async transaction => {
+        const existing = await transaction.get(docRef);
+        const remote = existing.exists() ? existing.data() : null;
+        if (options.expected === null ? remote !== null : remote === null || remote.updated_at !== options.expected.updatedAt) return false;
+        transaction.set(docRef, { ...checkin, id: docId, user_id: userId, created_at: remote?.created_at || checkin.created_at || new Date().toISOString(), updated_at: new Date().toISOString() }, { merge: true });
+        return true;
+      });
+    }
     await setDoc(docRef, { ...checkin, id: docId, user_id: userId, updated_at: new Date().toISOString() }, { merge: true });
     return true;
   } catch (err) {
@@ -1040,7 +1057,8 @@ export async function upsertDailyCheckin(userId: string, checkin: Partial<DailyC
 
 export function subscribeThoughtRecords(
   userId: string,
-  onUpdate: (records: ThoughtRecordItem[]) => void
+  onUpdate: (records: ThoughtRecordItem[], source?: { fromCache: boolean }) => void,
+  onError?: (error: unknown) => void
 ): () => void {
   if (!userId) {
     onUpdate([]);
@@ -1051,8 +1069,8 @@ export function subscribeThoughtRecords(
   let snapshotSeen = false;
 
   cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId)).then((cached) => {
-    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached);
-  });
+    if (active && !snapshotSeen && cached && Array.isArray(cached)) onUpdate(cached, { fromCache: true });
+  }).catch((error) => { if (active) onError?.(error); });
 
   try {
     const colRef = collection(db, "users", userId, "thought_records");
@@ -1067,16 +1085,21 @@ export function subscribeThoughtRecords(
         });
         items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
         cacheSet(CACHE_KEYS.thoughtRecords(userId), items);
-        onUpdate(items);
+        onUpdate(items, { fromCache: snap.metadata?.fromCache ?? false });
       },
-      async () => {
-        if (!active || snapshotSeen) return;
-        const cached = await cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId));
-        if (active && !snapshotSeen && cached) onUpdate(cached);
+      async (error) => {
+        if (!active) return;
+        onError?.(error);
+        if (snapshotSeen) return;
+        try {
+          const cached = await cacheGet<ThoughtRecordItem[]>(CACHE_KEYS.thoughtRecords(userId));
+          if (active && !snapshotSeen && cached) onUpdate(cached, { fromCache: true });
+        } catch (cacheError) { if (active) onError?.(cacheError); }
       }
     );
     return () => { active = false; unsub(); };
-  } catch {
+  } catch (error) {
+    onError?.(error);
     return () => { active = false; };
   }
 }

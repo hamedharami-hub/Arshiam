@@ -49,6 +49,11 @@ vi.mock("./firebase", () => {
 });
 
 // Mock offlineQueue cache
+vi.mock("firebase/firestore", async () => {
+  const firebase = await import("./firebase");
+  return { doc: firebase.doc, runTransaction: firebase.runTransaction };
+});
+
 vi.mock("./offlineQueue", () => {
   const cache = new Map<string, any>();
   return {

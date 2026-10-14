@@ -5,8 +5,8 @@ import { useRecoverableExit } from "./useRecoverableExit";
 
 let dirty = true;
 let durable = false;
-function Editor() {
-  useRecoverableExit(() => dirty && !durable, "No recoverable copy. Leave?");
+function Editor({ watchSearch = false }: { watchSearch?: boolean }) {
+  useRecoverableExit(() => dirty && !durable, "No recoverable copy. Leave?", { watchSearch });
   const location = useLocation();
   const navigate = useNavigate();
   return <><p data-testid="route">{location.pathname}{location.search}</p><Link to="/other">Leave</Link><button onClick={() => navigate("/replaced", { replace: true })}>Replace</button><button onClick={() => navigate("?note=one", { replace: true })}>Query</button></>;
@@ -60,6 +60,17 @@ describe("recoverable BrowserRouter exit", () => {
     fireEvent.click(screen.getByText("Query"));
     expect(screen.getByTestId("route")).toHaveTextContent("/edit?note=one");
     expect(confirm).not.toHaveBeenCalled();
+  });
+  it("guards query changes when they remount a different concern or Needs editor", () => {
+    window.history.replaceState({ idx: 0 }, "", "/edit");
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<BrowserRouter><Editor watchSearch /></BrowserRouter>);
+    fireEvent.click(screen.getByText("Query"));
+    expect(window.location.search).toBe("");
+    expect(confirm).toHaveBeenCalledOnce();
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByText("Query"));
+    expect(window.location.search).toBe("?note=one");
   });
   it("cancels real browser Back then allows Back once a durable copy exists", async () => {
     window.history.replaceState({ idx: 0 }, "", "/before");

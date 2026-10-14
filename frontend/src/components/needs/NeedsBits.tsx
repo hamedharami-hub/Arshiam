@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity, ArrowLeft, ArrowRight, Briefcase, Check, ChevronDown, ClipboardList, CloudRain, HelpCircle, Home, ListChecks,
@@ -10,7 +10,10 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { CATEGORIES, TOOLS } from "@/lib/needs/tree";
 import { getMethod } from "@/lib/needs/methods";
 import { getSelfCheck } from "@/lib/needs/selfChecks";
-import { convertSuggestion } from "@/lib/needs/service";
+import { convertSuggestion, needsDestinationId } from "@/lib/needs/service";
+import { useWorkspaceDraft } from "@/lib/mind/workspaceDraft";
+import { DraftConflictNotice } from "@/components/mind/DraftConflictNotice";
+import { Button } from "@/components/ui/button";
 import type { NeedsIconKey } from "@/lib/needs/types";
 
 export const NEEDS_ICONS: Record<NeedsIconKey, typeof Puzzle> = {
@@ -35,7 +38,7 @@ export function checkInfo(id: string, isEn: boolean) {
 export function Back({ to, label }: { to: string; label: string }) {
   const { isEn } = useBilingual();
   return (
-    <Link to={to} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid="needs-back">
+    <Link to={to} className="inline-flex min-h-11 items-center gap-1 text-xs text-muted-foreground hover:text-foreground" data-testid="needs-back">
       {isEn ? <ArrowLeft className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}{label}
     </Link>
   );
@@ -62,7 +65,7 @@ export function NeedsEntry() {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 id="needs-entry-title" className="text-base font-bold">{T("امروز چه کمکی لازم داری؟", "What do you need help with?")}</h2>
-          <p className="text-xs text-muted-foreground">{T("یک دسته را انتخاب کن، بعد موضوع، و بنویس مشکلت چیست.", "Pick a category, then a topic, and write what's going on.")}</p>
+          <p className="text-xs text-muted-foreground">{T("اگر بخواهی، از یک موضوع شروع کن؛ لازم نیست از قبل اسم دغدغه‌ات را بدانی.", "Start with a topic if you like; you do not need to name your concern first.")}</p>
         </div>
         <Link to="/app/mind/my-needs" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline" data-testid="needs-my-link">
           <BookMarked className="h-4 w-4" />{T("نیازهای من", "My needs")}
@@ -86,20 +89,35 @@ export function NeedsEntry() {
   );
 }
 
-export function MethodCard({ id, sessionId }: { id: string; sessionId?: string }) {
-  const { T, isEn } = useBilingual();
+export function MethodCard({ id, sessionId, temporary = false }: { id: string; sessionId?: string; temporary?: boolean }) {
   const { user } = useAuth();
+  return <MethodEditor key={`${user?.id || "guest"}:${sessionId || "library"}:${id}`} id={id} sessionId={sessionId} ownerId={user?.id} temporary={temporary} />;
+}
+
+function MethodEditor({ id, sessionId, ownerId, temporary }: { id: string; sessionId?: string; ownerId?: string; temporary: boolean }) {
+  const { T, isEn } = useBilingual();
   const m = getMethod(id);
   const [open, setOpen] = useState(false);
-  const [done, setDone] = useState<Record<number, boolean>>({});
+  const sourceId = sessionId || `library-method:${id}`;
+  const draft = useWorkspaceDraft(ownerId, `method:${sourceId}:${id}`, { done: {} as Record<number, boolean>, preview: false, title: m ? `${m.title[isEn ? "en" : "fa"]}: ${m.steps[0][isEn ? "en" : "fa"]}` : "", due: "", privateNotes: "", converted: false });
+  useEffect(() => { if (temporary !== draft.temporary) draft.setTemporary(temporary); }, [temporary, draft.temporary, draft.setTemporary]);
+  const { done, preview, title, due, privateNotes, converted } = draft.value;
+  const lock = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const [busy, setBusy] = useState(false);
   if (!m) return null;
   const addTask = async () => {
-    if (!user?.id) return;
+    if (!ownerId || lock.current || draft.conflict || !title.trim()) return;
+    lock.current = true;
     setBusy(true);
-    const ok = await convertSuggestion(user.id, { text: `${isEn ? m.title.en : m.title.fa}: ${isEn ? m.steps[0].en : m.steps[0].fa}`, kind: "task" }, sessionId || "method");
-    setBusy(false);
-    toast[ok ? "success" : "error"](ok ? T("به تسک‌ها اضافه شد", "Added to tasks") : T("ذخیره نشد", "Could not save"));
+    try {
+      const ok = await convertSuggestion(ownerId, { text: title, kind: "task" }, sourceId, { suggestionId: `method:${id}:step:0`, title, dueDate: due || null, privateNotes });
+      if (!alive.current) return;
+      if (ok) draft.setValue({ ...draft.value, converted: true, preview: false });
+      toast[ok ? "success" : "error"](ok ? T("قدم در تسک‌ها ثبت شد؛ تکرار آن نسخهٔ تازه نمی‌سازد.", "Step saved in tasks; retrying does not create another copy.") : T("ذخیره نشد؛ پیش‌نمایش برای تلاش مجدد حفظ شده است.", "Could not save; your preview remains for retry."));
+    } catch { if (alive.current) toast.error(T("ذخیره نشد", "Could not save")); }
+    finally { lock.current = false; if (alive.current) setBusy(false); }
   };
   return (
     <div className="surface-card overflow-hidden" data-testid={`method-${id}`}>
@@ -114,19 +132,27 @@ export function MethodCard({ id, sessionId }: { id: string; sessionId?: string }
       </button>
       {open && (
         <div className="space-y-2 border-t border-border/60 p-3.5" data-testid={`method-steps-${id}`}>
+          <DraftConflictNotice {...draft} />
           <ol className="space-y-2">
             {m.steps.map((s, i) => (
               <li key={i}>
-                <button type="button" onClick={() => setDone((d) => ({ ...d, [i]: !d[i] }))} className="flex w-full items-start gap-2.5 text-start text-sm leading-6" aria-pressed={!!done[i]}>
+                <button type="button" onClick={() => draft.setValue({ ...draft.value, done: { ...done, [i]: !done[i] } })} className="flex min-h-11 w-full items-start gap-2.5 text-start text-sm leading-6" aria-pressed={!!done[i]}>
                   <span className={`mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] ${done[i] ? "when-day-selected border-transparent" : "border-border text-muted-foreground"}`}>{done[i] ? <Check className="h-3 w-3" /> : (isEn ? i + 1 : (i + 1).toLocaleString("fa-IR"))}</span>
                   <span className={done[i] ? "text-muted-foreground line-through" : ""}>{isEn ? s.en : s.fa}</span>
                 </button>
               </li>
             ))}
           </ol>
-          <button type="button" onClick={addTask} disabled={busy} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-muted px-3 text-xs font-medium hover:bg-muted/70" data-testid={`method-add-task-${id}`}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardList className="h-3.5 w-3.5" />}{T("قدم اول را به تسک تبدیل کن", "Turn step 1 into a task")}
-          </button>
+          <p className="text-xs text-muted-foreground">{T("هرجا کافی بود می‌توانی متوقف شوی؛ ساخت تسک اختیاری است.", "Stop whenever this is enough; creating a task is optional.")}</p>
+          {converted ? <Link className="inline-flex min-h-11 items-center text-sm text-primary" to={`/app/tasks/${encodeURIComponent(needsDestinationId(sourceId, `method:${id}:step:0`, "task"))}`}>{T("بازکردن تسک", "Open task")}</Link> : <button type="button" onClick={() => draft.setValue({ ...draft.value, preview: !preview })} disabled={busy || !ownerId} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-muted px-3 text-xs font-medium hover:bg-muted/70" data-testid={`method-add-task-${id}`}>
+            <ClipboardList className="h-3.5 w-3.5" />{T("پیش‌نمایش قدم اول به‌عنوان تسک", "Preview step 1 as a task")}
+          </button>}
+          {preview && <section className="space-y-3 rounded-lg border p-3" aria-label={T("پیش‌نمایش تسک", "Task preview")}>
+            <label className="block space-y-1 text-xs"><span>{T("عنوان", "Title")}</span><input className="min-h-11 w-full rounded border bg-background px-3 text-sm" value={title} onChange={e => draft.setValue({ ...draft.value, title: e.target.value })} /></label>
+            <label className="block space-y-1 text-xs"><span>{T("موعد؛ اختیاری", "Due date; optional")}</span><input type="date" className="min-h-11 rounded border bg-background px-3" value={due} onChange={e => draft.setValue({ ...draft.value, due: e.target.value })} /></label>
+            <label className="block space-y-1 text-xs"><span>{T("جزئیات برای کپی به تسک؛ اختیاری و پیش‌فرض خالی", "Details to copy into the task; optional and empty by default")}</span><textarea className="w-full rounded border bg-background p-3 text-sm" value={privateNotes} onChange={e => draft.setValue({ ...draft.value, privateNotes: e.target.value })} /></label>
+            <div className="flex flex-wrap gap-2"><Button onClick={addTask} disabled={busy || draft.conflict || !title.trim()}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{T("ساخت همین تسک", "Create this task")}</Button><Button variant="ghost" disabled={busy} onClick={() => draft.setValue({ ...draft.value, preview: false })}>{T("فعلاً نه", "Not now")}</Button></div>
+          </section>}
         </div>
       )}
     </div>
