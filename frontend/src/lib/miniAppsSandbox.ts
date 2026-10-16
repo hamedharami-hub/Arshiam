@@ -39,6 +39,22 @@ function makeBridgeScript(token: string, context: MiniAppContext): string {
     const token=${safeJson(token)};
     const context=${safeJson(context)};
     const send=(action,payload)=>window.parent.postMessage({channel:"arshiam-mini-app",token,action,payload},"*");
+    let reportedErrors=0;
+    const reportError=(message,line=0,column=0)=>{
+      if(reportedErrors>=5) return;
+      reportedErrors++;
+      send("runtimeError",{message:String(message||"Unknown JavaScript error").slice(0,1000),line:Number(line)||0,column:Number(column)||0});
+    };
+    window.addEventListener("error",(event)=>{
+      if(event.message) reportError(event.message,event.lineno,event.colno);
+    });
+    window.addEventListener("unhandledrejection",(event)=>{
+      const reason=event.reason;
+      reportError(reason instanceof Error?reason.message:typeof reason==="string"?reason:"Unhandled promise rejection");
+    });
+    document.addEventListener("securitypolicyviolation",(event)=>{
+      reportError("Blocked by preview policy: "+event.violatedDirective);
+    });
     const api=Object.freeze({
       getContext:()=>context,
       copyText:(value)=>{
@@ -48,6 +64,7 @@ function makeBridgeScript(token: string, context: MiniAppContext): string {
       },
       createTask:(value)=>{
         if(!value||typeof value!=="object") return false;
+        if(typeof value.title!=="string"||!value.title.trim()) return false;
         send("createTask",{title:typeof value.title==="string"?value.title.slice(0,160):"",description:typeof value.description==="string"?value.description.slice(0,5000):""});
         return true;
       }
