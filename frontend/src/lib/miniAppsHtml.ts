@@ -1,7 +1,7 @@
 import { MAX_MINI_APP_HTML_BYTES, measureHtmlBytes } from "@/lib/miniAppsStore";
 
 export type HtmlIssue = "empty" | "too-large";
-export type HtmlWarning = "external-assets" | "network-api" | "storage-api";
+export type HtmlWarning = "external-assets" | "network-api" | "storage-api" | "native-forms";
 
 /** Only unwrap a fence around the entire input; never rewrite the user's HTML. */
 export function unwrapHtmlCodeFence(source: string): string {
@@ -20,5 +20,6 @@ export function inspectMiniAppHtml(html: string): { issue: HtmlIssue | null; war
   if (/<(?:script|img|link|iframe|audio|video|source)\b[^>]*\b(?:src|href)\s*=\s*["']?\s*(?:https?:|\/\/)/i.test(html) || /(?:@import\s*["']|url\(\s*["']?)\s*(?:https?:|\/\/)/i.test(html)) warnings.push("external-assets");
   if (/\b(?:fetch\s*\(|XMLHttpRequest\b|WebSocket\s*\(|EventSource\s*\()/i.test(html)) warnings.push("network-api");
   if (/\b(?:localStorage|sessionStorage|indexedDB)\b|document\s*\.\s*cookie\b/i.test(html)) warnings.push("storage-api");
+  if (/<form\b/i.test(html)) warnings.push("native-forms");
   return { issue, warnings, bytes };
 }

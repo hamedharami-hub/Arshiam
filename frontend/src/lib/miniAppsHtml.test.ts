@@ -31,3 +31,11 @@ describe("HTML import preparation", () => {
     expect(inspectMiniAppHtml('<style>body {background: url(//cdn.example/photo.png)}</style>').warnings).toContain("external-assets");
   });
 });
+
+describe("native form compatibility", () => {
+  it("warns about native form submission while retaining valid source", () => {
+    const source = '<form><input name="value"><button type="submit">Go</button></form>';
+    expect(inspectMiniAppHtml(source)).toMatchObject({ issue: null, warnings: ["native-forms"] });
+    expect(inspectMiniAppHtml('<div><button type="button">Go</button></div>').warnings).toEqual([]);
+  });
+});

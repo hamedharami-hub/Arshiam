@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useRecoverableExit } from "@/hooks/useRecoverableExit";
 import {
   Blocks, Check, Code2, Copy, Download, Eye, FileUp, Lightbulb,
-  Loader2, Play, Plus, Save, ShieldCheck, Trash2,
+  History, LayoutTemplate, Loader2, Play, Plus, Save, ShieldCheck, Trash2,
 } from "lucide-react";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,16 @@ import {
 import { buildMiniAppPreview, type MiniAppContext } from "@/lib/miniAppsSandbox";
 import { inspectMiniAppHtml, unwrapHtmlCodeFence, type HtmlWarning } from "@/lib/miniAppsHtml";
 import { toast } from "sonner";
+import { HtmlCodeEditor } from "@/components/mini-apps/HtmlCodeEditor";
+import { MiniAppHistoryDialog } from "@/components/mini-apps/MiniAppHistoryDialog";
+import { MiniAppPreviewControls, MiniAppPreviewViewport, type MiniAppDevice } from "@/components/mini-apps/MiniAppPreviewViewport";
+import { MINI_APP_TEMPLATES, buildMiniAppTemplate, type MiniAppTemplateId } from "@/lib/miniAppsTemplates";
+import { previewLocationToSource } from "@/lib/miniAppsEditing";
+import {
+  MINI_APPS_HISTORY_EVENT, applyMiniAppsHistoryCloud, loadMiniAppsHistory,
+  readMiniAppsHistorySnapshot, reconcileMiniAppsHistory, recordMiniAppVersions,
+  removeMiniAppHistory, type MiniAppVersion, type MiniAppsHistoryState, type VersionKind,
+} from "@/lib/miniAppsHistory";
 
 type BridgeAction =
   ({ kind: "copyText"; text: string }
@@ -96,7 +106,9 @@ function buildAiPrompt(app: MiniApp | null, isEn: boolean): string {
       "Make the interface polished, responsive, accessible, and usable on a phone. Support Persian and RTL when the user's language is Persian; do not hard-code layout direction when the app context can provide it.",
       "Use inline CSS and JavaScript. Do not load packages, fonts, images, scripts, or styles from the network. Do not use fetch, XMLHttpRequest, WebSocket, service workers, localStorage, cookies, eval, or dynamic code loading. Keep all tool data within this page.",
       "The page runs in an isolated sandbox. The only app integration is window.Arshiam: getContext() returns language, direction, theme, and color tokens; copyText(text) asks the app to confirm before copying; createTask({title, description}) asks the app to confirm and opens its normal task form. Do not assume any other app API or direct database access.",
+      "Native form submission is disabled. Use type=button and explicit click or Enter key handlers for tool actions; do not rely on submit events. Keep the complete file within 120,000 UTF-8 bytes.",
       "Use the app's colors from getContext() where helpful. Color token values are HSL components, so use them as hsl(value), for example hsl(context.colors.primary). Prefer graceful behavior if an integration method is unavailable.",
+      "The muted color token is a background color, not muted text. Use foreground or another contrasting text color for readable hints and descriptions.",
       request ? `USER'S REQUEST:\n${request}` : "USER'S REQUEST: Create a useful small or medium tool based on the context above.",
       source ? `CURRENT HTML TO IMPROVE (preserve its existing useful behavior unless the request asks otherwise):\n${source}` : "There is no existing HTML to preserve.",
     ].join("\n\n");
@@ -107,7 +119,9 @@ function buildAiPrompt(app: MiniApp | null, isEn: boolean): string {
     "رابط را تمیز، امروزی، واکنش‌گرا، دسترس‌پذیر و مناسب گوشی طراحی کن. زبان و جهت فارسی و راست‌به‌چپ را پشتیبانی کن؛ جهت صفحه را در صورت امکان از زمینهٔ برنامه بگیر و متن را به زبان کاربر نمایش بده.",
     "همهٔ CSS و JavaScript باید داخل همان فایل باشد. کتابخانه، قلم، تصویر، اسکریپت یا سبک را از اینترنت بارگیری نکن. از fetch، XMLHttpRequest، WebSocket، service worker، localStorage، کوکی، eval و بارگذاری پویای کد استفاده نکن. دادهٔ ابزارک فقط در خود صفحه بماند.",
     "صفحه در محیط جدا و محدود اجرا می‌شود. تنها راه ارتباط با برنامه، window.Arshiam است: getContext() زبان، جهت، پوسته و رنگ‌ها را می‌دهد؛ copyText(text) از برنامه درخواست کپی می‌کند و برنامه پیش از کپی از کاربر تأیید می‌گیرد؛ createTask({title, description}) از برنامه می‌خواهد پس از تأیید، فرم معمول افزودن کار را باز کند. هیچ رابط دیگری برای برنامه یا دسترسی مستقیم به داده‌ها وجود ندارد.",
+    "ارسال native فرم مجاز نیست. عملیات ابزارک را با دکمه type=button و رویداد click یا Enter انجام بده و به submit تکیه نکن. حجم فایل کامل حداکثر ۱۲۰٬۰۰۰ بایت UTF-8 باشد.",
     "در صورت نیاز از رنگ‌های getContext() استفاده کن. مقدار رنگ‌ها اجزای HSL است و باید به شکل hsl(value) در CSS قرار بگیرد؛ مثلاً hsl(context.colors.primary). اگر یکی از رابط‌های برنامه در دسترس نبود، ابزارک باید بدون خطا به کار خود ادامه دهد.",
+    "رنگ muted مخصوص زمینه است، نه متن کم‌رنگ. برای توضیحات و نکته‌ها از foreground یا رنگ متن با کنتراست خوانا استفاده کن.",
     request ? `درخواست من:\n${request}` : "درخواست من: بر اساس توضیح بالا یک ابزار کوچک و کاربردی بساز.",
     source ? `کد HTML فعلی برای بهبود (رفتارهای مفید فعلی را نگه دار، مگر درخواست تغییرشان را بخواهد):\n${source}` : "کد HTML قبلی وجود ندارد.",
   ].join("\n\n");
@@ -204,7 +218,14 @@ export default function MiniAppsView() {
   const [pasteName, setPasteName] = useState("");
   const [pasteSource, setPasteSource] = useState("");
   const [previewErrors, setPreviewErrors] = useState<{ message: string; line: number; column: number }[]>([]);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyState, setHistoryState] = useState<MiniAppsHistoryState>({ versions: [], deletedApps: [] });
+  const [historyWarning, setHistoryWarning] = useState("");
+  const [previewDevice, setPreviewDevice] = useState<MiniAppDevice>("fit");
+  const [editorJump, setEditorJump] = useState<{ line: number; column: number; requestId: number } | null>(null);
   const bindingRef = useRef<CloudBinding | null>(null);
+  const historyBindingRef = useRef<CloudBinding | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const previewTokenRef = useRef("");
@@ -236,6 +257,8 @@ export default function MiniAppsView() {
   const setActive = useCallback((app: MiniApp | null, edit = false) => {
     clearBridgeAction();
     setPreviewErrors([]);
+    setHistoryOpen(false);
+    setEditorJump(null);
     bridgeCooldownUntilRef.current = 0;
     selectedIdRef.current = app?.id || null;
     setSelectedId(app?.id || null);
@@ -273,6 +296,9 @@ export default function MiniAppsView() {
     setPasteName("");
     setPasteSource("");
     setSearch("");
+    setTemplateOpen(false);
+    setHistoryWarning("");
+    setPreviewDevice("fit");
     if (!userId) {
       setLibrary([]);
       setActive(null);
@@ -340,6 +366,42 @@ export default function MiniAppsView() {
   }, [authLoading, invalidateImports, setActive, setLibrary, user?.id]);
 
   useEffect(() => {
+    const ownerId = user?.id;
+    if (!ownerId) { setHistoryState({ versions: [], deletedApps: [] }); return; }
+    let active = true;
+    const isCurrent = () => active && userIdRef.current === ownerId;
+    setHistoryState(loadMiniAppsHistory(ownerId));
+    const binding = bindCloudState(ownerId, "mini_apps_history_v1", {
+      read: () => readMiniAppsHistorySnapshot(ownerId),
+      reconcilePending: reconcileMiniAppsHistory,
+      reconcileAllRevisions: true,
+      apply: (data, updatedAt) => {
+        if (!isCurrent()) return;
+        try {
+          const snapshot = applyMiniAppsHistoryCloud(ownerId, data, updatedAt);
+          setHistoryState(snapshot.data);
+          if (snapshot.updatedAt > updatedAt) historyBindingRef.current?.push();
+        } catch {
+          setHistoryWarning(languageRef.current ? "History could not be retained locally. Copy or download code before replacing it." : "تاریخچه روی دستگاه نگهداری نشد. پیش از جایگزینی، کد را کپی یا دریافت کن.");
+        }
+      },
+    });
+    historyBindingRef.current = binding;
+    const refresh = () => { if (isCurrent()) setHistoryState(loadMiniAppsHistory(ownerId)); };
+    const onHistory = (event: Event) => { if ((event as CustomEvent<{ userId?: string }>).detail?.userId === ownerId) refresh(); };
+    const onStorage = (event: StorageEvent) => { if (event.key === `arshnaz_mini_apps_history_v1_${ownerId}`) refresh(); };
+    window.addEventListener(MINI_APPS_HISTORY_EVENT, onHistory);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      active = false;
+      window.removeEventListener(MINI_APPS_HISTORY_EVENT, onHistory);
+      window.removeEventListener("storage", onStorage);
+      binding.stop();
+      if (historyBindingRef.current === binding) historyBindingRef.current = null;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
       const frame = previewFrameRef.current;
       if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
@@ -393,6 +455,7 @@ export default function MiniAppsView() {
     "external-assets": t("منابع بیرونی مانند کتابخانه، تصویر یا CSS در پیش‌نمایش بارگیری نمی‌شوند؛ آن‌ها را داخل فایل قرار بده.", "External scripts, images or styles will not load in preview. Embed them in the file."),
     "network-api": t("درخواست شبکه در پیش‌نمایش مسدود است؛ ابزارک باید بدون اینترنت کار کند.", "Network requests are blocked in preview; the tool needs to work offline."),
     "storage-api": t("ذخیره‌سازی مرورگر در این محیط جدا در دسترس نیست؛ داده‌ها را در حافظه صفحه نگه دار.", "Browser storage is unavailable in this isolated preview; keep data in page memory."),
+    "native-forms": t("ارسال native فرم در پیش‌نمایش مجاز نیست؛ برای عملیات از دکمه type=button و رویداد click یا Enter استفاده کن.", "Native form submission is disabled in preview. Use type=button with explicit click or Enter handlers."),
   })[warning];
   const validateHtml = (html: string): boolean => {
     const { issue } = inspectMiniAppHtml(html);
@@ -430,6 +493,22 @@ export default function MiniAppsView() {
     }
   };
 
+  const captureHistory = (apps: MiniApp[], kind: VersionKind = "save"): boolean => {
+    if (!user?.id || userIdRef.current !== user.id) return false;
+    try {
+      const snapshot = recordMiniAppVersions(user.id, apps, kind);
+      setHistoryState(snapshot.data);
+      historyBindingRef.current?.push();
+      setHistoryWarning("");
+      return true;
+    } catch {
+      const message = t("ثبت نسخه انجام نشد. کد جاری محفوظ است؛ قبل از جایگزینی، آن را کپی یا دریافت کن.", "The version could not be retained. Current code is unchanged; copy or download it before replacing.");
+      setHistoryWarning(message);
+      toast.error(message);
+      return false;
+    }
+  };
+
   const discardOrContinue = () => {
     if (!dirtyRef.current || durableDraftRef.current) return true;
     const confirmed = window.confirm(t("تغییرات ذخیره‌نشده از بین می‌روند. ادامه می‌دهی؟", "Unsaved changes will be discarded. Continue?"));
@@ -437,21 +516,24 @@ export default function MiniAppsView() {
     return confirmed;
   };
 
-  const createApp = () => {
+  const createApp = (templateId?: MiniAppTemplateId) => {
     if (!discardOrContinue() || !user?.id) return;
+    const template = MINI_APP_TEMPLATES.find(item => item.id === templateId);
     const now = new Date().toISOString();
     const app: MiniApp = {
       id: createMiniAppId(),
-      name: t("ابزارک تازه", "New mini app"),
+      name: template ? template.name[isEn ? "en" : "fa"] : t("ابزارک تازه", "New mini app"),
       emoji: "🧩",
-      description: "",
+      description: template ? template.description[isEn ? "en" : "fa"] : "",
       aiRequest: "",
-      html: STARTER_HTML,
+      html: templateId ? buildMiniAppTemplate(templateId, isEn ? "en" : "fa") : STARTER_HTML,
       createdAt: now,
       updatedAt: now,
     };
     if (!saveList([...itemsRef.current, app])) return;
+    captureHistory([app], "initial");
     setActive(app, true);
+    setTemplateOpen(false);
     toast.success(t("ابزارک ساخته شد.", "Mini app created."));
   };
 
@@ -460,17 +542,43 @@ export default function MiniAppsView() {
     if (!validateHtml(draft.html)) return;
     const nextApp = { ...draft, name: draft.name.trim() || t("بدون نام", "Untitled"), updatedAt: new Date().toISOString() };
     const current = itemsRef.current;
+    const previous = current.find(item => item.id === nextApp.id);
+    // Capture before committing live code. A failed Save remains a checkpoint,
+    // so both the original code and the attempted edit stay recoverable.
+    if (!captureHistory(previous ? [previous, nextApp] : [nextApp], "checkpoint")) return;
     const next = current.some((item) => item.id === nextApp.id)
       ? current.map((item) => item.id === nextApp.id ? nextApp : item)
       : [...current, nextApp];
     if (!saveList(next)) return;
-    setDraft(nextApp);
+    const confirmed = itemsRef.current.find(item => item.id === nextApp.id);
+    if (!confirmed) return;
+    captureHistory([confirmed], "save");
+    setDraft(confirmed);
     setDirty(false);
     dirtyRef.current = false;
     durableDraftRef.current = true;
     setRetentionFailed(false);
-    if (user?.id) clearStoredDraft(user.id, nextApp.id);
+    if (user?.id) clearStoredDraft(user.id, confirmed.id);
     toast.success(t("تغییرات ذخیره شد.", "Changes saved."));
+  };
+
+  const captureCheckpoint = () => {
+    if (!draft || !validateHtml(draft.html)) return;
+    if (captureHistory([{ ...draft, name: draft.name.trim() || t("بدون نام", "Untitled") }], "checkpoint")) toast.success(t("نسخه روی دستگاه ثبت شد.", "Version retained on this device."));
+  };
+
+  const restoreVersion = (version: MiniAppVersion) => {
+    if (!draft || !user?.id || userIdRef.current !== user.id || version.appId !== draft.id || !historyState.versions.some(item => item.id === version.id && item.appId === draft.id)) return;
+    const current = { ...draft, name: draft.name.trim() || t("بدون نام", "Untitled") };
+    if (!captureHistory([current], "checkpoint")) return;
+    const patch = { html: version.app.html, name: version.app.name, emoji: version.app.emoji, description: version.app.description, aiRequest: version.app.aiRequest };
+    updateDraft(patch);
+    captureHistory([{ ...current, ...patch, updatedAt: new Date().toISOString() }], "restore");
+    viewModeRef.current = "edit";
+    setViewMode("edit");
+    setHistoryOpen(false);
+    setEditorJump(null);
+    toast.success(t("نسخه به پیش‌نویس بازگشت. برای اعمال نهایی ذخیره کن؛ پیش‌نمایش اجرا نشده است.", "Version restored to draft. Save to apply it; preview was not rerun."));
   };
 
   const runPreview = () => {
@@ -526,12 +634,18 @@ export default function MiniAppsView() {
     const name = draft.name.trim() || t("بدون نام", "Untitled");
     const copy: MiniApp = { ...draft, id: createMiniAppId(), name: `${name.slice(0, 80 - suffix.length)}${suffix}`, createdAt: now, updatedAt: now };
     const current = itemsRef.current;
+    const previous = current.find(item => item.id === draft.id);
+    if (!captureHistory(previous ? [previous, { ...draft, name }] : [{ ...draft, name }], "checkpoint")) return;
     const savedCurrent = current.some((item) => item.id === draft.id)
       ? current.map((item) => item.id === draft.id ? { ...draft, name } : item)
       : [...current, { ...draft, name }];
     if (!saveList([...savedCurrent, copy])) return;
+    const confirmed = itemsRef.current.find(item => item.id === draft.id);
+    const confirmedCopy = itemsRef.current.find(item => item.id === copy.id);
+    if (!confirmedCopy) return;
+    captureHistory(confirmed ? [confirmed, confirmedCopy] : [confirmedCopy], "save");
     if (user?.id && draft.id) clearStoredDraft(user.id, draft.id);
-    setActive(copy, true);
+    setActive(confirmedCopy, true);
   };
 
   const deleteApp = () => {
@@ -539,6 +653,13 @@ export default function MiniAppsView() {
     if (!window.confirm(t(`«${draft.name}» و کد ذخیره‌شدهٔ آن پاک شود؟`, `Delete “${draft.name}” and its saved code?`))) return;
     const next = itemsRef.current.filter((item) => item.id !== draft.id);
     if (!saveList(next)) return;
+    try {
+      const snapshot = removeMiniAppHistory(user.id, draft.id);
+      setHistoryState(snapshot.data);
+      historyBindingRef.current?.push();
+    } catch {
+      setHistoryWarning(t("ابزارک حذف شد ولی پاک‌سازی تاریخچه تأیید نشد؛ ممکن است نسخه‌های قبلی باقی مانده باشند.", "The tool was deleted but history cleanup was not verified; old versions may remain."));
+    }
     if (user?.id) clearStoredDraft(user.id, draft.id);
     setActive(next[0] || null);
     toast.success(t("ابزارک پاک شد.", "Mini app deleted."));
@@ -554,6 +675,7 @@ export default function MiniAppsView() {
     };
     // Rebase on the current library, not the render that started a file read.
     if (!saveList([...itemsRef.current, app])) return false;
+    captureHistory([app], "initial");
     setActive(app, true);
     toast.success(t("HTML روی این دستگاه به مخزن اضافه شد.", "HTML added to the library on this device."));
     return true;
@@ -615,7 +737,7 @@ export default function MiniAppsView() {
           <p className="max-w-lg text-sm text-muted-foreground">{t("صفحه‌های کوچک خودت را بساز یا از هوش مصنوعی بگیر، نام‌گذاری و ذخیره کن و در محیط محدود اجرا کن.", "Create or generate small pages, name and save them, then run them in an isolated preview.")}</p>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={createApp}><Plus className="me-2 size-4" />{t("ساخت ابزارک", "Create a mini app")}</Button>
+          <Button onClick={() => createApp()}><Plus className="me-2 size-4" />{t("ساخت ابزارک", "Create a mini app")}</Button>
           <Button variant="outline" onClick={copyPrompt}><Copy className="me-2 size-4" />{t("کپی دستور هماهنگی", "Copy AI prompt")}</Button>
         </div>
       </CardContent>
@@ -641,11 +763,14 @@ export default function MiniAppsView() {
           <input ref={fileInputRef} type="file" accept=".html,.htm,text/html" className="hidden" onChange={(event) => void importHtml(event.target.files?.[0])} />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={busy}><FileUp className="me-2 size-4" />{t("واردکردن HTML", "Import HTML")}</Button>
           <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={busy}><Code2 className="me-2 size-4" />{t("چسباندن HTML", "Paste HTML")}</Button>
+          <Button variant="outline" onClick={() => setTemplateOpen(true)}><LayoutTemplate className="me-2 size-4" />{t("قالب‌های آماده", "Starter templates")}</Button>
           {busy && <span role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />{t("در حال خواندن فایل…", "Reading file…")}</span>}
           {(items.length > 0 || draft) && <Button variant="outline" onClick={() => void copyPrompt()}><Copy className="me-2 size-4" />{t("کپی دستور هماهنگی", "Copy AI prompt")}</Button>}
-          {(items.length > 0 || draft) && <Button onClick={createApp}><Plus className="me-2 size-4" />{t("ابزارک تازه", "New mini app")}</Button>}
+          {(items.length > 0 || draft) && <Button onClick={() => createApp()}><Plus className="me-2 size-4" />{t("ابزارک تازه", "New mini app")}</Button>}
         </div>
       </header>
+
+      {historyWarning && !historyOpen && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{historyWarning}</p>}
 
       {!items.length && !draft ? emptyPrompt : (
         <div className="grid gap-4 lg:grid-cols-[17rem_minmax(0,1fr)]">
@@ -700,6 +825,7 @@ export default function MiniAppsView() {
                   <div className="flex flex-wrap gap-1" aria-label={t("عملیات ابزارک", "Mini-app actions")}>
                     <Button size="sm" variant="ghost" onClick={copySource}><Copy className="me-1 size-4" />{t("کپی کد", "Copy")}</Button>
                     <Button size="sm" variant="ghost" onClick={exportHtml}><Download className="me-1 size-4" />{t("دریافت فایل", "Download")}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}><History className="me-1 size-4" />{t("تاریخچه نسخه‌ها", "Version history")}</Button>
                     <Button size="sm" variant="ghost" onClick={duplicateApp}><Copy className="me-1 size-4" />{t("تکثیر", "Duplicate")}</Button>
                     <Button size="sm" variant="ghost" onClick={deleteApp} className="text-destructive hover:text-destructive"><Trash2 className="me-1 size-4" />{t("حذف", "Delete")}</Button>
                   </div>
@@ -733,22 +859,13 @@ export default function MiniAppsView() {
                       <label htmlFor="mini-app-html" className="flex items-center gap-2 text-sm font-medium"><Code2 className="size-4" />{t("کد کامل HTML", "Complete HTML source")}</label>
                       {unwrapHtmlCodeFence(draft.html) !== draft.html && <Button size="sm" variant="outline" onClick={() => updateDraft({ html: unwrapHtmlCodeFence(draft.html) })}>{t("حذف حصار کد", "Remove code fence")}</Button>}
                     </div>
-                    <Textarea
-                      id="mini-app-html"
+                    <HtmlCodeEditor
+                      key={`${user?.id}:${draft.id}`}
                       value={draft.html}
-                      onChange={(event) => updateDraft({ html: event.target.value })}
-                      onKeyDown={(event) => {
-                        if ((event.metaKey || event.ctrlKey) && event.key === "s") {
-                          event.preventDefault();
-                          saveDraft();
-                        }
-                      }}
-                      dir="ltr"
-                      spellCheck={false}
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      className="min-h-[360px] resize-y rounded-xl bg-muted/30 font-mono text-xs leading-6 sm:min-h-[440px]"
-                      aria-label={t("ویرایش کد HTML", "Edit HTML source")}
+                      onChange={html => updateDraft({ html })}
+                      onSave={saveDraft}
+                      jumpTo={editorJump}
+                      t={t}
                     />
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                       <span>{t("کد در یک فایل HTML ذخیره می‌شود؛ کتابخانه یا سرور لازم نیست.", "Saved as a single HTML file; no package or server required.")}</span>
@@ -770,14 +887,25 @@ export default function MiniAppsView() {
                   <Button size="sm" variant="outline" onClick={runPreview} disabled={Boolean(htmlInspection.issue)}><Play className="me-2 size-4" />{t("اجرای آخرین کد", "Run latest source")}</Button>
                 </CardHeader>
                  <CardContent>
+                   <MiniAppPreviewControls device={previewDevice} onChange={setPreviewDevice} t={t} />
                    {previewSnapshot && draftDiffersFromSaved(draft, previewSnapshot) && <p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">{t("پیش‌نمایش قدیمی است؛ تغییرات فعلی اجرا نشده‌اند. آخرین کد را اجرا کن.", "Preview is stale: current edits have not been run. Run latest source to refresh.")}</p>}
                    {previewSnapshot && !draftDiffersFromSaved(draft, previewSnapshot) && <p className="mb-3 text-xs text-muted-foreground">{t("نمایش آخرین کد اجراشده؛ پیش‌نمایش با تایپ تغییر نمی‌کند.", "Showing the last run source. Preview does not update as you type.")}</p>}
                   {previewErrors.length > 0 && <div role="alert" className="mb-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
                     <p className="font-medium">{t("خطاهای پیش‌نمایش", "Preview errors")}</p>
                     <p className="mb-2 text-xs text-muted-foreground">{t("این پیام‌ها از ابزارک اجراشده‌اند؛ شماره خط مربوط به سند پیش‌نمایش است و ممکن است با کد اصلی فرق کند.", "Reported by the running tool; line numbers refer to the preview document and may differ from source.")}</p>
-                    <ul className="space-y-1">{previewErrors.map((error, index) => <li key={index} className="break-words font-mono text-xs" dir="auto">{error.message}{error.line > 0 && <span> ({error.line}:{error.column})</span>}</li>)}</ul>
+                    <ul className="space-y-1">{previewErrors.map((error, index) => {
+                      const location = previewLocationToSource(previewDocument, previewSnapshot?.html ?? "", error.line, error.column);
+                      return <li key={index} className="break-words font-mono text-xs" dir="auto">{error.message}{error.line > 0 && <span> ({error.line}:{error.column})</span>}
+                        {location && <Button size="sm" variant="link" disabled={draft.html !== previewSnapshot?.html} title={draft.html !== previewSnapshot?.html ? t("ابتدا آخرین کد را اجرا کن.", "Run latest source first.") : undefined} onClick={() => {
+                          viewModeRef.current = "edit";
+                          setViewMode("edit");
+                          setEditorJump(previous => ({ ...location, requestId: (previous?.requestId ?? 0) + 1 }));
+                        }}>{t(`رفتن به خط ${location.line} کد`, `Go to source line ${location.line}`)}</Button>}
+                      </li>;
+                    })}</ul>
                   </div>}
                   {previewDocument ? (
+                    <MiniAppPreviewViewport device={previewDevice} t={t}>
                     <iframe
                       key={previewVersion}
                       ref={previewFrameRef}
@@ -785,8 +913,9 @@ export default function MiniAppsView() {
                       srcDoc={previewDocument}
                       sandbox="allow-scripts"
                       referrerPolicy="no-referrer"
-                      className="h-[min(72vh,720px)] min-h-[420px] w-full rounded-xl border bg-background"
+                      className="h-[min(72vh,720px)] min-h-[420px] w-full rounded-xl border-0 bg-background"
                     />
+                    </MiniAppPreviewViewport>
                   ) : (
                     <div className="grid min-h-[260px] place-items-center rounded-xl border border-dashed bg-muted/20 p-5 text-center">
                       <div className="space-y-3">
@@ -802,6 +931,22 @@ export default function MiniAppsView() {
           </main>
         </div>
       )}
+
+      <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-h-[90dvh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("قالب‌های آماده آفلاین", "Offline starter templates")}</DialogTitle>
+            <DialogDescription>{t("یک ابزارک تازه از قالب بساز. کد قبلی جایگزین نمی‌شود و قالب تا انتخاب اجرا، اجرا نمی‌شود. داده درون ابزارک با اجرای دوباره بازنشانی می‌شود.", "Create a new tool from a template. Existing code is not replaced and nothing runs until you choose preview. In-tool data resets on rerun.")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">{MINI_APP_TEMPLATES.map(template => <div key={template.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+            <div className="min-w-0 flex-1"><p className="font-medium">{template.name[isEn ? "en" : "fa"]}</p><p className="mt-1 text-sm text-muted-foreground">{template.description[isEn ? "en" : "fa"]}</p></div>
+            <Button onClick={() => createApp(template.id)}><Plus className="me-1 size-4" />{t(`ساخت ${template.name.fa}`, `Create ${template.name.en}`)}</Button>
+          </div>)}</div>
+          <DialogFooter><Button variant="outline" onClick={() => setTemplateOpen(false)}>{t("بستن قالب‌ها", "Close templates")}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {historyOpen && draft && <MiniAppHistoryDialog key={`${user?.id}:${draft.id}`} versions={historyState.versions.filter(version => version.appId === draft.id)} draft={draft} isEn={isEn} t={t} onClose={() => setHistoryOpen(false)} onCheckpoint={captureCheckpoint} onRestore={restoreVersion} canCheckpoint={!htmlInspection.issue} warning={historyWarning} />}
 
       <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
         <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-2xl max-h-[90dvh] overflow-y-auto">

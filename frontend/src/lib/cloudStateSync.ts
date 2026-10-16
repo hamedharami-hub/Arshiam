@@ -29,6 +29,8 @@ export function bindCloudState(
     apply: (data: unknown, updatedAt: number, local: CloudSnapshot | null) => void;
     /** Rebase explicit local edits over cloud state before uploading. Return null if none apply. */
     reconcilePending?: (remote: CloudSnapshot, local: CloudSnapshot) => CloudSnapshot | null;
+    /** Additive collections must merge differing revisions even with equal/older timestamps. Opt-in only. */
+    reconcileAllRevisions?: boolean;
     /** Called once a valid server document or our own write acknowledges initial cloud state. */
     onCloudInitialized?: (remote: CloudSnapshot) => void;
   },
@@ -62,11 +64,11 @@ export function bindCloudState(
         if (snap.exists()) {
           const remote = snap.data() as { updatedAt?: number; json?: string };
           const remoteAt = Number(remote.updatedAt || 0);
-          if (remoteAt > local.updatedAt) {
+          if (remoteAt > local.updatedAt || (opts.reconcileAllRevisions && remote.json !== JSON.stringify(local.data))) {
             let remoteData: unknown = null;
             try { remoteData = remote.json ? JSON.parse(remote.json) : null; } catch { remoteData = null; }
-            // An unreadable newer copy is never overwritten; the local edit stays
-            // pending and the next snapshot decides.
+            // Never overwrite an unreadable protected revision. Additive bindings
+            // also preserve older/equal revisions with independent entries.
             if (remoteData === null) return;
             const remoteSnapshot = { updatedAt: remoteAt, data: remoteData };
             // Keep this device's explicit edits when the binder can rebase them
@@ -110,7 +112,7 @@ export function bindCloudState(
       return;
     }
     if (adopted) {
-      console.warn(`[cloudState] ${name}: cloud copy is newer; adopting it instead of overwriting`);
+      console.warn(`[cloudState] ${name}: adopting protected cloud copy instead of overwriting`);
       opts.apply(adopted.data, adopted.updatedAt, local);
       pendingPush = false;
       return;
@@ -153,6 +155,16 @@ export function bindCloudState(
       try { data = remote.json ? JSON.parse(remote.json) : null; } catch { data = null; }
       if (data === null) return;
       const remoteSnapshot = { updatedAt: remoteAt, data };
+      if (opts.reconcileAllRevisions && local && opts.reconcilePending && remote.json !== JSON.stringify(local.data)) {
+        const rebased = opts.reconcilePending(remoteSnapshot, local);
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (rebased) opts.apply(rebased.data, rebased.updatedAt, local);
+        else opts.apply(data, remoteAt, local);
+        pendingPush = false;
+        markCloudInitialized(remoteSnapshot);
+        if (rebased) push();
+        return;
+      }
       if (pendingPush && local && remoteAt >= local.updatedAt && remote.json === JSON.stringify(local.data)) {
         if (timer) { clearTimeout(timer); timer = null; }
         opts.apply(data, remoteAt, local);
