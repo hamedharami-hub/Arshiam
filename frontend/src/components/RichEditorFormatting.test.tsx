@@ -3,6 +3,7 @@ import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Editor } from "@tiptap/react";
 import { RichEditor, type RichEditorHandle } from "./RichEditor";
+import { extractNoteLinks, type NoteLinkScope } from "@/lib/noteLinks";
 
 const observed = vi.hoisted(() => ({ editor: null as Editor | null }));
 vi.mock("@tiptap/react", async importOriginal => {
@@ -19,6 +20,38 @@ beforeEach(() => {
 });
 
 describe("rich formatting selection", () => {
+  const linkScope: NoteLinkScope = { ownerId: "owner", notes: [{ id: "b", user_id: "owner", title: "Destination", content: "Reference" }], status: "synced", onOpen: vi.fn() };
+  it("inserts a stable note link over a bookmarked selection and survives save/reopen", async () => {
+    const ref = createRef<RichEditorHandle>();
+    const view = render(<RichEditor ref={ref} initialMarkdown="Select these words" noteLinks={linkScope} />);
+    await waitFor(() => expect(ref.current).not.toBeNull());
+    act(() => { observed.editor!.commands.setTextSelection({ from: 1, to: 7 }); });
+    fireEvent.click(screen.getByRole("button", { name: "Link to note" }));
+    act(() => { observed.editor!.commands.setTextSelection(19); });
+    fireEvent.click(await screen.findByRole("option", { name: /Destination/ }));
+    const saved = ref.current!.getMarkdown();
+    expect(saved).toContain("[Select](/app/notes?select=b) these words");
+    expect(extractNoteLinks(saved)).toHaveLength(1);
+    act(() => { observed.editor!.commands.undo(); });
+    expect(ref.current!.getMarkdown()).toBe("Select these words");
+    act(() => { observed.editor!.commands.redo(); });
+    expect(extractNoteLinks(ref.current!.getMarkdown())).toHaveLength(1);
+    view.unmount();
+    render(<RichEditor ref={ref} initialMarkdown={saved} noteLinks={linkScope} />);
+    await waitFor(() => expect(ref.current!.getHtml()).toContain('/app/notes?select=b'));
+  });
+  it("keeps [[ on cancellation and replaces just the shortcut on selection", async () => {
+    const ref = createRef<RichEditorHandle>();
+    render(<RichEditor ref={ref} initialMarkdown="Start " noteLinks={linkScope} />);
+    await waitFor(() => expect(ref.current).not.toBeNull());
+    act(() => { observed.editor!.commands.focus("end"); observed.editor!.commands.insertContent("[["); });
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+    expect(observed.editor!.getText()).toContain("[[");
+    act(() => { observed.editor!.commands.insertContent(" [["); });
+    fireEvent.click(await screen.findByRole("option", { name: /Destination/ }));
+    expect(extractNoteLinks(ref.current!.getMarkdown())).toHaveLength(1);
+    expect(observed.editor!.getText()).toContain("[[ Destination");
+  });
   it("publishes selected note text and clears it when the selection collapses", async () => {
     const onSelectedTextChange = vi.fn();
     render(<RichEditor initialMarkdown="Select these words" showVoiceButton={false} onSelectedTextChange={onSelectedTextChange} />);

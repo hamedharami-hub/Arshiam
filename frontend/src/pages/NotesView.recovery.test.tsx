@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { BrowserRouter, Link } from "react-router-dom";
 import NotesView from "./NotesView";
+import type { NoteLinkScope } from "@/lib/noteLinks";
 
 const mocks = vi.hoisted(() => ({
   user: { id: "u" },
@@ -9,18 +10,23 @@ const mocks = vi.hoisted(() => ({
   retain: vi.fn(), read: vi.fn(), save: vi.fn(), clear: vi.fn(),
   notes: [] as unknown[], preview: vi.fn(),
   recovery: vi.fn(),
+  mobile: false,
+  emit: (_notes: unknown[], _status?: "cache" | "synced") => {},
 }));
 vi.mock("@/lib/undoStack", () => ({ pushUndo: mocks.recovery }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: mocks.user }) }));
 vi.mock("react-i18next", async (importOriginal) => ({ ...await importOriginal<typeof import("react-i18next")>(), useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }) }));
 vi.mock("@/hooks/useShareAccess", () => ({ useShareAccess: () => ({ canEdit: true, isOwner: true }) }));
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => mocks.mobile }));
 vi.mock("@/components/HeaderTitlePortal", () => ({ HeaderTitlePortal: () => null }));
 vi.mock("@/components/HeaderActionsPortal", () => ({ HeaderActionsPortal: () => null }));
 vi.mock("@/components/VoiceInputButton", () => ({ VoiceInputButton: () => null }));
-vi.mock("@/components/NoteEditorTabs", () => ({ NoteEditorTabs: (props: { markdown: string; onChange: (md: string, html: string) => void }) => <textarea aria-label="Note body" value={props.markdown || ""} onChange={(event) => props.onChange(event.target.value, event.target.value)} /> }));
+vi.mock("@/components/NoteEditorTabs", () => ({ NoteEditorTabs: (props: { markdown: string; onChange: (md: string, html: string) => void; noteLinks?: NoteLinkScope }) => <>
+  <textarea aria-label="Note body" value={props.markdown || ""} onChange={(event) => props.onChange(event.target.value, event.target.value)} />
+  {props.noteLinks?.notes.some(note => note.id === "b") && <button onClick={() => props.noteLinks!.onOpen("b")}>Open linked target</button>}
+</> }));
 vi.mock("@/lib/firestoreDataService", () => ({
-  subscribeNotes: (_uid: string, callback: (notes: unknown[]) => void) => { callback(mocks.notes); return () => {}; },
+  subscribeNotes: (_uid: string, callback: (notes: unknown[], status?: "cache" | "synced") => void) => { mocks.emit = callback; callback(mocks.notes, "synced"); return () => {}; },
   upsertNote: mocks.save, deleteNote: vi.fn(),
 }));
 vi.mock("@/lib/firestoreLive", () => ({ liveRows: async () => mocks.notes }));
@@ -42,6 +48,7 @@ vi.mock("@/lib/notesList", async (importOriginal) => {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = { id: "u" };
+  mocks.mobile = false;
   window.history.replaceState({ idx: 0 }, "", "/app/notes?select=n");
   mocks.read.mockResolvedValue(null); mocks.save.mockResolvedValue(false);
   mocks.clear.mockResolvedValue(undefined);
@@ -49,6 +56,81 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 const mount = () => render(<BrowserRouter><Link to="/other">Leave notes</Link><NotesView /></BrowserRouter>);
+describe("linked note navigation and accepted backlinks", () => {
+  const target = { id: "b", user_id: "u", title: "Target", content: "Target text", pinned: false, updated_at: "2026-01-01" };
+  it("preserves a device draft when following a link and returning with browser Back", async () => {
+    mocks.retain.mockResolvedValue(true);
+    mocks.notes = [mocks.note, target];
+    mount();
+    fireEvent.change(await screen.findByLabelText("Note body"), { target: { value: "My unsynced linked draft" } });
+    await waitFor(() => expect(mocks.retain).toHaveBeenCalled());
+    fireEvent.click(screen.getByText("Open linked target"));
+    await waitFor(() => expect(screen.getByLabelText("Note title")).toHaveValue("Target"));
+    expect(window.location.search).toContain("select=b");
+    await act(async () => { window.history.back(); await new Promise(resolve => setTimeout(resolve, 30)); });
+    await waitFor(() => expect(screen.getByLabelText("Note body")).toHaveValue("My unsynced linked draft"));
+  });
+  it("does not follow a link when the only draft copy failed to persist", async () => {
+    mocks.retain.mockResolvedValue(false); mocks.notes = [mocks.note, target];
+    mount();
+    fireEvent.change(await screen.findByLabelText("Note body"), { target: { value: "At risk" } });
+    await waitFor(() => expect(mocks.retain).toHaveBeenCalled());
+    fireEvent.click(screen.getByText("Open linked target"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Draft not saved");
+    expect(screen.getByLabelText("Note body")).toHaveValue("At risk");
+    expect(window.location.search).toContain("select=n");
+  });
+  it("returns from a linked mobile drawer on the Escape dispatched by Android Back", async () => {
+    mocks.mobile = true; mocks.notes = [mocks.note, target];
+    mount();
+    await screen.findByLabelText("Note body");
+    expect(screen.getAllByLabelText("Note body")).toHaveLength(1);
+    fireEvent.click(screen.getByText("Open linked target"));
+    await waitFor(() => expect(screen.getByLabelText("Note title")).toHaveValue("Target"));
+    await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); await new Promise(resolve => setTimeout(resolve, 50)); });
+    await waitFor(() => expect(screen.getByLabelText("Note title")).toHaveValue("Note"));
+  });
+  it("never replaces the active draft when another snapshot of the same URL arrives", async () => {
+    mocks.retain.mockResolvedValue(true); mount();
+    fireEvent.change(await screen.findByLabelText("Note body"), { target: { value: "Typing now" } });
+    await act(async () => mocks.emit([{ ...mocks.note, content: "Remote copy" }], "synced"));
+    expect(screen.getByLabelText("Note body")).toHaveValue("Typing now");
+  });
+  it("does not publish a rejected draft as a backlink", async () => {
+    mocks.retain.mockResolvedValue(true); mocks.save.mockResolvedValue(false); mocks.notes = [mocks.note, target];
+    mount();
+    fireEvent.change(await screen.findByLabelText("Note body"), { target: { value: "[Target](/app/notes?select=b)" } });
+    await waitFor(() => expect(mocks.save).toHaveBeenCalled(), { timeout: 5000 });
+    fireEvent.click(screen.getByText("Open linked target"));
+    await waitFor(() => expect(screen.getByLabelText("Note title")).toHaveValue("Target"));
+    await waitFor(() => expect(screen.getByTestId("note-backlinks")).toHaveTextContent("No backlinks yet"));
+  });
+  it("publishes accepted links, removes deleted sources and keeps private sources out", async () => {
+    mocks.retain.mockResolvedValue(true); mocks.save.mockResolvedValue(true); mocks.notes = [mocks.note, target];
+    mount();
+    fireEvent.change(await screen.findByLabelText("Note body"), { target: { value: "[Target](/app/notes?select=b)" } });
+    await waitFor(() => expect(mocks.save).toHaveBeenCalled(), { timeout: 5000 });
+    fireEvent.click(screen.getByText("Open linked target"));
+    await waitFor(() => expect(screen.getByLabelText("Note title")).toHaveValue("Target"));
+    await waitFor(() => expect(screen.getByTestId("note-backlinks").querySelectorAll("button")).toHaveLength(1));
+    await act(async () => mocks.emit([target, { ...mocks.note, id: "diary", kind: "diary", content: "[Target](/app/notes?select=b)" }], "synced"));
+    await waitFor(() => expect(screen.getByTestId("note-backlinks")).toHaveTextContent("No backlinks yet"));
+  });
+  it("rejects direct URLs to private notes and accepts a late-loaded general destination", async () => {
+    mocks.notes = [{ ...mocks.note, kind: "diary" }];
+    const view = mount();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Note unavailable");
+    expect(screen.queryByLabelText("Note body")).not.toBeInTheDocument();
+    view.unmount();
+    window.history.replaceState({}, "", "/app/notes?select=b");
+    mocks.notes = [];
+    mount();
+    await screen.findByRole("alert");
+    // A fresh navigation retries after the target becomes available.
+    await act(async () => { mocks.emit([target], "synced"); window.history.pushState({}, "", "/app/notes?select=b"); window.dispatchEvent(new PopStateEvent("popstate")); });
+    await waitFor(() => expect(screen.getByLabelText("Note body")).toHaveValue("Target text"));
+  });
+});
 describe("Notes failed retention exit", () => {
   it("blocks SPA departure when device retention fails, not only browser reload", async () => {
     mocks.retain.mockResolvedValue(false);

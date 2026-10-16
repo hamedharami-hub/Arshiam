@@ -18,7 +18,7 @@ vi.mock('@/hooks/useLearningDraft', async () => {
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.user }) }));
 vi.mock('@/hooks/useBilingual', () => ({ useBilingual: () => ({ T: (_fa: string, en: string) => en, isEn: true }) }));
 vi.mock('react-router-dom', async original => ({ ...await original<typeof import('react-router-dom')>(), useNavigate: () => mocks.navigate }));
-vi.mock('@/lib/firestoreDataService', () => ({ persistNote: mocks.save }));
+vi.mock('@/lib/firestoreDataService', () => ({ persistNote: mocks.save, subscribeNotes: (_uid: string, callback: (notes: unknown[], status: string) => void) => { callback([], 'synced'); return () => {}; } }));
 vi.mock('@/lib/firebaseStore', () => ({ firebaseStore: { from: () => ({ select: () => ({ order: () => Promise.resolve({ data: [] }) }) }) } }));
 vi.mock('sonner', () => ({ toast: { success: mocks.success, info: mocks.info, error: mocks.error } }));
 vi.mock('@/components/HeaderTitlePortal', () => ({ HeaderTitlePortal: () => null }));

@@ -1,5 +1,5 @@
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { firebaseStore } from "@/lib/firebaseStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,10 +16,9 @@ import { useLearningDraft } from "@/hooks/useLearningDraft";
 import { markdownToHtml } from "@/lib/markdown";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getNoteTemplates } from "@/lib/noteTemplates";
-
-const RichEditor = lazy(() =>
-  import("@/components/RichEditor").then((m) => ({ default: m.RichEditor }))
-);
+import { subscribeNotes, type NoteItem } from "@/lib/firestoreDataService";
+import { isLinkableNote, noteLinkUrl, type NoteLinksStatus } from "@/lib/noteLinks";
+import { NoteEditorTabs } from "@/components/NoteEditorTabs";
 
 type FolderItem = { id: string; name: string; color?: string };
 type TagItem = { id: string; name: string; color?: string };
@@ -53,6 +52,13 @@ function NewNoteForm() {
   const updateDraft = (patch: Partial<NewNoteDraft> | ((current: NewNoteDraft) => Partial<NewNoteDraft>), groupTyping = false) => draft.change(current => ({ ...current, ...(typeof patch === "function" ? patch(current) : patch) }), groupTyping);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
+  const [linkNotes, setLinkNotes] = useState<NoteItem[]>([]);
+  const [linkStatus, setLinkStatus] = useState<NoteLinksStatus>("loading");
+  const linkOwnerId = user?.id;
+  useEffect(() => {
+    if (!linkOwnerId) return;
+    return subscribeNotes(linkOwnerId, (notes, status) => { setLinkNotes(notes.filter(note => isLinkableNote(note, linkOwnerId))); setLinkStatus(status || "cache"); });
+  }, [linkOwnerId]);
   const [newTagName, setNewTagName] = useState("");
   const [showTagInput, setShowTagInput] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -353,7 +359,13 @@ function NewNoteForm() {
               </div>
             }
           >
-            <RichEditor initialMarkdown={content} controlledHtml={draft.value.html} readOnly={busy || !draft.ready || Boolean(draft.conflict)} onChange={(html, md) => updateDraft({ content: md, html }, true)} />
+            <NoteEditorTabs noteId={draft.value.id || "new-note"} markdown={content} controlledHtml={draft.value.html} readOnly={busy || !draft.ready || Boolean(draft.conflict)} onChange={(md, html) => updateDraft({ content: md, html }, true)}
+              noteLinks={user ? { ownerId: user.id, notes: linkNotes, status: linkStatus, folders: new Map(folders.map(folder => [folder.id, folder])), onOpen: async id => {
+                if (!linkNotes.some(note => note.id === id) || !draft.ready || busy) return;
+                const owner = user.id;
+                if (!(await draft.flush())) { toast.error(T("پیش‌نویس ذخیره نشد؛ دوباره تلاش کنید", "Draft could not be saved; please retry")); return; }
+                if (activeOwner.current === owner) navigate(noteLinkUrl(id));
+              } } : undefined} />
           </Suspense>
         </div>
         </fieldset>

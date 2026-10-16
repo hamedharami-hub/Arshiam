@@ -682,7 +682,7 @@ export async function deleteTag(userId: string, tagId: string): Promise<boolean>
 
 export function subscribeNotes(
   userId: string,
-  onUpdate: (notes: NoteItem[]) => void
+  onUpdate: (notes: NoteItem[], status?: "cache" | "synced") => void
 ): () => void {
   if (!userId) {
     onUpdate([]);
@@ -692,13 +692,14 @@ export function subscribeNotes(
   let active = true;
   let snapshotVersion = 0;
   cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId)).then((cached) => {
-    if (active && snapshotVersion === 0 && Array.isArray(cached)) onUpdate(cached);
-  });
+    if (active && snapshotVersion === 0 && Array.isArray(cached)) onUpdate(cached, "cache");
+  }).catch(() => undefined);
 
   try {
     const notesCol = collection(db, "users", userId, "notes");
     const unsub = onSnapshot(
       notesCol,
+      { includeMetadataChanges: true },
       async (snap) => {
         const version = ++snapshotVersion;
         const items: NoteItem[] = [];
@@ -715,13 +716,13 @@ export function subscribeNotes(
         if (!active || version !== snapshotVersion) return;
         const merged = reconcileRemoteRowsWithPending(items, Array.isArray(cached) ? cached : [], pending, "notes", userId);
         await cacheSet(CACHE_KEYS.notes(userId), merged);
-        if (active && version === snapshotVersion) onUpdate(merged);
+        if (active && version === snapshotVersion) onUpdate(merged, snap.metadata?.fromCache || snap.metadata?.hasPendingWrites ? "cache" : "synced");
       },
       async (err) => {
         const version = ++snapshotVersion;
         console.warn("[FirestoreData] subscribeNotes notice:", err?.message);
         const cached = await cacheGet<NoteItem[]>(CACHE_KEYS.notes(userId));
-        if (active && version === snapshotVersion && cached) onUpdate(cached);
+        if (active && version === snapshotVersion) onUpdate(cached || [], "cache");
       }
     );
     return () => { active = false; unsub(); };

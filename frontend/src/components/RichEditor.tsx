@@ -30,6 +30,9 @@ import { callAI, getAILanguage } from "@/lib/ai";
 import { editorHtmlFromStored, htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { VoiceInputButton } from "@/components/VoiceInputButton";
 import { LinkDialog } from "@/components/LinkDialog";
+import { TextSelection } from "@tiptap/pm/state";
+import { canTriggerNoteLink, isLinkableNote, noteLinkId, noteLinkUrl, type LinkableNote, type NoteLinkScope } from "@/lib/noteLinks";
+import { NoteLinkPicker } from "@/components/notes/NoteLinkPicker";
 
 const AI_ACTIONS = [
   { key: "improve", label: "✨ بهبود نگارش" },
@@ -114,6 +117,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   showToolbar?: boolean;
   editorAriaLabel?: string;
   autoFocus?: boolean;
+  noteLinks?: NoteLinkScope;
 }>(function RichEditor({
   initialHtml = "",
   controlledHtml,
@@ -133,6 +137,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   showToolbar = true,
   editorAriaLabel,
   autoFocus = false,
+  noteLinks,
 }, ref) {
   const { T } = useBilingual();
   const placeholder = placeholderProp ?? T("شروع به نوشتن کن…", "Start writing…");
@@ -150,6 +155,10 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   const [toolbarOnScreen, setToolbarOnScreen] = useState(true);
 
   const linkBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
+  const noteBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
+  const [notePickerOpen, setNotePickerOpen] = useState(false);
+  const noteShortcut = useRef(false);
+  const noteSelectedText = useRef("");
   const voiceBookmark = useRef<import("@tiptap/pm/state").SelectionBookmark | null>(null);
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
@@ -222,6 +231,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
     onTransaction: ({ transaction }) => {
       if (linkBookmark.current) linkBookmark.current = linkBookmark.current.map(transaction.mapping);
       if (voiceBookmark.current) voiceBookmark.current = voiceBookmark.current.map(transaction.mapping);
+      if (noteBookmark.current) noteBookmark.current = noteBookmark.current.map(transaction.mapping);
     },
     onUpdate: ({ editor, transaction }) => {
       if (!transaction.docChanged) return;
@@ -252,6 +262,55 @@ export const RichEditor = forwardRef<RichEditorHandle, {
   useEffect(() => {
     if (autoFocus && editor && !readOnly && !editor.isDestroyed) editor.commands.focus();
   }, [autoFocus, editor, readOnly]);
+
+  useEffect(() => {
+    if (!editor || !noteLinks || readOnly) return;
+    const shortcut = () => {
+      if (editor.isDestroyed || editor.view.composing || noteBookmark.current || editor.isActive("code") || editor.isActive("codeBlock") || editor.isActive("link")) return;
+      const { from, empty, $from } = editor.state.selection;
+      const text = $from.parent.textBetween(0, $from.parentOffset, "\n");
+      if (!empty || !canTriggerNoteLink(text, text.length)) return;
+      noteBookmark.current = TextSelection.create(editor.state.doc, from - 2, from).getBookmark();
+      noteShortcut.current = true;
+      noteSelectedText.current = "[[";
+      setNotePickerOpen(true);
+    };
+    editor.on("update", shortcut);
+    return () => { editor.off("update", shortcut); };
+  }, [editor, noteLinks, readOnly]);
+
+  const openNotePicker = () => {
+    if (!editor || readOnly || editor.isActive("code") || editor.isActive("codeBlock")) return;
+    noteBookmark.current = editor.state.selection.getBookmark();
+    noteShortcut.current = false;
+    noteSelectedText.current = editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, " ");
+    setNotePickerOpen(true);
+  };
+  const closeNotePicker = () => {
+    setNotePickerOpen(false);
+    if (editor && !editor.isDestroyed && noteBookmark.current) {
+      const selection = noteBookmark.current.resolve(editor.state.doc);
+      editor.chain().focus().setTextSelection(selection.to).run();
+    }
+    noteBookmark.current = null;
+  };
+  const insertNoteLink = (note: LinkableNote) => {
+    if (!editor || editor.isDestroyed || readOnly || !noteLinks || !isLinkableNote(note, noteLinks.ownerId) || !noteBookmark.current) return;
+    const selection = noteBookmark.current.resolve(editor.state.doc);
+    const currentText = editor.state.doc.textBetween(selection.from, selection.to, " ");
+    if (currentText !== noteSelectedText.current) {
+      closeNotePicker();
+      toast.error(T("متن انتخاب‌شده تغییر کرده؛ دوباره انتخاب کن", "Selected text changed; please select it again"));
+      return;
+    }
+    const label = noteShortcut.current ? "" : currentText;
+    noteBookmark.current = null;
+    editor.chain().focus().insertContentAt({ from: selection.from, to: selection.to }, {
+      type: "text", text: label || note.title || T("بدون عنوان", "Untitled"),
+      marks: [{ type: "link", attrs: { href: noteLinkUrl(note.id), target: null } }],
+    }).unsetMark("link").run();
+    setNotePickerOpen(false);
+  };
 
   const insertMedia = useCallback((media: Pick<UploadedMedia, "url" | "name" | "kind">) => {
     if (!editor || editor.isDestroyed || readOnly) return;
@@ -440,6 +499,8 @@ export const RichEditor = forwardRef<RichEditorHandle, {
       {!readOnly && showToolbar && <div ref={toolbarRef} data-testid="rich-editor-toolbar" role="toolbar" aria-label={T("قالب‌بندی متن", "Text formatting")} onMouseDown={event => event.preventDefault()} className="flex items-center gap-0.5 border-b p-1 sticky top-0 bg-background z-10 overflow-x-auto">
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Undo" onClick={() => editor.chain().focus().undo().run()}><Undo2 className="w-4 h-4" /></Button>
         <Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label="Redo" onClick={() => editor.chain().focus().redo().run()}><Redo2 className="w-4 h-4" /></Button>
+        {noteLinks && <Button type="button" size="sm" variant="ghost" className="h-11 px-2 shrink-0" onClick={openNotePicker} aria-label={T("پیوند به یادداشت", "Link to note")}><LinkIcon className="w-4 h-4" /><span className="ms-1 text-xs">{T("یادداشت", "Note")}</span></Button>}
+        {noteLinks && noteLinkId(editor.getAttributes("link").href) && <Button type="button" size="sm" variant="ghost" className="h-11 shrink-0" onClick={() => noteLinks.onOpen(noteLinkId(editor.getAttributes("link").href)!)}>{T("بازکردن یادداشت", "Open note")}</Button>}
         {([ ["bold", Bold], ["italic", Italic], ["underline", UnderlineIcon] ] as const).map(([mark, Icon]) => <Toggle key={mark} size="sm" className="shrink-0 h-8 w-8 px-0" data-mark={mark} aria-label={mark === "bold" ? T("پررنگ", "Bold") : mark === "italic" ? T("مورب", "Italic") : mark === "underline" ? T("زیرخط", "Underline") : T("هایلایت", "Highlight")} pressed={editor.isActive(mark)} onPressedChange={() => editor.chain().focus().toggleMark(mark).run()}><Icon className="w-4 h-4" /></Toggle>)}
         <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 px-2 shrink-0" aria-label={T("قالب‌بندی بیشتر", "More formatting")} data-testid="editor-more-tools"><Wrench className="w-4 h-4" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent onCloseAutoFocus={event => event.preventDefault()} align="end" className="max-h-[60dvh] overflow-y-auto">
@@ -484,6 +545,7 @@ export const RichEditor = forwardRef<RichEditorHandle, {
         <EditorContent editor={editor} />
       </div>
       <LinkDialog open={linkOpen} onOpenChange={setLinkOpen} initialText={linkSelection} askText={!linkSelection} onSubmit={submitLink} />
+      {noteLinks && notePickerOpen && <NoteLinkPicker key={noteLinks.ownerId} scope={noteLinks} sourceId={attachmentScopeId} onPick={insertNoteLink} onClose={closeNotePicker} />}
 
       {/* Floating "show toolbar" FAB when toolbar is scrolled out */}
       {!readOnly && showToolbar && !toolbarOnScreen && (

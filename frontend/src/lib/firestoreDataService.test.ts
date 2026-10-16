@@ -104,11 +104,11 @@ describe("subscribeNotes pending updates", () => {
     mocks.cacheGet.mockImplementationOnce(() => new Promise((resolve) => { resolveCache = resolve; }));
     let receive!: (snapshot: any) => void;
     const stop = vi.fn();
-    mocks.onSnapshot.mockImplementationOnce((_ref, next) => { receive = next; return stop; });
+    mocks.onSnapshot.mockImplementationOnce((_ref, _options, next) => { receive = next; return stop; });
     const update = vi.fn();
     const unsubscribe = subscribeNotes("user-1", update);
     receive({ forEach: (visit: (doc: any) => void) => visit({ id: "server", data: () => ({ title: "Server", updated_at: "2026-01-01" }) }) });
-    await vi.waitFor(() => expect(update).toHaveBeenCalledWith([expect.objectContaining({ id: "server" })]));
+    await vi.waitFor(() => expect(update).toHaveBeenCalledWith([expect.objectContaining({ id: "server" })], "synced"));
     unsubscribe();
     resolveCache([{ id: "stale", title: "Stale" }]);
     await Promise.resolve();
@@ -121,11 +121,11 @@ describe("subscribeNotes pending updates", () => {
     mocks.cache.set("notes:all:user-1", [pendingNote]);
     mocks.getPendingOps.mockResolvedValueOnce([{ table: "notes", op: "upsert", payload: pendingNote, ownerId: "user-1", createdAt: 1, attempts: 0 }]);
     let receive!: (snapshot: any) => void;
-    mocks.onSnapshot.mockImplementationOnce((_ref, next) => { receive = next; return vi.fn(); });
+    mocks.onSnapshot.mockImplementationOnce((_ref, _options, next) => { receive = next; return vi.fn(); });
     const update = vi.fn();
     subscribeNotes("user-1", update);
     receive({ forEach: () => {} });
-    await vi.waitFor(() => expect(update).toHaveBeenLastCalledWith([expect.objectContaining({ id: "pending" })]));
+    await vi.waitFor(() => expect(update).toHaveBeenLastCalledWith([expect.objectContaining({ id: "pending" })], "synced"));
   });
 });
 

@@ -5,7 +5,7 @@ import { filterNotesForList, noteListPreview } from "@/lib/notesList";
 import { HeaderTitlePortal } from "@/components/HeaderTitlePortal";
 import { HeaderActionsPortal } from "@/components/HeaderActionsPortal";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Plus,
@@ -84,6 +84,9 @@ import { getNoteTemplates, type NoteTemplate } from "@/lib/noteTemplates";
 import { suggestNoteActionItem } from "@/lib/noteActionItems";
 import { persistNoteActionItem } from "@/lib/noteActionItemService";
 import { getNoteTaskLinks, type NoteTaskLink } from "@/lib/noteTaskLinkService";
+import { isLinkableNote, type NoteLinksStatus, type NoteLinkScope } from "@/lib/noteLinks";
+import { useNoteLinks } from "@/hooks/useNoteLinks";
+import { NoteBacklinks } from "@/components/notes/NoteBacklinks";
 
 type Note = {
   id: string;
@@ -105,6 +108,11 @@ type ActionItemDraft = { id: string; ownerId: string; noteId: string; createdAt:
 type NoteAIProposal = { noteId: string; ownerId: string; baseRevision: number; action: string; md: string; html: string };
 
 export default function NotesView() {
+  const { user } = useAuth();
+  return <NotesWorkspace key={user?.id || "signed-out"} />;
+}
+
+function NotesWorkspace() {
   const { user } = useAuth();
   const { i18n } = useTranslation();
   const isMobile = useIsMobile();
@@ -162,13 +170,26 @@ export default function NotesView() {
   );
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [acceptedNotes, setAcceptedNotes] = useState<Note[]>([]);
+  const [linksStatus, setLinksStatus] = useState<NoteLinksStatus>("loading");
+  const linkedNotes = useNoteLinks(user?.id || "", acceptedNotes);
+  const [navigationError, setNavigationError] = useState("");
+  const navigationVersion = useRef(0);
+  const scrollPositions = useRef(new Map<string, number>());
   const [noteTaskLinks, setNoteTaskLinks] = useState<NoteTaskLink[]>([]);
   const [linkedTaskTitles, setLinkedTaskTitles] = useState<Map<string, string>>(() => new Map());
   const notesRef = useRef(notes);
   notesRef.current = notes;
   const accountRef = useRef(user?.id);
   accountRef.current = user?.id;
+  useEffect(() => {
+    accountRef.current = user?.id;
+    const navigation = navigationVersion;
+    return () => { accountRef.current = undefined; navigation.current++; };
+  }, [user?.id]);
   const [writes] = useState(() => createDebouncedWrites());
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [tags, setTags] = useState<TagItem[]>([]);
@@ -394,7 +415,7 @@ export default function NotesView() {
         const snap = await getDocs(collection(db, "users", user.id, "notes"));
         items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
       }
-      if (items.length) {
+      if (items) {
         items.sort((a, b) => {
           if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
           return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
@@ -425,9 +446,11 @@ export default function NotesView() {
   useEffect(() => {
     if (!user) return;
     load();
-    const fsUnsub = subscribeNotes(user.id, async (fsNotes) => {
+    const fsUnsub = subscribeNotes(user.id, async (fsNotes, status) => {
       const merged = await applyNoteQueue((fsNotes || []) as Note[]);
       if (accountRef.current !== user.id) return;
+      setAcceptedNotes(merged);
+      setLinksStatus(status || "cache");
       setNotes(merged);
       await cacheSet(NOTES_CACHE_KEY, merged);
     });
@@ -441,17 +464,95 @@ export default function NotesView() {
     };
   }, [user, load, NOTES_CACHE_KEY, applyNoteQueue]);
 
+  const editorScroller = () => Array.from(document.querySelectorAll<HTMLElement>("[data-note-scroll]"))
+    .find(element => element.getClientRects().length > 0);
+  const canLeaveNote = async () => {
+    const ownerId = user?.id;
+    const id = selectedIdRef.current;
+    if (!ownerId) return false;
+    if (id) {
+      await deviceWritesRef.current.get(`${ownerId}:${id}`)?.catch(() => undefined);
+      if (retainedEditsRef.current.get(id)?.durable === false) {
+        setNavigationError(T("پیش‌نویس ذخیره نشده؛ ابتدا ذخیره را دوباره امتحان کن یا متن را کپی کن.", "Draft not saved. Retry saving or copy the text before opening another note."));
+        return false;
+      }
+    }
+    return accountRef.current === ownerId;
+  };
+  const pendingReference = useRef<{ id: string; target: string } | null>(null);
+  const selectNoteSafely = async (note: Note | null, referringTo?: string) => {
+    const ownerId = user?.id;
+    const previousId = selectedIdRef.current;
+    if (!ownerId) return false;
+    if (previousId === note?.id && !referringTo) return true;
+    const version = ++navigationVersion.current;
+    if (!(await canLeaveNote())) return false;
+    if (accountRef.current !== ownerId || navigationVersion.current !== version) return false;
+    if (previousId) scrollPositions.current.set(previousId, editorScroller()?.scrollTop || 0);
+    setNavigationError("");
+    if (previousId !== note?.id) {
+      const pending = note ? pendingDraftsRef.current.get(note.id) : undefined;
+      setSelected(note ? { ...note, ...(pending ? { title: pending.title ?? note.title, content: pending.md } : {}) } : null);
+      setDraft(note ? { html: pending?.html ?? markdownToHtml(note.content || ""), md: pending?.md ?? note.content ?? "" } : null);
+      setEditorRevision(value => value + 1);
+    }
+    requestAnimationFrame(() => {
+      if (navigationVersion.current !== version || accountRef.current !== ownerId) return;
+      const scroller = editorScroller();
+      if (scroller) scroller.scrollTop = note ? scrollPositions.current.get(note.id) || 0 : 0;
+      if (referringTo && scroller) {
+        const link = Array.from(scroller.querySelectorAll<HTMLElement>("[data-note-link-target]")).find(node => node.dataset.noteLinkTarget === referringTo);
+        link?.scrollIntoView?.({ block: "center" });
+        link?.animate?.([{ backgroundColor: "transparent" }, { backgroundColor: "#facc1566" }, { backgroundColor: "transparent" }], 1400);
+      }
+    });
+    return true;
+  };
+  const openNote = async (id: string, referringTo?: string) => {
+    const note = acceptedNotes.find(item => item.id === id && isLinkableNote(item, user?.id || ""));
+    if (!note) { setNavigationError(T("یادداشت در دسترس نیست", "Note unavailable")); return; }
+    if (!(await canLeaveNote())) return;
+    if (referringTo) { setEditorMode("preview"); pendingReference.current = { id, target: referringTo }; }
+    const next = new URLSearchParams(searchParams);
+    next.set("select", id);
+    setSearchParams(next, { state: { noteLinkFrom: selectedIdRef.current } });
+  };
+  const openListNote = async (note: Note) => {
+    if (!(await canLeaveNote())) return;
+    if (isLinkableNote(note, user?.id || "")) {
+      const next = new URLSearchParams(searchParams); next.set("select", note.id); setSearchParams(next);
+    } else await selectNoteSafely(note);
+  };
+  const closeNote = async () => {
+    if (!(await canLeaveNote())) return;
+    const next = new URLSearchParams(searchParams); next.delete("select"); setSearchParams(next);
+  };
+  const scope: NoteLinkScope | undefined = user ? {
+    ownerId: user.id, notes: linkedNotes.notes, status: linksStatus, folders: folderMap,
+    onOpen: (id, referringTo) => { void openNote(id, referringTo); },
+  } : undefined;
+  const selectionHandler = useRef(selectNoteSafely);
+  selectionHandler.current = selectNoteSafely;
+  const handledLocation = useRef<string | null>(null);
   const preselectId = searchParams.get("select");
   useEffect(() => {
-    if (!preselectId || notes.length === 0) return;
-    const found = notes.find((n) => n.id === preselectId);
-    if (found) {
-      setSelected(found);
-      setDraft({ html: markdownToHtml(found.content || ""), md: found.content || "" });
+    if (handledLocation.current === location.key) return;
+    if (preselectId && linksStatus === "loading") return;
+    const found = preselectId ? acceptedNotes.find(note => note.id === preselectId && isLinkableNote(note, user?.id || "")) : null;
+    if (preselectId && !found) {
+      setNavigationError(linksStatus === "synced" ? T("یادداشت در دسترس نیست", "Note unavailable") : T("یادداشت هنوز در این دستگاه در دسترس نیست", "Note not yet available on this device"));
+      return;
     }
-    setSearchParams({}, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preselectId, notes]);
+    handledLocation.current = location.key;
+    const reference = pendingReference.current?.id === found?.id ? pendingReference.current?.target : undefined;
+    pendingReference.current = null;
+    if (found || selectedIdRef.current) void selectionHandler.current(found || null, reference);
+  }, [location.key, preselectId, acceptedNotes, linksStatus, user?.id, T]);
+  useEffect(() => {
+    const offline = () => setLinksStatus("cache");
+    window.addEventListener("offline", offline);
+    return () => window.removeEventListener("offline", offline);
+  }, []);
 
   const generateId = () => {
     try {
@@ -475,9 +576,8 @@ export default function NotesView() {
       folder_id: selectedFolder && selectedFolder !== "__none__" ? selectedFolder : null,
       tag_ids: selectedTag ? [selectedTag] : [],
     };
+    if (!(await selectNoteSafely(note))) return;
     setNotes((prev) => [note, ...prev]);
-    setSelected(note);
-    setDraft({ html: markdownToHtml(initialContent), md: initialContent });
     setSelectedText("");
 
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -486,6 +586,9 @@ export default function NotesView() {
         toast.error(T("نوت ذخیره نشد؛ در ویرایشگر باز می‌ماند تا دوباره تلاش کنید", "Note was not saved; it will stay open so you can retry"));
         return;
       }
+      if (accountRef.current !== user.id) return;
+      setAcceptedNotes(prev => [note, ...prev.filter(item => item.id !== note.id)]);
+      const next = new URLSearchParams(searchParams); next.set("select", note.id); setSearchParams(next);
       await cacheSet(NOTES_CACHE_KEY, [note, ...notes]);
       toast.info(T("نوت ذخیره شد؛ با اتصال اینترنت همگام می‌شود", "Note saved — will sync when online"));
       return;
@@ -499,6 +602,9 @@ export default function NotesView() {
       toast.error(T("نوت ذخیره نشد؛ در ویرایشگر باز می‌ماند تا دوباره تلاش کنید", "Note was not saved; it will stay open so you can retry"));
       return;
     }
+    if (accountRef.current !== user.id) return;
+    setAcceptedNotes(prev => [note, ...prev.filter(item => item.id !== note.id)]);
+    const next = new URLSearchParams(searchParams); next.set("select", note.id); setSearchParams(next);
     await cacheSet(NOTES_CACHE_KEY, [note, ...notes.filter((n) => n.id !== note.id)]);
     window.dispatchEvent(new Event("notes-changed"));
     toast.success(T("نوت جدید ایجاد و همگام شد", "New note created and synced"));
@@ -578,11 +684,21 @@ export default function NotesView() {
       const saved = await upsertNote(accountId, updated);
       if (!saved) throw new Error("Save failed");
       if (accountRef.current !== accountId) return true;
-      await cacheSet(NOTES_CACHE_KEY, notesRef.current);
+      setAcceptedNotes(current => [updated, ...current.filter(note => note.id !== target.id)]);
+      // The shared writer already updated the durable cache. notesRef also
+      // contains unsaved editor drafts, which must never overwrite that cache.
       window.dispatchEvent(new Event("notes-changed"));
       return true;
     } catch {
-      if (accountRef.current === accountId) toast.error(T("تغییر ذخیره نشد؛ متن در نوت باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the note. Please retry"));
+      if (accountRef.current === accountId) {
+        // Keep editor text recoverable, but never index a rejected optimistic write.
+        const cache = await cacheGet<Note[]>(`notes:all:${accountId}`).catch(() => undefined);
+        if (accountRef.current === accountId && cache) {
+          const restored = cache.find(note => note.id === target.id);
+          setAcceptedNotes(current => [...current.filter(note => note.id !== target.id), ...(restored ? [restored] : [])]);
+        }
+        toast.error(T("تغییر ذخیره نشد؛ متن در نوت باقی است و دوباره تلاش کنید", "Change was not saved; the text remains in the note. Please retry"));
+      }
       return false;
     }
   };
@@ -641,6 +757,7 @@ export default function NotesView() {
         return;
       }
       retainedEditsRef.current.delete(id);
+      setAcceptedNotes(current => current.filter(item => item.id !== id));
        pendingDraftsRef.current.delete(id);
       await cacheSet(NOTES_CACHE_KEY, previous.filter((n) => n.id !== id));
       if (selected?.id === id) {
@@ -655,6 +772,7 @@ export default function NotesView() {
             throw new Error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
           }
           setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
+          setAcceptedNotes(prev => [note, ...prev.filter(item => item.id !== note.id)]);
           const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
           await cacheSet(NOTES_CACHE_KEY, [note, ...cached.filter((n) => n.id !== note.id)]);
         };
@@ -672,6 +790,7 @@ export default function NotesView() {
       return;
     }
     retainedEditsRef.current.delete(id);
+    setAcceptedNotes(current => current.filter(item => item.id !== id));
     pendingDraftsRef.current.delete(id);
     await cacheSet(NOTES_CACHE_KEY, previous.filter((n) => n.id !== id));
     if (selected?.id === id) {
@@ -686,6 +805,7 @@ export default function NotesView() {
           throw new Error(T("بازگردانی ذخیره نشد؛ دوباره تلاش کنید", "Restore was not saved; please try again"));
         }
         setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
+        setAcceptedNotes(prev => [note, ...prev.filter(item => item.id !== note.id)]);
         const cached = (await cacheGet<Note[]>(NOTES_CACHE_KEY)) || [];
         await cacheSet(NOTES_CACHE_KEY, [note, ...cached.filter((n) => n.id !== note.id)]);
       };
@@ -1305,7 +1425,9 @@ export default function NotesView() {
       )}
 
       <NoteEditorTabs
+        key={`${user?.id}:${selected.id}`}
         noteId={selected.id}
+        noteLinks={scope && isLinkableNote(selected, scope.ownerId) ? scope : undefined}
         markdown={draft?.md ?? selected.content ?? ""}
         contentRevision={editorRevision}
         onChange={(md, html) => {
@@ -1332,12 +1454,15 @@ export default function NotesView() {
         onSelectedTextChange={setSelectedText}
         hideTabsList={true}
       />
+      {scope && isLinkableNote(selected, scope.ownerId) && <NoteBacklinks key={selected.id} targetId={selected.id} scope={scope}
+        entries={linkedNotes.index.backlinks(selected.id)} indexing={linkedNotes.indexing} />}
     </div>
   ) : null;
 
   return (
     <div ref={containerRef} dir={isEn ? "ltr" : "rtl"} className={fullScreen ? "fixed inset-0 z-40 flex flex-col bg-background" : "study-workspace flex flex-col min-h-0"}>
       <HeaderTitlePortal title={T("نوت‌ها", "Notes")} />
+      {navigationError && <div role="alert" className="border-b p-3 text-sm flex items-center gap-2"><span>{navigationError}</span><Button variant="ghost" onClick={() => setNavigationError("")}>{T("بستن", "Dismiss")}</Button></div>}
       <HeaderActionsPortal>
         <Button variant="ghost" size="icon" className="hidden md:inline-flex h-9 w-9" onClick={toggleList} aria-label={listHidden ? T("نمایش فهرست نوت‌ها", "Show note list") : T("مخفی کردن فهرست نوت‌ها", "Hide note list")}>
           {listHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -1535,10 +1660,7 @@ export default function NotesView() {
                     }`}
                   >
                     <button
-                      onClick={() => {
-                        setSelected(n);
-                        setDraft({ html: markdownToHtml(n.content || ""), md: n.content || "" });
-                      }}
+                      onClick={() => { void openListNote(n); }}
                       className="flex-1 min-w-0 text-right cursor-grab active:cursor-grabbing"
                     >
                       <div className="flex items-center gap-1.5">
@@ -1619,8 +1741,7 @@ export default function NotesView() {
                         <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelected(n);
-                            setMoveOpen(true);
+                            void selectNoteSafely(n).then(opened => { if (opened) setMoveOpen(true); });
                           }}
                         >
                           <FolderInput className="w-4 h-4 me-2 text-muted-foreground" />
@@ -1653,8 +1774,8 @@ export default function NotesView() {
 
       {/* Editor Panel */}
       {!listHidden && !fullScreen && <div role="separator" aria-orientation="vertical" aria-label={T("تغییر عرض فهرست و نوت", "Resize note columns")} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp} className="hidden md:flex w-2 shrink-0 cursor-col-resize touch-none items-center justify-center hover:bg-muted"><span className="h-10 w-px bg-border" /></div>}
-      <div className={`${fullScreen ? "flex" : "hidden md:flex"} flex-1 min-h-0 min-w-0 overflow-y-auto`} data-testid="note-editor-panel">
-        {selected ? editor : emptyState}
+      <div className={`${fullScreen ? "flex" : "hidden md:flex"} flex-1 min-h-0 min-w-0 overflow-y-auto`} data-testid="note-editor-panel" data-note-scroll>
+        {(!isMobile || fullScreen) && (selected ? editor : emptyState)}
       </div>
       </div>
 
@@ -1662,13 +1783,20 @@ export default function NotesView() {
       {selected && isMobile && !fullScreen && (
         <Drawer
           open={true}
-          onOpenChange={(v) => !v && setSelected(null)}
+          onOpenChange={(v) => { if (!v) void closeNote(); }}
           snapPoints={[0.55, 1]}
           activeSnapPoint={snap}
           setActiveSnapPoint={setSnap}
           shouldScaleBackground={false}
         >
-          <DrawerContent className="max-h-[95vh] flex flex-col" aria-describedby="note-drawer-desc">
+          <DrawerContent className="max-h-[95vh] flex flex-col" aria-describedby="note-drawer-desc" onEscapeKeyDown={event => {
+            // Android's existing back handler sends Escape to the top dialog.
+            // A note-to-note journey should return to its source before closing Notes.
+            if (location.state?.noteLinkFrom && window.history.state?.idx > 0) {
+              event.preventDefault();
+              void canLeaveNote().then(allowed => { if (allowed) navigate(-1); });
+            }
+          }}>
             <DrawerHeader className="sr-only">
               <DrawerTitle>{selected.title}</DrawerTitle>
             </DrawerHeader>
@@ -1686,13 +1814,13 @@ export default function NotesView() {
                 size="icon"
                 variant="ghost"
                 className="h-10 w-10"
-                onClick={() => setSelected(null)}
+                onClick={() => { void closeNote(); }}
                 title={T("بستن", "Close")}
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4">{editor}</div>
+            <div className="flex-1 overflow-y-auto min-h-0 px-3 pb-4" data-note-scroll>{editor}</div>
             <p id="note-drawer-desc" className="sr-only">
               {T("جزئیات و ویرایش نوت", "Note details and editor")}
             </p>

@@ -14,7 +14,7 @@ export default function AndroidBackButton() {
     const handle = CapApp.addListener("backButton", () => {
       if (disposed) return;
       if (document.querySelector('[role="alertdialog"],[role="menu"]')) {
-        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
         return;
       }
       if (openMobile) { setOpenMobile(false); return; }
@@ -26,7 +26,7 @@ export default function AndroidBackButton() {
       if (taskHandled) return;
 
       if (document.querySelector('[role="dialog"]:not([data-sidebar])')) {
-        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
         return;
       }
       if (pathname.startsWith("/app/tasks/")) {

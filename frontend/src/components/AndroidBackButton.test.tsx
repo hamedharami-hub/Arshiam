@@ -50,6 +50,19 @@ describe("AndroidBackButton", () => {
 
     expect(mockNavigate).toHaveBeenCalledWith("/app/today", { replace: true });
   });
+  it("allows the top note dialog to handle Back without also dismissing itself", () => {
+    mockLocation = { pathname: "/app/notes", search: "?select=b" };
+    render(<><AndroidBackButton /><div role="dialog" /></>);
+    const receive = vi.fn((event: KeyboardEvent) => {
+      expect(event.key).toBe("Escape");
+      event.preventDefault();
+      expect(event.defaultPrevented).toBe(true);
+    });
+    document.addEventListener("keydown", receive);
+    try { backListener?.(); } finally { document.removeEventListener("keydown", receive); }
+    expect(receive).toHaveBeenCalledOnce();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
 
   it("returns to the actual previous page from a task when in-app history exists", () => {
     mockLocation = { pathname: "/app/tasks/task-123", search: "" };
