@@ -19,15 +19,16 @@ import { useBilingual } from "@/hooks/useBilingual";
 import { bindCloudState, type CloudBinding } from "@/lib/cloudStateSync";
 import {
   applyMiniAppsCloud, createMiniAppId, loadMiniApps, MAX_MINI_APP_HTML_BYTES,
-  MINI_APPS_UPDATED_EVENT, measureHtmlBytes, readMiniAppsSnapshot,
+  MINI_APPS_UPDATED_EVENT, readMiniAppsSnapshot,
   saveMiniAppsLocal, type MiniApp,
 } from "@/lib/miniAppsStore";
 import { buildMiniAppPreview, type MiniAppContext } from "@/lib/miniAppsSandbox";
+import { inspectMiniAppHtml, unwrapHtmlCodeFence, type HtmlWarning } from "@/lib/miniAppsHtml";
 import { toast } from "sonner";
 
 type BridgeAction =
-  | { kind: "copyText"; text: string }
-  | { kind: "createTask"; title: string; description: string };
+  ({ kind: "copyText"; text: string }
+  | { kind: "createTask"; title: string; description: string }) & { token: string; userId: string };
 
 const STARTER_HTML = `<!doctype html>
 <html lang="fa" dir="rtl">
@@ -148,7 +149,8 @@ function readStoredDraft(userId: string, appId: string): MiniApp | null {
     const raw = localStorage.getItem(draftStorageKey(userId, appId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MiniApp;
-    if (!parsed || typeof parsed !== "object" || parsed.id !== appId || typeof parsed.html !== "string") return null;
+    if (!parsed || typeof parsed !== "object" || parsed.id !== appId ||
+      ![parsed.html, parsed.name, parsed.emoji, parsed.description, parsed.aiRequest, parsed.createdAt, parsed.updatedAt].every(value => typeof value === "string")) return null;
     return parsed;
   } catch {
     return null;
@@ -198,6 +200,10 @@ export default function MiniAppsView() {
   const [previewSnapshot, setPreviewSnapshot] = useState<MiniApp | null>(null);
   const [bridgeAction, setBridgeAction] = useState<BridgeAction | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteName, setPasteName] = useState("");
+  const [pasteSource, setPasteSource] = useState("");
+  const [previewErrors, setPreviewErrors] = useState<{ message: string; line: number; column: number }[]>([]);
   const bindingRef = useRef<CloudBinding | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -207,6 +213,19 @@ export default function MiniAppsView() {
   const selectedIdRef = useRef<string | null>(null);
   const dirtyRef = useRef(false);
   const durableDraftRef = useRef(true);
+  const itemsRef = useRef(items);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const userIdRef = useRef(user?.id);
+  userIdRef.current = user?.id;
+  const importGenerationRef = useRef(0);
+  const libraryGenerationRef = useRef(0);
+  const savingLocallyRef = useRef(false);
+  const invalidateImports = useCallback(() => { importGenerationRef.current++; }, []);
+  const setLibrary = useCallback((next: MiniApp[]) => {
+    itemsRef.current = next;
+    setItems(next);
+  }, []);
 
   const t = useCallback((fa: string, en: string) => T(fa, en), [T]);
   const clearBridgeAction = useCallback(() => {
@@ -215,6 +234,9 @@ export default function MiniAppsView() {
     setBridgeAction(null);
   }, []);
   const setActive = useCallback((app: MiniApp | null, edit = false) => {
+    clearBridgeAction();
+    setPreviewErrors([]);
+    bridgeCooldownUntilRef.current = 0;
     selectedIdRef.current = app?.id || null;
     setSelectedId(app?.id || null);
     const stored = app && user?.id ? readStoredDraft(user.id, app.id) : null;
@@ -229,7 +251,7 @@ export default function MiniAppsView() {
     const nextMode = restoredDirty || edit ? "edit" : "run";
     viewModeRef.current = nextMode;
     setViewMode(nextMode);
-    if (next && nextMode === "run") {
+    if (next && nextMode === "run" && !inspectMiniAppHtml(next.html).issue) {
       const token = randomToken();
       previewTokenRef.current = token;
       setPreviewDocument(buildMiniAppPreview(next.html, token, readThemeContext(languageRef.current)));
@@ -240,28 +262,38 @@ export default function MiniAppsView() {
       setPreviewSnapshot(null);
       previewTokenRef.current = "";
     }
-  }, [user?.id]);
+  }, [clearBridgeAction, user?.id]);
 
   useEffect(() => {
     const userId = user?.id;
+    const generation = ++libraryGenerationRef.current;
+    invalidateImports();
+    setBusy(false);
+    setPasteOpen(false);
+    setPasteName("");
+    setPasteSource("");
+    setSearch("");
     if (!userId) {
-      setItems([]);
+      setLibrary([]);
       setActive(null);
       setLoaded(!authLoading);
       return;
     }
+    let active = true;
+    const isCurrent = () => active && userIdRef.current === userId && libraryGenerationRef.current === generation;
 
     setLoaded(false);
     const initial = loadMiniApps(userId);
-    setItems(initial);
+    setLibrary(initial);
     setActive(initial[0] || null);
     setLoaded(true);
 
     const binding = bindCloudState(userId, "mini_apps_v1", {
       read: () => readMiniAppsSnapshot(userId),
       apply: (data, updatedAt) => {
+        if (!isCurrent()) return;
         const remote = applyMiniAppsCloud(userId, data, updatedAt);
-        setItems(remote);
+        setLibrary(remote);
         if (!dirtyRef.current) {
           const activeId = selectedIdRef.current;
           const active = remote.find((item) => item.id === activeId) || remote[0] || null;
@@ -272,9 +304,9 @@ export default function MiniAppsView() {
     bindingRef.current = binding;
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key !== `arshnaz_mini_apps_v1_${userId}`) return;
+      if (!isCurrent() || event.key !== `arshnaz_mini_apps_v1_${userId}`) return;
       const refreshed = loadMiniApps(userId);
-      setItems(refreshed);
+      setLibrary(refreshed);
       if (!dirtyRef.current) {
         const activeId = selectedIdRef.current;
         setActive(refreshed.find((item) => item.id === activeId) || refreshed[0] || null, viewModeRef.current === "edit");
@@ -282,18 +314,30 @@ export default function MiniAppsView() {
     };
     const onLocalUpdate = (event: Event) => {
       const detail = (event as CustomEvent<{ userId?: string }>).detail;
-      if (detail?.userId !== userId) return;
-      setItems(loadMiniApps(userId));
+      if (!isCurrent() || detail?.userId !== userId) return;
+      const refreshed = loadMiniApps(userId);
+      setLibrary(refreshed);
+      // Our own Save must not rerun code or erase the stale-preview indicator.
+      if (!savingLocallyRef.current && !dirtyRef.current) {
+        const activeId = selectedIdRef.current;
+        const next = refreshed.find(item => item.id === activeId) || refreshed[0] || null;
+        const current = draftRef.current;
+        if (next?.id !== current?.id || (next && current && draftDiffersFromSaved(next, current))) {
+          setActive(next, viewModeRef.current === "edit");
+        }
+      }
     };
     window.addEventListener("storage", onStorage);
     window.addEventListener(MINI_APPS_UPDATED_EVENT, onLocalUpdate);
     return () => {
+      active = false;
+      invalidateImports();
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(MINI_APPS_UPDATED_EVENT, onLocalUpdate);
       binding.stop();
       if (bindingRef.current === binding) bindingRef.current = null;
     };
-  }, [authLoading, setActive, user?.id]);
+  }, [authLoading, invalidateImports, setActive, setLibrary, user?.id]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
@@ -301,22 +345,30 @@ export default function MiniAppsView() {
       if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
       // An untrusted preview can request one action at a time. Keep a ref so
       // several messages in the same event turn cannot queue/replace dialogs.
-      if (bridgeActionRef.current || Date.now() < bridgeCooldownUntilRef.current) return;
       if (!event.data || typeof event.data !== "object") return;
       const data = event.data as Record<string, unknown>;
       if (data.channel !== "arshiam-mini-app" || data.token !== previewTokenRef.current) return;
       const payload = data.payload;
       if (!payload || typeof payload !== "object") return;
       const value = payload as Record<string, unknown>;
+      if (data.action === "runtimeError") {
+        if (typeof value.message !== "string" || !value.message || value.message.length > 1_000) return;
+        const coordinate = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 10_000_000 ? value : 0;
+        setPreviewErrors(current => current.length >= 5 ? current : [...current, { message: value.message as string, line: coordinate(value.line), column: coordinate(value.column) }]);
+        return;
+      }
+      if (bridgeActionRef.current || Date.now() < bridgeCooldownUntilRef.current) return;
       if (data.action === "copyText") {
         if (typeof value.text !== "string" || value.text.length > 20_000) return;
-        const action: BridgeAction = { kind: "copyText", text: value.text };
+        if (!userIdRef.current) return;
+        const action: BridgeAction = { kind: "copyText", text: value.text, token: previewTokenRef.current, userId: userIdRef.current };
         bridgeActionRef.current = action;
         setBridgeAction(action);
       } else if (data.action === "createTask") {
         if (typeof value.title !== "string" || value.title.trim().length < 1 || value.title.length > 160) return;
         if (typeof value.description !== "string" || value.description.length > 5_000) return;
-        const action: BridgeAction = { kind: "createTask", title: value.title.trim(), description: value.description };
+        if (!userIdRef.current) return;
+        const action: BridgeAction = { kind: "createTask", title: value.title.trim(), description: value.description, token: previewTokenRef.current, userId: userIdRef.current };
         bridgeActionRef.current = action;
         setBridgeAction(action);
       }
@@ -334,7 +386,22 @@ export default function MiniAppsView() {
     const needle = search.trim().toLocaleLowerCase();
     return needle ? items.filter((item) => `${item.name} ${item.description}`.toLocaleLowerCase().includes(needle)) : items;
   }, [items, search]);
-  const htmlBytes = draft ? measureHtmlBytes(draft.html) : 0;
+  const htmlInspection = useMemo(() => inspectMiniAppHtml(draft?.html ?? ""), [draft?.html]);
+  const pasteInspection = useMemo(() => inspectMiniAppHtml(unwrapHtmlCodeFence(pasteSource)), [pasteSource]);
+  const htmlBytes = htmlInspection.bytes;
+  const warningText = (warning: HtmlWarning) => ({
+    "external-assets": t("منابع بیرونی مانند کتابخانه، تصویر یا CSS در پیش‌نمایش بارگیری نمی‌شوند؛ آن‌ها را داخل فایل قرار بده.", "External scripts, images or styles will not load in preview. Embed them in the file."),
+    "network-api": t("درخواست شبکه در پیش‌نمایش مسدود است؛ ابزارک باید بدون اینترنت کار کند.", "Network requests are blocked in preview; the tool needs to work offline."),
+    "storage-api": t("ذخیره‌سازی مرورگر در این محیط جدا در دسترس نیست؛ داده‌ها را در حافظه صفحه نگه دار.", "Browser storage is unavailable in this isolated preview; keep data in page memory."),
+  })[warning];
+  const validateHtml = (html: string): boolean => {
+    const { issue } = inspectMiniAppHtml(html);
+    if (!issue) return true;
+    toast.error(issue === "empty"
+      ? t("کد HTML خالی است. ابتدا کد را وارد کن.", "HTML source is empty. Add some code first.")
+      : t("حجم کد HTML بیش از ۱۲۰٬۰۰۰ بایت است.", "HTML source exceeds 120,000 bytes."));
+    return false;
+  };
 
   const updateDraft = (patch: Partial<MiniApp>) => {
     if (!draft) return;
@@ -349,21 +416,24 @@ export default function MiniAppsView() {
   const saveList = (next: MiniApp[]) => {
     if (!user?.id) return false;
     try {
+      savingLocallyRef.current = true;
       const saved = saveMiniAppsLocal(user.id, next);
       if (localStorage.getItem(`arshnaz_mini_apps_v1_${user.id}`) !== JSON.stringify(saved)) throw new Error(t("ذخیره روی دستگاه تأیید نشد.", "Device storage could not be verified."));
-      setItems(next);
+      setLibrary(saved.data as MiniApp[]);
       bindingRef.current?.push();
       return true;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t("ذخیره انجام نشد.", "Could not save."));
       return false;
+    } finally {
+      savingLocallyRef.current = false;
     }
   };
 
   const discardOrContinue = () => {
     if (!dirtyRef.current || durableDraftRef.current) return true;
     const confirmed = window.confirm(t("تغییرات ذخیره‌نشده از بین می‌روند. ادامه می‌دهی؟", "Unsaved changes will be discarded. Continue?"));
-    if (confirmed && draft && user?.id) clearStoredDraft(user.id, draft.id);
+    if (confirmed && draftRef.current && userIdRef.current) clearStoredDraft(userIdRef.current, draftRef.current.id);
     return confirmed;
   };
 
@@ -380,21 +450,19 @@ export default function MiniAppsView() {
       createdAt: now,
       updatedAt: now,
     };
-    if (!saveList([...items, app])) return;
+    if (!saveList([...itemsRef.current, app])) return;
     setActive(app, true);
     toast.success(t("ابزارک ساخته شد.", "Mini app created."));
   };
 
   const saveDraft = () => {
     if (!draft || !user?.id) return;
-    if (measureHtmlBytes(draft.html) > MAX_MINI_APP_HTML_BYTES) {
-      toast.error(t("حجم فایل HTML بیش از حد مجاز است.", "The HTML file is larger than the allowed limit."));
-      return;
-    }
+    if (!validateHtml(draft.html)) return;
     const nextApp = { ...draft, name: draft.name.trim() || t("بدون نام", "Untitled"), updatedAt: new Date().toISOString() };
-    const next = items.some((item) => item.id === nextApp.id)
-      ? items.map((item) => item.id === nextApp.id ? nextApp : item)
-      : [...items, nextApp];
+    const current = itemsRef.current;
+    const next = current.some((item) => item.id === nextApp.id)
+      ? current.map((item) => item.id === nextApp.id ? nextApp : item)
+      : [...current, nextApp];
     if (!saveList(next)) return;
     setDraft(nextApp);
     setDirty(false);
@@ -407,10 +475,9 @@ export default function MiniAppsView() {
 
   const runPreview = () => {
     if (!draft) return;
-    if (measureHtmlBytes(draft.html) > MAX_MINI_APP_HTML_BYTES) {
-      toast.error(t("حجم فایل HTML بیش از حد مجاز است.", "The HTML file is larger than the allowed limit."));
-      return;
-    }
+    if (!validateHtml(draft.html)) return;
+    clearBridgeAction();
+    setPreviewErrors([]);
     const token = randomToken();
     previewTokenRef.current = token;
     bridgeCooldownUntilRef.current = 0;
@@ -453,11 +520,15 @@ export default function MiniAppsView() {
 
   const duplicateApp = () => {
     if (!draft || !user?.id) return;
+    if (!validateHtml(draft.html)) return;
     const now = new Date().toISOString();
-    const copy: MiniApp = { ...draft, id: createMiniAppId(), name: `${draft.name} (${t("نسخه", "copy")})`, createdAt: now, updatedAt: now };
-    const savedCurrent = items.some((item) => item.id === draft.id)
-      ? items.map((item) => item.id === draft.id ? draft : item)
-      : [...items, draft];
+    const suffix = ` (${t("نسخه", "copy")})`;
+    const name = draft.name.trim() || t("بدون نام", "Untitled");
+    const copy: MiniApp = { ...draft, id: createMiniAppId(), name: `${name.slice(0, 80 - suffix.length)}${suffix}`, createdAt: now, updatedAt: now };
+    const current = itemsRef.current;
+    const savedCurrent = current.some((item) => item.id === draft.id)
+      ? current.map((item) => item.id === draft.id ? { ...draft, name } : item)
+      : [...current, { ...draft, name }];
     if (!saveList([...savedCurrent, copy])) return;
     if (user?.id && draft.id) clearStoredDraft(user.id, draft.id);
     setActive(copy, true);
@@ -466,63 +537,62 @@ export default function MiniAppsView() {
   const deleteApp = () => {
     if (!draft || !user?.id) return;
     if (!window.confirm(t(`«${draft.name}» و کد ذخیره‌شدهٔ آن پاک شود؟`, `Delete “${draft.name}” and its saved code?`))) return;
-    const next = items.filter((item) => item.id !== draft.id);
+    const next = itemsRef.current.filter((item) => item.id !== draft.id);
     if (!saveList(next)) return;
     if (user?.id) clearStoredDraft(user.id, draft.id);
     setActive(next[0] || null);
     toast.success(t("ابزارک پاک شد.", "Mini app deleted."));
   };
 
+  const addHtml = (source: string, name: string): boolean => {
+    const html = unwrapHtmlCodeFence(source);
+    if (!user?.id || !validateHtml(html) || !discardOrContinue()) return false;
+    const now = new Date().toISOString();
+    const app: MiniApp = {
+      id: createMiniAppId(), name: fileBaseName(name), emoji: "🧩",
+      description: "", aiRequest: "", html, createdAt: now, updatedAt: now,
+    };
+    // Rebase on the current library, not the render that started a file read.
+    if (!saveList([...itemsRef.current, app])) return false;
+    setActive(app, true);
+    toast.success(t("HTML روی این دستگاه به مخزن اضافه شد.", "HTML added to the library on this device."));
+    return true;
+  };
+
   const importHtml = async (file?: File) => {
+    // Reset before validation so selecting the same corrected file works again.
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file || !user?.id) return;
     if (!/\.html?$/i.test(file.name)) {
       toast.error(t("فقط فایل HTML وارد کن.", "Choose an HTML file."));
       return;
     }
     if (file.size > MAX_MINI_APP_HTML_BYTES) {
-      toast.error(t("حجم فایل بیش از ۱۲۰ کیلوبایت است.", "The file is larger than 120 KB."));
+      toast.error(t("حجم فایل بیش از ۱۲۰٬۰۰۰ بایت است.", "The file exceeds 120,000 bytes."));
       return;
     }
+    const ownerId = user.id;
+    const generation = ++importGenerationRef.current;
+    const isCurrent = () => userIdRef.current === ownerId && importGenerationRef.current === generation;
     setBusy(true);
     try {
       const html = await file.text();
-      if (measureHtmlBytes(html) > MAX_MINI_APP_HTML_BYTES) {
-        toast.error(t("حجم فایل بیش از ۱۲۰ کیلوبایت است.", "The file is larger than 120 KB."));
-        return;
-      }
-      // Confirm at the commit boundary so edits made while the file is being
-      // read cannot be discarded without a fresh confirmation.
-      if (!discardOrContinue()) return;
-      const now = new Date().toISOString();
-      const app: MiniApp = {
-        id: createMiniAppId(),
-        name: fileBaseName(file.name),
-        emoji: "🧩",
-        description: "",
-        aiRequest: "",
-        html,
-        createdAt: now,
-        updatedAt: now,
-      };
-      if (saveList([...items, app])) {
-        setActive(app, true);
-        toast.success(t("فایل به مخزن اضافه شد.", "HTML file added to the library."));
-      }
+      if (!isCurrent()) return;
+      addHtml(html, file.name);
     } catch {
-      toast.error(t("خواندن فایل انجام نشد.", "Could not read the file."));
+      if (isCurrent()) toast.error(t("خواندن فایل انجام نشد.", "Could not read the file."));
     } finally {
-      setBusy(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (isCurrent()) setBusy(false);
     }
   };
 
   const confirmBridgeAction = async () => {
-    if (!bridgeAction) return;
+    if (!bridgeAction || bridgeActionRef.current !== bridgeAction || bridgeAction.token !== previewTokenRef.current || bridgeAction.userId !== userIdRef.current) return;
     if (bridgeAction.kind === "copyText") {
       try {
         await copyToClipboard(bridgeAction.text);
         toast.success(t("متن ابزارک کپی شد.", "Text copied from the mini app."));
-        clearBridgeAction();
+        if (bridgeActionRef.current === bridgeAction) clearBridgeAction();
       } catch {
         toast.error(t("کپی نشد؛ اجازهٔ حافظهٔ موقت را بررسی کن.", "Copy failed; check clipboard permission."));
       }
@@ -570,6 +640,8 @@ export default function MiniAppsView() {
         <div className="flex flex-wrap gap-2">
           <input ref={fileInputRef} type="file" accept=".html,.htm,text/html" className="hidden" onChange={(event) => void importHtml(event.target.files?.[0])} />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={busy}><FileUp className="me-2 size-4" />{t("واردکردن HTML", "Import HTML")}</Button>
+          <Button variant="outline" onClick={() => setPasteOpen(true)} disabled={busy}><Code2 className="me-2 size-4" />{t("چسباندن HTML", "Paste HTML")}</Button>
+          {busy && <span role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />{t("در حال خواندن فایل…", "Reading file…")}</span>}
           {(items.length > 0 || draft) && <Button variant="outline" onClick={() => void copyPrompt()}><Copy className="me-2 size-4" />{t("کپی دستور هماهنگی", "Copy AI prompt")}</Button>}
           {(items.length > 0 || draft) && <Button onClick={createApp}><Plus className="me-2 size-4" />{t("ابزارک تازه", "New mini app")}</Button>}
         </div>
@@ -659,6 +731,7 @@ export default function MiniAppsView() {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <label htmlFor="mini-app-html" className="flex items-center gap-2 text-sm font-medium"><Code2 className="size-4" />{t("کد کامل HTML", "Complete HTML source")}</label>
+                      {unwrapHtmlCodeFence(draft.html) !== draft.html && <Button size="sm" variant="outline" onClick={() => updateDraft({ html: unwrapHtmlCodeFence(draft.html) })}>{t("حذف حصار کد", "Remove code fence")}</Button>}
                     </div>
                     <Textarea
                       id="mini-app-html"
@@ -679,8 +752,13 @@ export default function MiniAppsView() {
                     />
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
                       <span>{t("کد در یک فایل HTML ذخیره می‌شود؛ کتابخانه یا سرور لازم نیست.", "Saved as a single HTML file; no package or server required.")}</span>
-                      <span className={htmlBytes > MAX_MINI_APP_HTML_BYTES ? "text-destructive" : ""}>{Math.ceil(htmlBytes / 1024)} / 120 KB</span>
+                      <span className={htmlInspection.issue ? "text-destructive" : ""} dir="ltr">{(htmlBytes / 1000).toFixed(1)} / 120 KB</span>
                     </div>
+                    {htmlInspection.issue && <p className="text-sm text-destructive">{htmlInspection.issue === "empty" ? t("کد HTML خالی است؛ قبل از ذخیره یا اجرا کد وارد کن.", "HTML is empty; add code before saving or running.") : t("حجم کد بیش از ۱۲۰٬۰۰۰ بایت است.", "Source exceeds 120,000 bytes.")}</p>}
+                    {htmlInspection.warnings.length > 0 && <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                      <p className="mb-1 font-medium">{t("نکته‌های سازگاری (بررسی اولیه، نه اعتبارسنجی کامل)", "Compatibility hints (not full validation)")}</p>
+                      <ul className="list-inside list-disc space-y-1 text-muted-foreground">{htmlInspection.warnings.map(warning => <li key={warning}>{warningText(warning)}</li>)}</ul>
+                    </div>}
                   </div>
                   </div>}
                 </CardContent>
@@ -689,11 +767,16 @@ export default function MiniAppsView() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
                    <CardTitle className="flex items-center gap-2 text-base"><Eye className="size-4" />{t("پیش‌نمایش محدود", "Isolated preview")}</CardTitle>
-                  <Button size="sm" variant="outline" onClick={runPreview}><Play className="me-2 size-4" />{t("اجرای آخرین کد", "Run latest source")}</Button>
+                  <Button size="sm" variant="outline" onClick={runPreview} disabled={Boolean(htmlInspection.issue)}><Play className="me-2 size-4" />{t("اجرای آخرین کد", "Run latest source")}</Button>
                 </CardHeader>
                  <CardContent>
                    {previewSnapshot && draftDiffersFromSaved(draft, previewSnapshot) && <p role="status" className="mb-3 text-sm text-amber-700 dark:text-amber-300">{t("پیش‌نمایش قدیمی است؛ تغییرات فعلی اجرا نشده‌اند. آخرین کد را اجرا کن.", "Preview is stale: current edits have not been run. Run latest source to refresh.")}</p>}
                    {previewSnapshot && !draftDiffersFromSaved(draft, previewSnapshot) && <p className="mb-3 text-xs text-muted-foreground">{t("نمایش آخرین کد اجراشده؛ پیش‌نمایش با تایپ تغییر نمی‌کند.", "Showing the last run source. Preview does not update as you type.")}</p>}
+                  {previewErrors.length > 0 && <div role="alert" className="mb-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <p className="font-medium">{t("خطاهای پیش‌نمایش", "Preview errors")}</p>
+                    <p className="mb-2 text-xs text-muted-foreground">{t("این پیام‌ها از ابزارک اجراشده‌اند؛ شماره خط مربوط به سند پیش‌نمایش است و ممکن است با کد اصلی فرق کند.", "Reported by the running tool; line numbers refer to the preview document and may differ from source.")}</p>
+                    <ul className="space-y-1">{previewErrors.map((error, index) => <li key={index} className="break-words font-mono text-xs" dir="auto">{error.message}{error.line > 0 && <span> ({error.line}:{error.column})</span>}</li>)}</ul>
+                  </div>}
                   {previewDocument ? (
                     <iframe
                       key={previewVersion}
@@ -708,8 +791,8 @@ export default function MiniAppsView() {
                     <div className="grid min-h-[260px] place-items-center rounded-xl border border-dashed bg-muted/20 p-5 text-center">
                       <div className="space-y-3">
                         <Eye className="mx-auto size-8 text-muted-foreground/70" />
-                        <p className="text-sm text-muted-foreground">{t("برای دیدن نتیجه، کد را اجرا کن.", "Run the source to see the result.")}</p>
-                        <Button variant="outline" onClick={runPreview}><Play className="me-2 size-4" />{t("اجرای پیش‌نمایش", "Run preview")}</Button>
+                        <p className="text-sm text-muted-foreground">{htmlInspection.issue === "empty" ? t("کد HTML خالی است؛ برای افزودن کد، ویرایش را انتخاب کن.", "HTML is empty; choose Edit to add source.") : t("برای دیدن نتیجه، کد را اجرا کن.", "Run the source to see the result.")}</p>
+                        <Button variant="outline" onClick={runPreview} disabled={Boolean(htmlInspection.issue)}><Play className="me-2 size-4" />{t("اجرای پیش‌نمایش", "Run preview")}</Button>
                       </div>
                     </div>
                   )}
@@ -719,6 +802,35 @@ export default function MiniAppsView() {
           </main>
         </div>
       )}
+
+      <Dialog open={pasteOpen} onOpenChange={setPasteOpen}>
+        <DialogContent dir={isEn ? "ltr" : "rtl"} className="max-w-2xl max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("افزودن HTML از کد", "Add HTML from source")}</DialogTitle>
+            <DialogDescription>{t("کد را اینجا بچسبان. فایل یا قطعه HTML پذیرفته می‌شود؛ حصار کد هوش مصنوعی خودکار حذف می‌شود. کد تا انتخاب اجرا، اجرا نمی‌شود.", "Paste a full HTML file or fragment. AI code fences are removed automatically. Nothing runs until you choose preview.")}</DialogDescription>
+          </DialogHeader>
+          <label className="space-y-1 text-sm">
+            <span>{t("نام HTML جدید", "New HTML name")}</span>
+            <Input value={pasteName} maxLength={64} onChange={event => setPasteName(event.target.value)} placeholder={t("مثلاً محاسبه‌گر", "e.g. Calculator")} />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>{t("کد HTML برای افزودن", "HTML source to add")}</span>
+            <Textarea value={pasteSource} onChange={event => setPasteSource(event.target.value)} dir="ltr" spellCheck={false} autoCapitalize="off" autoCorrect="off" rows={12} className="font-mono text-xs" />
+          </label>
+          <p className={pasteInspection.issue === "too-large" ? "text-sm text-destructive" : "text-xs text-muted-foreground"} dir="ltr">{(pasteInspection.bytes / 1000).toFixed(1)} / 120 KB</p>
+          {pasteInspection.issue === "too-large" && <p className="text-sm text-destructive">{t("کد بیش از حد مجاز است؛ آن را کوتاه‌تر کن.", "Source is too large; shorten it before adding.")}</p>}
+          {pasteInspection.warnings.length > 0 && <ul className="list-inside list-disc space-y-1 text-xs text-muted-foreground">{pasteInspection.warnings.map(warning => <li key={warning}>{warningText(warning)}</li>)}</ul>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasteOpen(false)}>{t("انصراف", "Cancel")}</Button>
+            <Button disabled={Boolean(pasteInspection.issue) || busy} onClick={() => {
+              if (!addHtml(pasteSource, pasteName.trim() || t("ابزارک تازه", "New mini app"))) return;
+              setPasteOpen(false);
+              setPasteName("");
+              setPasteSource("");
+            }}>{t("افزودن به مخزن", "Add to library")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(bridgeAction)} onOpenChange={(open) => { if (!open) clearBridgeAction(); }}>
         <DialogContent dir={isEn ? "ltr" : "rtl"}>
