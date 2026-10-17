@@ -14,6 +14,11 @@ export const ASSISTANT_SCOPES = [
   "memories:write",
   "calendar:read",
   "calendar:write",
+  "notes:read",
+  "notes:create",
+  "notes:update",
+  "diary:read",
+  "diary:write",
   // Legacy / granular scopes:
   "tasks:create",
   "tasks:update",
@@ -102,7 +107,11 @@ export interface AssistantGrant {
   expiresAt: string;
   lastUsedAt?: string | null;
   revokedAt: string | null;
+  audience?: string;
 }
+
+/** An in-process adapter capability; cannot be supplied through JSON or HTTP. */
+export const INTERNAL_AGENT_GRANT = Symbol("internal-agent-grant");
 
 function grantIsActive(indexUserId: string, grant: AssistantGrant | undefined, now = Date.now()): grant is AssistantGrant {
   if (!grant || grant.userId !== indexUserId || grant.revokedAt) return false;
@@ -235,6 +244,12 @@ export async function authenticateAssistant(
   res: any,
   scope?: AssistantScope
 ): Promise<AssistantGrant | null> {
+  const internal = req[INTERNAL_AGENT_GRANT] as AssistantGrant | undefined;
+  if (internal) {
+    if (!grantIsActive(internal.userId, internal)) { sendError(res, 401, "UNAUTHORIZED", "Connection expired or revoked."); return null; }
+    if (scope && !grantAllows(internal.userId, internal, scope)) { sendError(res, 403, "FORBIDDEN", `Missing ${scope}.`); return null; }
+    return internal;
+  }
   const token = extractBearerToken(req);
   if (!token?.startsWith("arshnaz_pat_")) {
     sendError(res, 401, "UNAUTHORIZED", "Assistant access token required.");

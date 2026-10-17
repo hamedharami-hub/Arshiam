@@ -58,6 +58,7 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const TasksView = lazy(() => import("./pages/TasksView"));
 const TodayDashboardView = lazy(() => import("./pages/TodayDashboardView"));
 const NotesView = lazy(() => import("./pages/NotesView"));
+const ChatGPTConnectView = lazy(() => import("./pages/ChatGPTConnectView"));
 const DailyDiaryView = lazy(() => import("./pages/DailyDiaryView"));
 const GardenView = lazy(() => import("./pages/GardenView"));
 const PomodoroView = lazy(() => import("./pages/PomodoroView"));
@@ -342,6 +343,7 @@ const App = () => {
                       <Route path="folder/:id" element={<TasksView scope="folder" />} />
                       <Route path="tag/:id" element={<TasksView scope="tag" />} />
                       <Route path="notes" element={<NotesView />} />
+                      <Route path="connect/chatgpt" element={<ChatGPTConnectView />} />
                       <Route path="diary" element={<DailyDiaryView />} />
                       <Route path="habits" element={<Navigate to="/app/today" replace />} />
                       <Route path="garden" element={<GardenView />} />

@@ -350,6 +350,14 @@ function AssistantAccessSettingsContent() {
       </div>
 
       <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+        <h3 className="text-sm font-bold">{T("اتصال MCP به ChatGPT", "MCP connection to ChatGPT")}</h3>
+        <p className="text-xs text-muted-foreground">{T("در بخش اتصال سفارشی MCP در ChatGPT، آدرس زیر را وارد و احراز هویت OAuth را انتخاب کنید. ورود و اجازه در خود ارشیام انجام می‌شود؛ توکن را در چت وارد نکنید. امکان افزودن اتصال به حساب و سیاست workspace بستگی دارد.", "Add this URL as a custom MCP connection in ChatGPT and select OAuth authentication. Sign-in and consent happen in Arshiam; do not paste a token in chat. Availability depends on your account and workspace policy.")}</p>
+        <code dir="ltr" className="block break-all text-xs">{serverOrigin}/api/mcp</code>
+        <Button type="button" variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(`${serverOrigin}/api/mcp`).then(() => toast.success(T("آدرس MCP کپی شد", "MCP URL copied"))).catch(() => toast.error(T("کپی نشد", "Copy failed")))}>{T("کپی آدرس MCP", "Copy MCP URL")}</Button>
+        <p className="text-xs text-muted-foreground">{T("مجوز اولیه فقط خواندن تسک‌هاست. مجوزهای یادداشت و نوشتن باید در اتصال OAuth درخواست شوند. این مسیر از REST/OpenAPI پایین جداست.", "Initial access is task reading only. Notes and write permissions must be requested through OAuth. This connection is separate from REST/OpenAPI below.")}</p>
+      </div>
+
+      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
         <h3 className="text-sm font-bold">{T("اتصال به ChatGPT، Codex و Gemini", "Connect ChatGPT, Codex and Gemini")}</h3>
         <p className="text-xs text-muted-foreground">{T("این اتصال تغییرات حساب شما را انجام می‌دهد، نه تغییر کد برنامه. عامل باید ابزار ارسال درخواست HTTP داشته باشد؛ دادن توکن به یک چت معمولی کافی نیست.", "This connection changes your account data, not application code. The agent needs an HTTP tool; pasting a token into an ordinary chat is not enough.")}</p>
         <ol className="list-decimal ps-5 space-y-2 text-xs leading-relaxed">

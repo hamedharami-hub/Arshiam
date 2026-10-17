@@ -17,7 +17,7 @@ export type NoteLinkOccurrence = { targetId: string; snippet: string; ordinal: n
 
 export function isLinkableNote(note: LinkableNote, ownerId: string): boolean {
   return !!ownerId && validNoteId(note.id) && (!note.user_id || note.user_id === ownerId)
-    && !note.kind && !note.task_id;
+    && (!note.kind || note.kind === "note") && !note.task_id;
 }
 
 function validNoteId(id: string): boolean {

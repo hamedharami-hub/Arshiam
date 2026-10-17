@@ -8,6 +8,8 @@
     "android:build": "build-android-apk.bat"
   },
   "dependencies": {
-    "firebase-admin": "^14.5.0"
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "firebase-admin": "^14.5.0",
+    "zod": "3.25.76"
   }
 }

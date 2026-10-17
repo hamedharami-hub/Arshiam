@@ -12,6 +12,7 @@ describe("internal note links", () => {
   });
   it("limits both ends to this account's general notes", () => {
     expect(isLinkableNote(note("a"), "u")).toBe(true);
+    expect(isLinkableNote({ ...note("a"), kind: "note" }, "u")).toBe(true);
     for (const patch of [{ kind: "diary" }, { kind: "health" }, { task_id: "task" }, { user_id: "other" }]) expect(isLinkableNote({ ...note("a"), ...patch }, "u")).toBe(false);
     expect(isLinkableNote(note("a"), "")).toBe(false);
   });

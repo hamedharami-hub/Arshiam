@@ -1,5 +1,5 @@
 import { InvalidTaskInputError, taskCompletionWrite, validateTaskInput } from "./taskInput.js";
-import { InvalidTaskPriorityError, InvalidTaskScheduleError, normalizeTaskPriority, normalizeTaskScheduleInput, normalizeTimeZone, scheduleWrite, stripRemovedTaskTimeFields, taskDateOf, taskDayOf } from "./taskSchedule.js";
+import { InvalidTaskPriorityError, InvalidTaskScheduleError, localDayOf, normalizeTaskPriority, normalizeTaskScheduleInput, normalizeTimeZone, scheduleWrite, stripRemovedTaskTimeFields, taskDateOf, taskDayOf } from "./taskSchedule.js";
 import { randomBytes, createHash } from "node:crypto";
 import {
   adminDb,
@@ -82,7 +82,7 @@ async function createEntityIdempotently(
     userId: grant.userId,
     action: auditAction,
     entityId: entityData.id,
-    safeSummary,
+    safeSummary: grant.audience ? null : safeSummary,
     timestamp: entityData.created_at,
   };
 
@@ -137,7 +137,7 @@ async function auditLog(
     userId: grant.userId,
     action,
     entityId,
-    safeSummary: safeSummary || null,
+    safeSummary: grant.audience ? null : safeSummary || null,
     timestamp: new Date().toISOString(),
   };
 
@@ -382,6 +382,11 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
     return sendError(res, 404, "NOT_FOUND", "Task not found.");
   }
 
+  if ((body.completed === true || body.status === "done") &&
+    (existing.recurrence && existing.recurrence !== "none" || existing.source_type === "leitner" || existing.source_type === "leitner_folder")) {
+    return sendError(res, 409, "APP_ACTION_REQUIRED", "Complete recurring or study workflows in Arshiam.");
+  }
+
   const allowedUpdates = [
     "title",
     "description",
@@ -436,6 +441,15 @@ async function handlePatchTask(grant: AssistantGrant, taskId: string, body: any,
 async function handleCompleteTask(grant: AssistantGrant, taskId: string, res: any) {
   const existing = await getDocById(grant, "tasks", taskId);
   if (!existing) return sendError(res, 404, "NOT_FOUND", "Task not found.");
+
+  if (existing.recurrence && existing.recurrence !== "none" || existing.source_type === "leitner" || existing.source_type === "leitner_folder" || existing.study_kind || existing.leitner_card_ids?.length || existing.is_study_task) {
+    return sendError(res, 409, "APP_ACTION_REQUIRED", "Complete recurring or study tasks in Arshiam to preserve their workflow.");
+  }
+  if (!testStore.enabled) {
+    const outcomes = await adminDb().collection(`users/${grant.userId}/task_outcomes`).where("task_id", "==", taskId).limit(1).get();
+    if (!outcomes.empty) return sendError(res, 409, "APP_ACTION_REQUIRED", "Choose the task outcome in Arshiam before completing it.");
+  }
+  if (existing.completed) return sendJson(res, 200, { data: existing, meta: { action: "already_completed" } });
 
   const now = new Date().toISOString();
   const patch = {
@@ -738,42 +752,46 @@ function isTimedAt(t: any, start: string, end: string): boolean {
 
 async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "month", query: any, res: any) {
   const tasks = await getCollectionDocs(grant, "tasks");
-  const baseDate = query.date ? new Date(query.date) : new Date();
+  const zone = normalizeTimeZone(query.timezone || query.schedule_timezone || "UTC");
+  if (!zone) return sendError(res, 400, "VALIDATION_ERROR", "An IANA timezone is required.");
+  const date = query.date || localDayOf(new Date(), zone);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) return sendError(res, 400, "VALIDATION_ERROR", "Provide a valid local date.");
+  const baseDate = new Date(`${date}T00:00:00Z`);
 
   let startTime: number;
   let endTime: number;
 
   if (type === "day") {
     const d = new Date(baseDate);
-    d.setHours(0, 0, 0, 0);
+    d.setUTCHours(0, 0, 0, 0);
     startTime = d.getTime();
-    d.setHours(23, 59, 59, 999);
+    d.setUTCHours(23, 59, 59, 999);
     endTime = d.getTime();
   } else if (type === "week") {
     const d = new Date(baseDate);
-    const dayOfWeek = d.getDay(); // 0 is Sunday
-    d.setDate(d.getDate() - dayOfWeek);
-    d.setHours(0, 0, 0, 0);
+    const weekStart = query.week_starts_on === undefined ? 0 : Number(query.week_starts_on);
+    if (!Number.isInteger(weekStart) || weekStart < 0 || weekStart > 6) return sendError(res, 400, "VALIDATION_ERROR", "week_starts_on must be 0..6.");
+    const dayOfWeek = (d.getUTCDay() - weekStart + 7) % 7;
+    d.setUTCDate(d.getUTCDate() - dayOfWeek);
+    d.setUTCHours(0, 0, 0, 0);
     startTime = d.getTime();
-    d.setDate(d.getDate() + 6);
-    d.setHours(23, 59, 59, 999);
+    d.setUTCDate(d.getUTCDate() + 6);
+    d.setUTCHours(23, 59, 59, 999);
     endTime = d.getTime();
   } else {
     // month
-    const year = baseDate.getFullYear();
-    const month = baseDate.getMonth();
-    startTime = new Date(year, month, 1, 0, 0, 0).getTime();
-    endTime = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+    const year = baseDate.getUTCFullYear();
+    const month = baseDate.getUTCMonth();
+    startTime = Date.UTC(year, month, 1, 0, 0, 0);
+    endTime = Date.UTC(year, month + 1, 0, 23, 59, 59, 999);
   }
 
   const matching = tasks.filter((t) => {
-    let tTime: number | null = null;
-    if (taskDateOf(t)) tTime = Date.parse(taskDateOf(t)!);
-
-    if (tTime && !isNaN(tTime)) {
-      return tTime >= startTime && tTime <= endTime;
-    }
-    return false;
+    const start = new Date(startTime).toISOString().slice(0, 10), end = new Date(endTime).toISOString().slice(0, 10);
+    const day = taskDayOf(t, zone);
+    if (day) return day >= start && day <= end;
+    // Period commitments belong in week/month views, not automatically Today.
+    return type !== "day" && t.planning_start && t.planning_end && t.planning_start <= end && t.planning_end >= start;
   });
 
   matching.sort((a, b) => {
@@ -789,6 +807,9 @@ async function handleGetSchedule(grant: AssistantGrant, type: "day" | "week" | "
       start: new Date(startTime).toISOString(),
       end: new Date(endTime).toISOString(),
       count: matching.length,
+      timezone: zone,
+      start_date: new Date(startTime).toISOString().slice(0, 10),
+      end_date: new Date(endTime).toISOString().slice(0, 10),
     },
   });
 }
@@ -1042,7 +1063,7 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
   }
 
   // Rate Limiting
-  const clientKey = req.headers?.authorization || req.socket?.remoteAddress || "global_client";
+  const clientKey = createHash("sha256").update(req.headers?.authorization || req.socket?.remoteAddress || "global_client").digest("hex");
   const rateLimit = checkRateLimit(clientKey);
   res.setHeader("X-RateLimit-Remaining", String(rateLimit.remaining));
   if (!rateLimit.allowed) {
@@ -1167,6 +1188,33 @@ export async function handleAgentRequest(req: any, res: any): Promise<void> {
     }
 
     // 5. /api/v1/agent/memories...
+    // Narrow general-note routes: legacy memories scopes remain compatible but
+    // do not become an implicit entitlement on new OAuth connections.
+    if (segments[0] === "notes") {
+      const required = method === "GET" ? "notes:read" : method === "POST" ? "notes:create" : "notes:update";
+      const grant = await authenticateAssistant(req, res, required);
+      if (!grant) return;
+      const general = (note: any) => (!note.kind || note.kind === "note") && !note.task_id;
+      if (segments.length === 1 && method === "GET") {
+        const notes = (await getCollectionDocs(grant, "notes")).filter(general);
+        return sendJson(res, 200, paginateList(notes, Number(req.query?.page || 1), Number(req.query?.page_size || 50)));
+      }
+      if (segments.length === 1 && method === "POST") {
+        const body = await parseBody(req);
+        if (body.kind && body.kind !== "note" || body.task_id) return sendError(res, 403, "FORBIDDEN", "Only general notes are allowed.");
+        return handleCreateMemory(grant, { ...body, kind: "note", task_id: null }, req, res);
+      }
+      if (segments.length === 2) {
+        const note = await getDocById(grant, "notes", segments[1]);
+        if (!note || !general(note)) return sendError(res, 404, "NOT_FOUND", "General note not found.");
+        if (method === "GET") return sendJson(res, 200, { data: note });
+        if (method === "PATCH") {
+          const body = await parseBody(req);
+          if (body.task_id || body.diary_date !== undefined || body.diary_mood !== undefined) return sendError(res, 403, "FORBIDDEN", "Only general note fields are allowed.");
+          return handlePatchMemory(grant, segments[1], body, res);
+        }
+      }
+    }
     if (segments[0] === "memories") {
       // GET /api/v1/agent/memories
       if (segments.length === 1 && method === "GET") {
